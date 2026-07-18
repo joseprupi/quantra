@@ -1,0 +1,38 @@
+{
+  "name": "ecb_fx_reference_rates_default",
+  "description": "ECB daily reference FX spot rates",
+  "series": [
+    {
+      "series_key": "D.USD.EUR.SP00.A",
+      "canonical_id": "EUR.FX.ECB.EURUSD.1D.SPOT",
+      "tenor": "1D",
+      "description": "ECB reference exchange rate: EUR/USD",
+      "base_currency": "EUR",
+      "quote_currency": "USD"
+    },
+    {
+      "series_key": "D.GBP.EUR.SP00.A",
+      "canonical_id": "EUR.FX.ECB.EURGBP.1D.SPOT",
+      "tenor": "1D",
+      "description": "ECB reference exchange rate: EUR/GBP",
+      "base_currency": "EUR",
+      "quote_currency": "GBP"
+    },
+    {
+      "series_key": "D.JPY.EUR.SP00.A",
+      "canonical_id": "EUR.FX.ECB.EURJPY.1D.SPOT",
+      "tenor": "1D",
+      "description": "ECB reference exchange rate: EUR/JPY",
+      "base_currency": "EUR",
+      "quote_currency": "JPY"
+    },
+    {
+      "series_key": "D.CHF.EUR.SP00.A",
+      "canonical_id": "EUR.FX.ECB.EURCHF.1D.SPOT",
+      "tenor": "1D",
+      "description": "ECB reference exchange rate: EUR/CHF",
+      "base_currency": "EUR",
+      "quote_currency": "CHF"
+    }
+  ]
+}

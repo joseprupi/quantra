@@ -1,0 +1,42 @@
+{
+  "source": "BOE",
+  "dataset": "GLC_NOMINAL_SPOT_CURVE",
+  "series": [
+    {
+      "maturity_years": 1.0,
+      "canonical_id": "GBP.RATES.BOE.GOVT.1Y.YIELD",
+      "tenor": "1Y",
+      "description": "BoE UK government nominal spot yield curve at 1Y"
+    },
+    {
+      "maturity_years": 2.0,
+      "canonical_id": "GBP.RATES.BOE.GOVT.2Y.YIELD",
+      "tenor": "2Y",
+      "description": "BoE UK government nominal spot yield curve at 2Y"
+    },
+    {
+      "maturity_years": 5.0,
+      "canonical_id": "GBP.RATES.BOE.GOVT.5Y.YIELD",
+      "tenor": "5Y",
+      "description": "BoE UK government nominal spot yield curve at 5Y"
+    },
+    {
+      "maturity_years": 10.0,
+      "canonical_id": "GBP.RATES.BOE.GOVT.10Y.YIELD",
+      "tenor": "10Y",
+      "description": "BoE UK government nominal spot yield curve at 10Y"
+    },
+    {
+      "maturity_years": 20.0,
+      "canonical_id": "GBP.RATES.BOE.GOVT.20Y.YIELD",
+      "tenor": "20Y",
+      "description": "BoE UK government nominal spot yield curve at 20Y"
+    },
+    {
+      "maturity_years": 30.0,
+      "canonical_id": "GBP.RATES.BOE.GOVT.30Y.YIELD",
+      "tenor": "30Y",
+      "description": "BoE UK government nominal spot yield curve at 30Y"
+    }
+  ]
+}

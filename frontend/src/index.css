@@ -1,0 +1,206 @@
+/* Self-hosted fonts (no third-party requests). Variable-weight woff2 files
+   vendored under public/fonts/ — Outfit and JetBrains Mono, both SIL OFL. */
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/outfit-latin-var.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/outfit-latin-ext-var.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin-var.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin-ext-var.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --black: #f0f3f8;
+  --white: #05070b;
+  --gray-100: #0d1117;
+  --gray-200: #1a1f2b;
+  --gray-300: #262f3f;
+  --gray-400: #4d5870;
+  --gray-500: #8f9ab2;
+  --gray-600: #b8c2d7;
+  --gray-700: #d2d9e6;
+  --gray-800: #e6ebf5;
+  --gray-900: #f4f7fc;
+  --accent: #b89352;
+  --accent-light: #d1b07a;
+  --accent-deep: #8a6a2f;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Outfit', -apple-system, sans-serif;
+  background: var(--white);
+  color: var(--black);
+  line-height: 1.6;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Bloomberg-ish terminal theme across existing utility classes */
+@layer base {
+  body {
+    background-color: #05070b;
+    color: #e6ebf5;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: 0.01em;
+  }
+
+  input, select, textarea {
+    background-color: #0d1117;
+    border-color: #2b3445;
+    color: #e6ebf5;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #75819b;
+  }
+
+  table {
+    color: #dce3f2;
+  }
+}
+
+@layer utilities {
+  [class*="bg-[#fafafa]"] { background-color: #05070b !important; }
+  [class*="bg-[#f5f5f5]"] { background-color: #0d1117 !important; }
+  [class*="bg-white"] { background-color: #0f131b !important; }
+
+  [class*="text-[#0a0a0a]"] { color: #f4f7fc !important; }
+  [class*="text-[#525252]"] { color: #c2cbe0 !important; }
+  [class*="text-[#737373]"] { color: #99a6c0 !important; }
+  [class*="text-[#a3a3a3]"] { color: #75819b !important; }
+
+  [class*="border-[#e5e5e5]"] {
+    border-color: #334057 !important;
+    border-width: 1.2px !important;
+  }
+  [class*="border-[#d4d4d4]"] {
+    border-color: #3a4860 !important;
+    border-width: 1.2px !important;
+  }
+  [class*="border-[#f5f5f5]"] { border-color: #1d2635 !important; }
+  [class*="bg-[#fafafa]/80"] { background-color: rgba(7, 10, 15, 0.92) !important; }
+
+  [class*="text-[#8a6a2f]"] { color: #b89352 !important; }
+  [class*="border-t-[#8a6a2f]"] { border-top-color: #b89352 !important; }
+
+  [class*="bg-[#0a0a0a]"] { background-color: #b89352 !important; }
+  [class*="bg-[#0a0a0a]"][class*="text-white"] { color: #05070b !important; }
+  [class*="hover:bg-[#262626]"]:hover { background-color: #d1b07a !important; }
+  [class*="hover:text-[#0a0a0a]"]:hover { color: #b89352 !important; }
+  [class*="focus:border-[#8a6a2f]"]:focus { border-color: #b89352 !important; }
+  [class*="focus:ring-[#8a6a2f]"]:focus { --tw-ring-color: #b89352 !important; }
+}
+
+/* Quote Book selected / expanded rows
+   The Quote Book highlights the selected/expanded row and its detail panel with
+   a pale-yellow / cream surface (bg-[#f7f4ed] / bg-[#faf9f6]) that the operator
+   likes. Those backgrounds are deliberately NOT in the terminal-theme override
+   list above, so they stay light — but the global text overrides still force
+   every text tone to a near-white color, leaving all of the row's text
+   (canonical id, class, ccy, tenor, field, the value, the expanded value-history
+   dates/values, labels, muted "—" placeholders) light-on-light = unreadable.
+
+   Within a `.qb-selected` row we flip the whole region back to a coherent LIGHT
+   panel with DARK, high-contrast amber text: nested "card" backgrounds that the
+   theme darkened (bg-white add-value panel, bg-[#f5f5f5] source chips, the
+   Edit/Delete buttons) are returned to light so their dark text reads, and every
+   text tone is remapped to a dark amber (all ≥7:1 on rgb(247,244,237) for the
+   primary/secondary cells; muted labels/dashes stay clearly legible). These
+   selectors carry higher specificity than the global single-attribute rules, so
+   they win inside the same cascade layer. Collapsed rows have no `.qb-selected`
+   class, so they keep the light-on-dark terminal look untouched. */
+@layer utilities {
+  .qb-selected [class*="bg-white"] { background-color: #fdfbf5 !important; }
+  .qb-selected [class*="bg-[#f5f5f5]"] { background-color: #ece5d5 !important; }
+
+  .qb-selected [class*="text-[#0a0a0a]"] { color: #241b02 !important; } /* primary  ~15:1 */
+  .qb-selected [class*="text-[#525252]"] { color: #453510 !important; } /* secondary ~11:1 */
+  .qb-selected [class*="text-[#737373]"] { color: #574310 !important; } /* labels    ~8:1  */
+  .qb-selected [class*="text-[#a3a3a3]"] { color: #5a4a1a !important; } /* muted/dates & dashes */
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0e15;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2c3648;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a475f;
+}
+
+/* Code/JSON editor styles */
+.font-mono {
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent);
+}

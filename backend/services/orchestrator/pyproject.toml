@@ -1,0 +1,73 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "quantra-orchestrator"
+version = "0.3.0"
+description = "Quantra pricing orchestrator: the single public REST API for the portal and external clients."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "AGPL-3.0-only" }
+authors = [{ name = "Quantra Engineering" }]
+keywords = ["quantra", "orchestrator", "fastapi"]
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "quantra-common",
+    # D164 / MD-5 — the sanctioned user market-data import route
+    # (``POST /v1/market-data/import``) reuses the ingester's SHARED,
+    # connector-free writer (``quantra_md_ingester.writer`` /
+    # ``quantra_md_ingester.user_import``) so the ``md.quote_points`` /
+    # ``md.canonical_ids`` upsert SQL is single-sourced, not duplicated
+    # into the orchestrator. ``user_import``/``writer`` deliberately do
+    # NOT import the network vendor connectors (or openpyxl), so this
+    # edge stays light despite pulling the ingester package.
+    "quantra-md-ingester",
+    # ``python-multipart`` backs FastAPI's multipart/form-data parsing
+    # (``await request.form()``) for the CSV upload half of the import
+    # route. Small, pure-Python; declared explicitly rather than leaned
+    # on transitively.
+    "python-multipart>=0.0.9",
+    # FastAPI / pydantic / asyncpg / httpx come transitively through
+    # quantra-common (pinned in the workspace lockfile per D18). uvicorn is
+    # the production server entry point and is service-local because each
+    # service picks its own runner — the MD service ships the same way.
+    "uvicorn[standard]>=0.30",
+    # grpcio is service-local on purpose: the orchestrator is the only
+    # process that talks gRPC to the pricing engine. Per D22, the shared
+    # ``quantra-common`` package deliberately *does not* take grpcio as a
+    # runtime dep so the engine's deploy cadence (D5) doesn't tug on
+    # every monorepo service. The engine-client wiring (plan 05) builds
+    # the channel + interceptor here using grpc.aio.
+    "grpcio>=1.66.0",
+    # flatbuffers is the orchestrator's request/response wire codec for
+    # every engine RPC (D7). The vendored engine-schema bindings live in
+    # ``quantra_common.engine_client._generated.quantra.*`` (D83); they
+    # ``import flatbuffers`` at module load. We list ``flatbuffers`` as
+    # an orchestrator-local dep (mirroring the ``grpcio`` posture above)
+    # so ``quantra-common`` itself stays codec-free for hermetic users
+    # that only need the ABC + Stub backend.
+    "flatbuffers>=24.12.23",
+    # D136 / 17d — prometheus exposition for /metrics. Service-local
+    # (mirrors grpcio / flatbuffers) so quantra-common stays free of
+    # a metrics-runtime dep; the MD service can grow its own /metrics
+    # under the same posture without sharing a registry. The library
+    # ships both a CollectorRegistry + generate_latest exposition
+    # writer and a ``prometheus_client.parser`` we use in tests to
+    # verify the response parses as valid Prometheus exposition.
+    "prometheus-client>=0.20",
+]
+
+[project.optional-dependencies]
+test = [
+    # FastAPI's TestClient pulls httpx; quantra-common already exposes it
+    # transitively but listing it here keeps the test dependency intent
+    # explicit and survives any future tightening of the shared deps.
+    "httpx>=0.27",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quantra_orchestrator"]

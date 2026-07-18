@@ -1,0 +1,47 @@
+node_modules/
+dist/
+.firebase/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test/build output
+coverage/
+.cache/
+.vite/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Environment/local secrets
+.env
+.env.*
+!.env.example
+# Hermetic vitest env (dummy values only — no secrets)
+!.env.test
+
+# Local/internal working files (never ship)
+tmp/
+ops/
+*.tar.gz
+.cursorignore
+AGENT_CONTEXT.md
+API_CONTRACT.md
+
+# OS/editor artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Provisioning secrets (real user roster + generated passwords/API keys)
+scripts/users.yaml
+scripts/credentials.out.txt
+scripts/*.json
+!scripts/package*.json
+scripts/.venv/
+

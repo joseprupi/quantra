@@ -1,0 +1,6231 @@
+{
+  "version": "1.1",
+  "exportedAt": "2026-02-09T12:00:00.000Z",
+  "indices": [
+    {
+      "id": "ESTR",
+      "name": "ESTR",
+      "index_type": "Overnight",
+      "currency": "EUR",
+      "tenor_number": 0,
+      "tenor_time_unit": "Days",
+      "fixing_days": 0,
+      "calendar": "TARGET",
+      "day_counter": "Actual360",
+      "description": "Euro Short-Term Rate",
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "SOFR",
+      "name": "SOFR",
+      "index_type": "Overnight",
+      "currency": "USD",
+      "tenor_number": 0,
+      "tenor_time_unit": "Days",
+      "fixing_days": 0,
+      "calendar": "UnitedStates",
+      "day_counter": "Actual360",
+      "description": "Secured Overnight Financing Rate",
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "USD_SOFR",
+      "name": "SOFR",
+      "index_type": "Overnight",
+      "currency": "USD",
+      "tenor_number": 0,
+      "tenor_time_unit": "Days",
+      "fixing_days": 0,
+      "calendar": "UnitedStatesGovernmentBond",
+      "business_day_convention": "Following",
+      "day_counter": "Actual360",
+      "description": "SOFR (US Gov Bond calendar)",
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "SONIA",
+      "name": "SONIA",
+      "index_type": "Overnight",
+      "currency": "GBP",
+      "tenor_number": 0,
+      "tenor_time_unit": "Days",
+      "fixing_days": 0,
+      "calendar": "UnitedKingdom",
+      "day_counter": "Actual365Fixed",
+      "description": "Sterling Overnight Index Average",
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "EURIBOR_6M",
+      "name": "Euribor",
+      "index_type": "Ibor",
+      "currency": "EUR",
+      "tenor_number": 6,
+      "tenor_time_unit": "Months",
+      "fixing_days": 2,
+      "calendar": "TARGET",
+      "business_day_convention": "ModifiedFollowing",
+      "day_counter": "Actual360",
+      "end_of_month": false,
+      "description": "Euribor 6M",
+      "fixings": [
+        {
+          "date": "2025-06-12",
+          "value": 0.027
+        },
+        {
+          "date": "2025-12-11",
+          "value": 0.0275
+        }
+      ],
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "EURIBOR_3M",
+      "name": "Euribor",
+      "index_type": "Ibor",
+      "currency": "EUR",
+      "tenor_number": 3,
+      "tenor_time_unit": "Months",
+      "fixing_days": 2,
+      "calendar": "TARGET",
+      "business_day_convention": "ModifiedFollowing",
+      "day_counter": "Actual360",
+      "end_of_month": false,
+      "description": "Euribor 3M",
+      "fixings": [
+        {
+          "date": "2025-03-18",
+          "value": 0.0282
+        },
+        {
+          "date": "2025-06-18",
+          "value": 0.0278
+        },
+        {
+          "date": "2025-09-18",
+          "value": 0.0272
+        },
+        {
+          "date": "2025-12-18",
+          "value": 0.0271
+        }
+      ],
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "EURIBOR_1M",
+      "name": "Euribor",
+      "index_type": "Ibor",
+      "currency": "EUR",
+      "tenor_number": 1,
+      "tenor_time_unit": "Months",
+      "fixing_days": 2,
+      "calendar": "TARGET",
+      "business_day_convention": "ModifiedFollowing",
+      "day_counter": "Actual360",
+      "end_of_month": false,
+      "description": "Euribor 1M",
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "EUHICP",
+      "type": "Inflation",
+      "family_name": "EU HICP",
+      "currency": "EUR",
+      "frequency": "Monthly",
+      "availability_lag": {
+        "n": 2,
+        "unit": "Months"
+      },
+      "observation_lag": {
+        "n": 3,
+        "unit": "Months"
+      },
+      "interpolated": true,
+      "revised": false,
+      "kind": "ZeroInflation",
+      "fixing_days": 0,
+      "calendar": "TARGET",
+      "day_counter": "Actual365Fixed",
+      "description": "EU HICP zero inflation index used by inflation swap examples",
+      "fixings": [
+        {
+          "date": "2025-10-01",
+          "value": 108.4
+        },
+        {
+          "date": "2025-11-01",
+          "value": 108.6
+        },
+        {
+          "date": "2025-12-01",
+          "value": 108.9
+        }
+      ],
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "EUHICP_YY",
+      "type": "Inflation",
+      "family_name": "EU HICP YoY",
+      "currency": "EUR",
+      "frequency": "Monthly",
+      "availability_lag": {
+        "n": 2,
+        "unit": "Months"
+      },
+      "observation_lag": {
+        "n": 3,
+        "unit": "Months"
+      },
+      "interpolated": true,
+      "revised": false,
+      "kind": "YoYInflation",
+      "fixing_days": 0,
+      "calendar": "TARGET",
+      "day_counter": "Actual365Fixed",
+      "description": "EU HICP YoY inflation index used by inflation swap examples",
+      "fixings": [
+        {
+          "date": "2025-10-01",
+          "value": 0.0186
+        },
+        {
+          "date": "2025-11-01",
+          "value": 0.0191
+              },
+              {
+                "date": "2025-12-01",
+                "value": 0.0194
+        }
+      ],
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    }
+  ],
+  "quotes": [
+    {
+      "id": "EUR_DEPO_ON",
+      "label": "EUR O/N Deposit",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.029
+    },
+    {
+      "id": "EUR_DEPO_1M",
+      "label": "EUR 1M Deposit",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0295
+    },
+    {
+      "id": "EUR_DEPO_3M",
+      "label": "EUR 3M Deposit",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0288
+    },
+    {
+      "id": "EUR_DEPO_6M",
+      "label": "EUR 6M Deposit",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0275
+    },
+    {
+      "id": "EUR_OIS_1W",
+      "label": "EUR 1W ESTR OIS",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0288
+    },
+    {
+      "id": "EUR_OIS_1M",
+      "label": "EUR 1M ESTR OIS",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0285
+    },
+    {
+      "id": "EUR_OIS_3M",
+      "label": "EUR 3M ESTR OIS",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0278
+    },
+    {
+      "id": "EUR_OIS_6M",
+      "label": "EUR 6M ESTR OIS",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0265
+    },
+    {
+      "id": "EUR_OIS_1Y",
+      "label": "EUR 1Y ESTR OIS",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.025
+    },
+    {
+      "id": "EUR_OIS_2Y",
+      "label": "EUR 2Y ESTR OIS",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.024
+    },
+    {
+      "id": "EUR_OIS_5Y",
+      "label": "EUR 5Y ESTR OIS",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0235
+    },
+    {
+      "id": "EUR_OIS_10Y",
+      "label": "EUR 10Y ESTR OIS",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0255
+    },
+    {
+      "id": "EUR_OIS_20Y",
+      "label": "EUR 20Y ESTR OIS",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.027
+    },
+    {
+      "id": "EUR_OIS_30Y",
+      "label": "EUR 30Y ESTR OIS",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0265
+    },
+    {
+      "id": "EUR_IRS_1Y",
+      "label": "EUR 1Y IRS vs 6M",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.026
+    },
+    {
+      "id": "EUR_IRS_2Y",
+      "label": "EUR 2Y IRS vs 6M",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.025
+    },
+    {
+      "id": "EUR_IRS_3Y",
+      "label": "EUR 3Y IRS vs 6M",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0245
+    },
+    {
+      "id": "EUR_IRS_5Y",
+      "label": "EUR 5Y IRS vs 6M",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0242
+    },
+    {
+      "id": "EUR_IRS_7Y",
+      "label": "EUR 7Y IRS vs 6M",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0255
+    },
+    {
+      "id": "EUR_IRS_10Y",
+      "label": "EUR 10Y IRS vs 6M",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.027
+    },
+    {
+      "id": "EUR_IRS_15Y",
+      "label": "EUR 15Y IRS vs 6M",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.028
+    },
+    {
+      "id": "EUR_IRS_20Y",
+      "label": "EUR 20Y IRS vs 6M",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0285
+    },
+    {
+      "id": "EUR_IRS_30Y",
+      "label": "EUR 30Y IRS vs 6M",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.028
+    },
+    {
+      "id": "USD_DEPO_ON",
+      "label": "USD O/N Deposit",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 0.0435
+    },
+    {
+      "id": "USD_DEPO_1M",
+      "label": "USD 1M Deposit",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 0.0433
+    },
+    {
+      "id": "USD_DEPO_3M",
+      "label": "USD 3M Deposit",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 0.0425
+    },
+    {
+      "id": "USD_DEPO_6M",
+      "label": "USD 6M Deposit",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 0.0415
+    },
+    {
+      "id": "USD_IRS_1Y",
+      "label": "USD 1Y SOFR Swap",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 0.04
+    },
+    {
+      "id": "USD_IRS_2Y",
+      "label": "USD 2Y SOFR Swap",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 0.038
+    },
+    {
+      "id": "USD_IRS_5Y",
+      "label": "USD 5Y SOFR Swap",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 0.037
+    },
+    {
+      "id": "USD_IRS_10Y",
+      "label": "USD 10Y SOFR Swap",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 0.039
+    },
+    {
+      "id": "USD_IRS_30Y",
+      "label": "USD 30Y SOFR Swap",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 0.041
+    },
+    {
+      "id": "GBP_DEPO_ON",
+      "label": "GBP O/N Deposit",
+      "kind": "Rate",
+      "currency": "GBP",
+      "value": 0.045
+    },
+    {
+      "id": "GBP_OIS_1W",
+      "label": "GBP 1W SONIA OIS",
+      "kind": "Rate",
+      "currency": "GBP",
+      "value": 0.0448
+    },
+    {
+      "id": "GBP_OIS_1M",
+      "label": "GBP 1M SONIA OIS",
+      "kind": "Rate",
+      "currency": "GBP",
+      "value": 0.0445
+    },
+    {
+      "id": "GBP_OIS_3M",
+      "label": "GBP 3M SONIA OIS",
+      "kind": "Rate",
+      "currency": "GBP",
+      "value": 0.0435
+    },
+    {
+      "id": "GBP_OIS_6M",
+      "label": "GBP 6M SONIA OIS",
+      "kind": "Rate",
+      "currency": "GBP",
+      "value": 0.042
+    },
+    {
+      "id": "GBP_OIS_1Y",
+      "label": "GBP 1Y SONIA OIS",
+      "kind": "Rate",
+      "currency": "GBP",
+      "value": 0.04
+    },
+    {
+      "id": "GBP_OIS_2Y",
+      "label": "GBP 2Y SONIA OIS",
+      "kind": "Rate",
+      "currency": "GBP",
+      "value": 0.0385
+    },
+    {
+      "id": "GBP_OIS_5Y",
+      "label": "GBP 5Y SONIA OIS",
+      "kind": "Rate",
+      "currency": "GBP",
+      "value": 0.038
+    },
+    {
+      "id": "GBP_OIS_10Y",
+      "label": "GBP 10Y SONIA OIS",
+      "kind": "Rate",
+      "currency": "GBP",
+      "value": 0.04
+    },
+    {
+      "id": "GBP_OIS_30Y",
+      "label": "GBP 30Y SONIA OIS",
+      "kind": "Rate",
+      "currency": "GBP",
+      "value": 0.0415
+    },
+    {
+      "id": "SWAPTION_1Y_1Y",
+      "label": "Swaption Vol 1Yx1Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0048,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_1Y_2Y",
+      "label": "Swaption Vol 1Yx2Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.005,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_1Y_5Y",
+      "label": "Swaption Vol 1Yx5Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0055,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_1Y_10Y",
+      "label": "Swaption Vol 1Yx10Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0059,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_2Y_1Y",
+      "label": "Swaption Vol 2Yx1Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0049,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_2Y_2Y",
+      "label": "Swaption Vol 2Yx2Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0051,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_2Y_5Y",
+      "label": "Swaption Vol 2Yx5Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0056,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_2Y_10Y",
+      "label": "Swaption Vol 2Yx10Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.006,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_3Y_1Y",
+      "label": "Swaption Vol 3Yx1Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.005,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_3Y_2Y",
+      "label": "Swaption Vol 3Yx2Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0052,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_3Y_5Y",
+      "label": "Swaption Vol 3Yx5Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0057,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_3Y_10Y",
+      "label": "Swaption Vol 3Yx10Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0062,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_5Y_1Y",
+      "label": "Swaption Vol 5Yx1Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0052,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_5Y_2Y",
+      "label": "Swaption Vol 5Yx2Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0054,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_5Y_5Y",
+      "label": "Swaption Vol 5Yx5Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.006,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "SWAPTION_5Y_10Y",
+      "label": "Swaption Vol 5Yx10Y",
+      "kind": "Rate",
+      "currency": "EUR",
+      "value": 0.0065,
+      "quote_type": "Volatility"
+    },
+    {
+      "id": "EUR_CDS_1Y",
+      "label": "EUR Corp CDS 1Y",
+      "kind": "Spread",
+      "currency": "EUR",
+      "value": 0.008,
+      "quote_type": "Credit"
+    },
+    {
+      "id": "EUR_CDS_3Y",
+      "label": "EUR Corp CDS 3Y",
+      "kind": "Spread",
+      "currency": "EUR",
+      "value": 0.01,
+      "quote_type": "Credit"
+    },
+    {
+      "id": "EUR_CDS_5Y",
+      "label": "EUR Corp CDS 5Y",
+      "kind": "Spread",
+      "currency": "EUR",
+      "value": 0.012,
+      "quote_type": "Credit"
+    },
+    {
+      "id": "EUR_CDS_7Y",
+      "label": "EUR Corp CDS 7Y",
+      "kind": "Spread",
+      "currency": "EUR",
+      "value": 0.0135,
+      "quote_type": "Credit"
+    },
+    {
+      "id": "EQ_AAPL_SPOT",
+      "label": "AAPL Spot",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 101.35,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260320_K080",
+      "label": "AAPL Call 2026-03-20 K=80",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 21.85,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260320_K090",
+      "label": "AAPL Call 2026-03-20 K=90",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 11.95,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260320_K100",
+      "label": "AAPL Call 2026-03-20 K=100",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 3.62,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260320_K110",
+      "label": "AAPL Call 2026-03-20 K=110",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 0.86,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260320_K120",
+      "label": "AAPL Call 2026-03-20 K=120",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 0.19,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260619_K080",
+      "label": "AAPL Call 2026-06-19 K=80",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 22.45,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260619_K090",
+      "label": "AAPL Call 2026-06-19 K=90",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 12.94,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260619_K100",
+      "label": "AAPL Call 2026-06-19 K=100",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 6.21,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260619_K110",
+      "label": "AAPL Call 2026-06-19 K=110",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 2.31,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260619_K120",
+      "label": "AAPL Call 2026-06-19 K=120",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 0.77,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260918_K080",
+      "label": "AAPL Call 2026-09-18 K=80",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 22.94,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260918_K090",
+      "label": "AAPL Call 2026-09-18 K=90",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 14.63,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260918_K100",
+      "label": "AAPL Call 2026-09-18 K=100",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 8.57,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260918_K110",
+      "label": "AAPL Call 2026-09-18 K=110",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 4.48,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20260918_K120",
+      "label": "AAPL Call 2026-09-18 K=120",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 2.11,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20270219_K080",
+      "label": "AAPL Call 2027-02-19 K=80",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 24.88,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20270219_K090",
+      "label": "AAPL Call 2027-02-19 K=90",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 17.21,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20270219_K100",
+      "label": "AAPL Call 2027-02-19 K=100",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 12.14,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20270219_K110",
+      "label": "AAPL Call 2027-02-19 K=110",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 7.98,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20270219_K120",
+      "label": "AAPL Call 2027-02-19 K=120",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 5.25,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20280218_K080",
+      "label": "AAPL Call 2028-02-18 K=80",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 27.66,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20280218_K090",
+      "label": "AAPL Call 2028-02-18 K=90",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 21.11,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20280218_K100",
+      "label": "AAPL Call 2028-02-18 K=100",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 16.67,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20280218_K110",
+      "label": "AAPL Call 2028-02-18 K=110",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 13.12,
+      "quote_type": "Curve"
+    },
+    {
+      "id": "EQ_AAPL_C_20280218_K120",
+      "label": "AAPL Call 2028-02-18 K=120",
+      "kind": "Rate",
+      "currency": "USD",
+      "value": 10.08,
+      "quote_type": "Curve"
+    }
+  ],
+  "curves": [
+    {
+      "id": "eur-estr-discount",
+      "name": "EUR ESTR Discount",
+      "description": "EUR OIS discount curve from ESTR overnight index swaps",
+      "currency": "EUR",
+      "role": "discount",
+      "day_counter": "Actual365Fixed",
+      "interpolator": "LogLinear",
+      "bootstrap_trait": "Discount",
+      "reference_date": "2026-02-09",
+      "points": [
+        {
+          "point_type": "DepositHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Days",
+            "fixing_days": 0,
+            "calendar": "TARGET",
+            "business_day_convention": "ModifiedFollowing",
+            "day_counter": "Actual360",
+            "rate": 0.029
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Weeks",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "ESTR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.0288
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Months",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "ESTR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.0285
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 3,
+            "tenor_time_unit": "Months",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "ESTR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.0278
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 6,
+            "tenor_time_unit": "Months",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "ESTR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.0265
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Years",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "ESTR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.025
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 2,
+            "tenor_time_unit": "Years",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "ESTR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.024
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 5,
+            "tenor_time_unit": "Years",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "ESTR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.0235
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 10,
+            "tenor_time_unit": "Years",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "ESTR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.0255
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 20,
+            "tenor_time_unit": "Years",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "ESTR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.027
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 30,
+            "tenor_time_unit": "Years",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "ESTR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.0265
+          }
+        }
+      ],
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "eur-euribor-6m-forward",
+      "name": "EUR Euribor 6M Forward",
+      "description": "EUR forward curve for Euribor 6M with dual-curve stripping against ESTR discount",
+      "currency": "EUR",
+      "role": "forward",
+      "discount_curve_id": "eur-estr-discount",
+      "day_counter": "Actual365Fixed",
+      "interpolator": "LogLinear",
+      "bootstrap_trait": "Discount",
+      "reference_date": "2026-02-09",
+      "points": [
+        {
+          "point_type": "DepositHelper",
+          "point": {
+            "tenor_number": 6,
+            "tenor_time_unit": "Months",
+            "fixing_days": 2,
+            "calendar": "TARGET",
+            "business_day_convention": "ModifiedFollowing",
+            "day_counter": "Actual360",
+            "rate": 0.0275
+          }
+        },
+        {
+          "point_type": "SwapHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Years",
+            "calendar": "TARGET",
+            "sw_fixed_leg_frequency": "Annual",
+            "sw_fixed_leg_convention": "ModifiedFollowing",
+            "sw_fixed_leg_day_counter": "Thirty360",
+            "float_index": {
+              "id": "EURIBOR_6M"
+            },
+            "spread": 0,
+            "fwd_start_days": 0,
+            "rate": 0.026
+          }
+        },
+        {
+          "point_type": "SwapHelper",
+          "point": {
+            "tenor_number": 2,
+            "tenor_time_unit": "Years",
+            "calendar": "TARGET",
+            "sw_fixed_leg_frequency": "Annual",
+            "sw_fixed_leg_convention": "ModifiedFollowing",
+            "sw_fixed_leg_day_counter": "Thirty360",
+            "float_index": {
+              "id": "EURIBOR_6M"
+            },
+            "spread": 0,
+            "fwd_start_days": 0,
+            "rate": 0.025
+          }
+        },
+        {
+          "point_type": "SwapHelper",
+          "point": {
+            "tenor_number": 3,
+            "tenor_time_unit": "Years",
+            "calendar": "TARGET",
+            "sw_fixed_leg_frequency": "Annual",
+            "sw_fixed_leg_convention": "ModifiedFollowing",
+            "sw_fixed_leg_day_counter": "Thirty360",
+            "float_index": {
+              "id": "EURIBOR_6M"
+            },
+            "spread": 0,
+            "fwd_start_days": 0,
+            "rate": 0.0245
+          }
+        },
+        {
+          "point_type": "SwapHelper",
+          "point": {
+            "tenor_number": 5,
+            "tenor_time_unit": "Years",
+            "calendar": "TARGET",
+            "sw_fixed_leg_frequency": "Annual",
+            "sw_fixed_leg_convention": "ModifiedFollowing",
+            "sw_fixed_leg_day_counter": "Thirty360",
+            "float_index": {
+              "id": "EURIBOR_6M"
+            },
+            "spread": 0,
+            "fwd_start_days": 0,
+            "rate": 0.0242
+          }
+        },
+        {
+          "point_type": "SwapHelper",
+          "point": {
+            "tenor_number": 7,
+            "tenor_time_unit": "Years",
+            "calendar": "TARGET",
+            "sw_fixed_leg_frequency": "Annual",
+            "sw_fixed_leg_convention": "ModifiedFollowing",
+            "sw_fixed_leg_day_counter": "Thirty360",
+            "float_index": {
+              "id": "EURIBOR_6M"
+            },
+            "spread": 0,
+            "fwd_start_days": 0,
+            "rate": 0.0255
+          }
+        },
+        {
+          "point_type": "SwapHelper",
+          "point": {
+            "tenor_number": 10,
+            "tenor_time_unit": "Years",
+            "calendar": "TARGET",
+            "sw_fixed_leg_frequency": "Annual",
+            "sw_fixed_leg_convention": "ModifiedFollowing",
+            "sw_fixed_leg_day_counter": "Thirty360",
+            "float_index": {
+              "id": "EURIBOR_6M"
+            },
+            "spread": 0,
+            "fwd_start_days": 0,
+            "rate": 0.027
+          }
+        },
+        {
+          "point_type": "SwapHelper",
+          "point": {
+            "tenor_number": 15,
+            "tenor_time_unit": "Years",
+            "calendar": "TARGET",
+            "sw_fixed_leg_frequency": "Annual",
+            "sw_fixed_leg_convention": "ModifiedFollowing",
+            "sw_fixed_leg_day_counter": "Thirty360",
+            "float_index": {
+              "id": "EURIBOR_6M"
+            },
+            "spread": 0,
+            "fwd_start_days": 0,
+            "rate": 0.028
+          }
+        },
+        {
+          "point_type": "SwapHelper",
+          "point": {
+            "tenor_number": 20,
+            "tenor_time_unit": "Years",
+            "calendar": "TARGET",
+            "sw_fixed_leg_frequency": "Annual",
+            "sw_fixed_leg_convention": "ModifiedFollowing",
+            "sw_fixed_leg_day_counter": "Thirty360",
+            "float_index": {
+              "id": "EURIBOR_6M"
+            },
+            "spread": 0,
+            "fwd_start_days": 0,
+            "rate": 0.0285
+          }
+        },
+        {
+          "point_type": "SwapHelper",
+          "point": {
+            "tenor_number": 30,
+            "tenor_time_unit": "Years",
+            "calendar": "TARGET",
+            "sw_fixed_leg_frequency": "Annual",
+            "sw_fixed_leg_convention": "ModifiedFollowing",
+            "sw_fixed_leg_day_counter": "Thirty360",
+            "float_index": {
+              "id": "EURIBOR_6M"
+            },
+            "spread": 0,
+            "fwd_start_days": 0,
+            "rate": 0.028
+          }
+        }
+      ],
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "eur-hicp-inflation",
+      "name": "EUR HICP Inflation",
+      "description": "EUR zero inflation curve for EU HICP linked to the EUR discount curve",
+      "currency": "EUR",
+      "role": "inflation",
+      "discount_curve_id": "eur-estr-discount",
+      "day_counter": "Actual365Fixed",
+      "interpolator": "Linear",
+      "bootstrap_trait": "Discount",
+      "reference_date": "2026-02-09",
+      "points": [],
+      "inflation_curve": {
+        "kind": "ZeroInflation",
+        "payload_type": "ZeroInflationCurveFromZcSwapsSpec",
+        "index": {
+          "id": "EUHICP",
+          "family_name": "EU HICP",
+          "currency": "EUR",
+          "calendar": "TARGET",
+          "day_counter": "Actual365Fixed",
+          "frequency": "Monthly",
+          "availability_lag": {
+            "n": 2,
+            "unit": "Months"
+          },
+          "observation_lag": {
+            "n": 3,
+            "unit": "Months"
+          },
+          "interpolated": true,
+          "revised": false,
+          "kind": "ZeroInflation"
+        },
+        "calendar": "TARGET",
+        "business_day_convention": "ModifiedFollowing",
+        "day_counter": "Actual365Fixed",
+        "interpolator": "Linear",
+        "allow_extrapolation": true,
+        "pillars": [
+          {
+            "maturity": {
+              "n": 1,
+              "unit": "Years"
+            },
+            "quote_value": 0.019
+          },
+          {
+            "maturity": {
+              "n": 2,
+              "unit": "Years"
+            },
+            "quote_value": 0.0195
+          },
+          {
+            "maturity": {
+              "n": 5,
+              "unit": "Years"
+            },
+            "quote_value": 0.0205
+          },
+          {
+            "maturity": {
+              "n": 10,
+              "unit": "Years"
+            },
+            "quote_value": 0.0215
+          },
+          {
+            "maturity": {
+              "n": 20,
+              "unit": "Years"
+            },
+            "quote_value": 0.022
+          },
+          {
+            "maturity": {
+              "n": 30,
+              "unit": "Years"
+            },
+            "quote_value": 0.0222
+          }
+        ]
+      },
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "usd-sofr-discount",
+      "name": "USD SOFR Discount",
+      "description": "USD OIS discount curve from SOFR overnight index swaps",
+      "currency": "USD",
+      "role": "discount",
+      "day_counter": "Actual365Fixed",
+      "interpolator": "LogLinear",
+      "bootstrap_trait": "Discount",
+      "reference_date": "2026-02-09",
+      "points": [
+        {
+          "point_type": "DepositHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Days",
+            "fixing_days": 0,
+            "calendar": "UnitedStates",
+            "business_day_convention": "ModifiedFollowing",
+            "day_counter": "Actual360",
+            "rate": 0.0435
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Weeks",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "SOFR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.0433
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Months",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "SOFR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.043
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 3,
+            "tenor_time_unit": "Months",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "SOFR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.0425
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 6,
+            "tenor_time_unit": "Months",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "SOFR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.0415
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Years",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "SOFR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.04
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 2,
+            "tenor_time_unit": "Years",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "SOFR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.038
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 5,
+            "tenor_time_unit": "Years",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "SOFR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.037
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 10,
+            "tenor_time_unit": "Years",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "SOFR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.039
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 30,
+            "tenor_time_unit": "Years",
+            "settlement_days": 2,
+            "overnight_index": {
+              "id": "SOFR"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360",
+            "rate": 0.041
+          }
+        }
+      ],
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "USD_SOFR",
+      "name": "USD SOFR OIS (BBG)",
+      "description": "USD SOFR OIS curve for Bloomberg swaption example",
+      "currency": "USD",
+      "role": "discount",
+      "day_counter": "Actual360",
+      "interpolator": "BackwardFlat",
+      "bootstrap_trait": "FwdRate",
+      "reference_date": "2024-08-14",
+      "points": [
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.053344,
+            "tenor_number": 1,
+            "tenor_time_unit": "Weeks",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.0533509,
+            "tenor_number": 2,
+            "tenor_time_unit": "Weeks",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.0533938,
+            "tenor_number": 3,
+            "tenor_time_unit": "Weeks",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.053444,
+            "tenor_number": 1,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.0521415,
+            "tenor_number": 2,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.051254,
+            "tenor_number": 3,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.050361,
+            "tenor_number": 4,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.049173,
+            "tenor_number": 5,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.048025,
+            "tenor_number": 6,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.0472188,
+            "tenor_number": 7,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.046232,
+            "tenor_number": 8,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.045383,
+            "tenor_number": 9,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.0445405,
+            "tenor_number": 10,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.043765,
+            "tenor_number": 11,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.042998,
+            "tenor_number": 12,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.0394167,
+            "tenor_number": 18,
+            "tenor_time_unit": "Months",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.037475,
+            "tenor_number": 2,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.035274,
+            "tenor_number": 3,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.034245,
+            "tenor_number": 4,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.0338055,
+            "tenor_number": 5,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.033651,
+            "tenor_number": 6,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.033614,
+            "tenor_number": 7,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.033668,
+            "tenor_number": 8,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.03376,
+            "tenor_number": 9,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.033878,
+            "tenor_number": 10,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.034187,
+            "tenor_number": 12,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.034542,
+            "tenor_number": 15,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.034553,
+            "tenor_number": 20,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.033878,
+            "tenor_number": 25,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.033088,
+            "tenor_number": 30,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.031135,
+            "tenor_number": 40,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "rate": 0.02921,
+            "tenor_number": 50,
+            "tenor_time_unit": "Years",
+            "overnight_index": {
+              "id": "USD_SOFR"
+            },
+            "settlement_days": 2,
+            "calendar": "UnitedStatesGovernmentBond",
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual360"
+          }
+        }
+      ],
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "gbp-sonia-discount",
+      "name": "GBP SONIA Discount",
+      "description": "GBP OIS discount curve from SONIA overnight index swaps",
+      "currency": "GBP",
+      "role": "discount",
+      "day_counter": "Actual365Fixed",
+      "interpolator": "LogLinear",
+      "bootstrap_trait": "Discount",
+      "reference_date": "2026-02-09",
+      "points": [
+        {
+          "point_type": "DepositHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Days",
+            "fixing_days": 0,
+            "calendar": "UnitedKingdom",
+            "business_day_convention": "ModifiedFollowing",
+            "day_counter": "Actual365Fixed",
+            "rate": 0.045
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Weeks",
+            "settlement_days": 0,
+            "overnight_index": {
+              "id": "SONIA"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual365Fixed",
+            "rate": 0.0448
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Months",
+            "settlement_days": 0,
+            "overnight_index": {
+              "id": "SONIA"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual365Fixed",
+            "rate": 0.0445
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 3,
+            "tenor_time_unit": "Months",
+            "settlement_days": 0,
+            "overnight_index": {
+              "id": "SONIA"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual365Fixed",
+            "rate": 0.0435
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 6,
+            "tenor_time_unit": "Months",
+            "settlement_days": 0,
+            "overnight_index": {
+              "id": "SONIA"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual365Fixed",
+            "rate": 0.042
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 1,
+            "tenor_time_unit": "Years",
+            "settlement_days": 0,
+            "overnight_index": {
+              "id": "SONIA"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual365Fixed",
+            "rate": 0.04
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 2,
+            "tenor_time_unit": "Years",
+            "settlement_days": 0,
+            "overnight_index": {
+              "id": "SONIA"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual365Fixed",
+            "rate": 0.0385
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 5,
+            "tenor_time_unit": "Years",
+            "settlement_days": 0,
+            "overnight_index": {
+              "id": "SONIA"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual365Fixed",
+            "rate": 0.038
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 10,
+            "tenor_time_unit": "Years",
+            "settlement_days": 0,
+            "overnight_index": {
+              "id": "SONIA"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual365Fixed",
+            "rate": 0.04
+          }
+        },
+        {
+          "point_type": "OISHelper",
+          "point": {
+            "tenor_number": 30,
+            "tenor_time_unit": "Years",
+            "settlement_days": 0,
+            "overnight_index": {
+              "id": "SONIA"
+            },
+            "fixed_leg_frequency": "Annual",
+            "fixed_leg_convention": "ModifiedFollowing",
+            "fixed_leg_day_counter": "Actual365Fixed",
+            "rate": 0.0415
+          }
+        }
+      ],
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    }
+  ],
+  "curveSets": [
+    {
+      "id": "cset_eur_multicurve",
+      "name": "EUR Multi-Curve Set",
+      "description": "EUR dual-curve framework: ESTR discount + Euribor 6M forward",
+      "currency": "EUR",
+      "as_of_date": "2026-02-09",
+      "curves": [
+        {
+          "id": "eur-estr-discount",
+          "name": "EUR ESTR Discount",
+          "description": "EUR OIS discount curve from ESTR overnight index swaps",
+          "currency": "EUR",
+          "role": "discount",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "Discount",
+          "reference_date": "2026-02-09",
+          "points": [
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "tenor_number": 1,
+                "tenor_time_unit": "Days",
+                "fixing_days": 0,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual360",
+                "quote_id": "EUR_DEPO_ON"
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "tenor_number": 1,
+                "tenor_time_unit": "Weeks",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "fixed_leg_frequency": "Annual",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "quote_id": "EUR_OIS_1W"
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "tenor_number": 1,
+                "tenor_time_unit": "Months",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "fixed_leg_frequency": "Annual",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "quote_id": "EUR_OIS_1M"
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "tenor_number": 3,
+                "tenor_time_unit": "Months",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "fixed_leg_frequency": "Annual",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "quote_id": "EUR_OIS_3M"
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "tenor_number": 6,
+                "tenor_time_unit": "Months",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "fixed_leg_frequency": "Annual",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "quote_id": "EUR_OIS_6M"
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "tenor_number": 1,
+                "tenor_time_unit": "Years",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "fixed_leg_frequency": "Annual",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "quote_id": "EUR_OIS_1Y"
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "tenor_number": 2,
+                "tenor_time_unit": "Years",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "fixed_leg_frequency": "Annual",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "quote_id": "EUR_OIS_2Y"
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "tenor_number": 5,
+                "tenor_time_unit": "Years",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "fixed_leg_frequency": "Annual",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "quote_id": "EUR_OIS_5Y"
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "tenor_number": 10,
+                "tenor_time_unit": "Years",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "fixed_leg_frequency": "Annual",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "quote_id": "EUR_OIS_10Y"
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "tenor_number": 20,
+                "tenor_time_unit": "Years",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "fixed_leg_frequency": "Annual",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "quote_id": "EUR_OIS_20Y"
+              }
+            },
+            {
+              "point_type": "OISHelper",
+              "point": {
+                "tenor_number": 30,
+                "tenor_time_unit": "Years",
+                "settlement_days": 2,
+                "overnight_index": {
+                  "id": "ESTR"
+                },
+                "fixed_leg_frequency": "Annual",
+                "fixed_leg_convention": "ModifiedFollowing",
+                "fixed_leg_day_counter": "Actual360",
+                "quote_id": "EUR_OIS_30Y"
+              }
+            }
+          ],
+          "createdAt": "2026-02-09T10:00:00.000Z",
+          "updatedAt": "2026-02-09T10:00:00.000Z"
+        },
+        {
+          "id": "eur-euribor-6m-forward",
+          "name": "EUR Euribor 6M Forward",
+          "description": "EUR forward curve for Euribor 6M with dual-curve stripping against ESTR discount",
+          "currency": "EUR",
+          "role": "forward",
+          "discount_curve_id": "eur-estr-discount",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "LogLinear",
+          "bootstrap_trait": "Discount",
+          "reference_date": "2026-02-09",
+          "points": [
+            {
+              "point_type": "DepositHelper",
+              "point": {
+                "tenor_number": 6,
+                "tenor_time_unit": "Months",
+                "fixing_days": 2,
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual360",
+                "quote_id": "EUR_DEPO_6M"
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "tenor_number": 1,
+                "tenor_time_unit": "Years",
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "float_index": {
+                  "id": "EURIBOR_6M"
+                },
+                "spread": 0,
+                "fwd_start_days": 0,
+                "quote_id": "EUR_IRS_1Y"
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "tenor_number": 2,
+                "tenor_time_unit": "Years",
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "float_index": {
+                  "id": "EURIBOR_6M"
+                },
+                "spread": 0,
+                "fwd_start_days": 0,
+                "quote_id": "EUR_IRS_2Y"
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "tenor_number": 5,
+                "tenor_time_unit": "Years",
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "float_index": {
+                  "id": "EURIBOR_6M"
+                },
+                "spread": 0,
+                "fwd_start_days": 0,
+                "quote_id": "EUR_IRS_5Y"
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "tenor_number": 10,
+                "tenor_time_unit": "Years",
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "float_index": {
+                  "id": "EURIBOR_6M"
+                },
+                "spread": 0,
+                "fwd_start_days": 0,
+                "quote_id": "EUR_IRS_10Y"
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "tenor_number": 20,
+                "tenor_time_unit": "Years",
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "float_index": {
+                  "id": "EURIBOR_6M"
+                },
+                "spread": 0,
+                "fwd_start_days": 0,
+                "quote_id": "EUR_IRS_20Y"
+              }
+            },
+            {
+              "point_type": "SwapHelper",
+              "point": {
+                "tenor_number": 30,
+                "tenor_time_unit": "Years",
+                "calendar": "TARGET",
+                "sw_fixed_leg_frequency": "Annual",
+                "sw_fixed_leg_convention": "ModifiedFollowing",
+                "sw_fixed_leg_day_counter": "Thirty360",
+                "float_index": {
+                  "id": "EURIBOR_6M"
+                },
+                "spread": 0,
+                "fwd_start_days": 0,
+                "quote_id": "EUR_IRS_30Y"
+              }
+            }
+          ],
+          "createdAt": "2026-02-09T10:00:00.000Z",
+          "updatedAt": "2026-02-09T10:00:00.000Z"
+        },
+        {
+          "id": "eur-hicp-inflation",
+          "name": "EUR HICP Inflation",
+          "description": "EUR zero inflation curve for EU HICP linked to the EUR discount curve",
+          "currency": "EUR",
+          "role": "inflation",
+          "discount_curve_id": "eur-estr-discount",
+          "day_counter": "Actual365Fixed",
+          "interpolator": "Linear",
+          "bootstrap_trait": "Discount",
+          "reference_date": "2026-02-09",
+          "points": [],
+          "inflation_curve": {
+            "kind": "ZeroInflation",
+            "payload_type": "ZeroInflationCurveFromZcSwapsSpec",
+            "index": {
+              "id": "EUHICP",
+              "family_name": "EU HICP",
+              "currency": "EUR",
+              "calendar": "TARGET",
+              "day_counter": "Actual365Fixed",
+              "frequency": "Monthly",
+              "availability_lag": {
+                "n": 2,
+                "unit": "Months"
+              },
+              "observation_lag": {
+                "n": 3,
+                "unit": "Months"
+              },
+              "interpolated": true,
+              "revised": false,
+              "kind": "ZeroInflation"
+            },
+            "calendar": "TARGET",
+            "business_day_convention": "ModifiedFollowing",
+            "day_counter": "Actual365Fixed",
+            "interpolator": "Linear",
+            "allow_extrapolation": true,
+            "pillars": [
+              {
+                "maturity": {
+                  "n": 1,
+                  "unit": "Years"
+                },
+                "quote_value": 0.019
+              },
+              {
+                "maturity": {
+                  "n": 2,
+                  "unit": "Years"
+                },
+                "quote_value": 0.0195
+              },
+              {
+                "maturity": {
+                  "n": 5,
+                  "unit": "Years"
+                },
+                "quote_value": 0.0205
+              },
+              {
+                "maturity": {
+                  "n": 10,
+                  "unit": "Years"
+                },
+                "quote_value": 0.0215
+              },
+              {
+                "maturity": {
+                  "n": 20,
+                  "unit": "Years"
+                },
+                "quote_value": 0.022
+              },
+              {
+                "maturity": {
+                  "n": 30,
+                  "unit": "Years"
+                },
+                "quote_value": 0.0222
+              }
+            ]
+          },
+          "createdAt": "2026-02-09T10:00:00.000Z",
+          "updatedAt": "2026-02-09T10:00:00.000Z"
+        }
+      ],
+      "quote_ids": [
+        "EUR_DEPO_ON",
+        "EUR_OIS_1W",
+        "EUR_OIS_1M",
+        "EUR_OIS_3M",
+        "EUR_OIS_6M",
+        "EUR_OIS_1Y",
+        "EUR_OIS_2Y",
+        "EUR_OIS_5Y",
+        "EUR_OIS_10Y",
+        "EUR_OIS_20Y",
+        "EUR_OIS_30Y",
+        "EUR_DEPO_6M",
+        "EUR_IRS_1Y",
+        "EUR_IRS_2Y",
+        "EUR_IRS_5Y",
+        "EUR_IRS_10Y",
+        "EUR_IRS_20Y",
+        "EUR_IRS_30Y"
+      ],
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    }
+  ],
+  "fixedBonds": [
+    {
+      "id": "eur_govt_5y",
+      "name": "EUR 5Y Government Bond",
+      "description": "5-year EUR sovereign bond, 3% annual coupon",
+      "settlementDays": 2,
+      "faceAmount": 100,
+      "couponRate": 0.03,
+      "accrualDayCounter": "ActualActualBond",
+      "paymentConvention": "ModifiedFollowing",
+      "redemption": 100,
+      "issueDate": "2025-03-15",
+      "effectiveDate": "2025-03-15",
+      "terminationDate": "2030-03-15",
+      "frequency": "Annual",
+      "calendar": "TARGET",
+      "convention": "ModifiedFollowing",
+      "dateGenerationRule": "Backward",
+      "discountCurveId": "eur-estr-discount",
+      "yieldDayCounter": "ActualActualBond",
+      "yieldCompounding": "Compounded",
+      "yieldFrequency": "Annual",
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "usd_corp_10y",
+      "name": "USD 10Y Corporate Bond",
+      "description": "10-year USD corporate bond, 5.25% semi-annual coupon",
+      "settlementDays": 2,
+      "faceAmount": 1000,
+      "couponRate": 0.0525,
+      "accrualDayCounter": "Thirty360",
+      "paymentConvention": "ModifiedFollowing",
+      "redemption": 100,
+      "issueDate": "2024-06-15",
+      "effectiveDate": "2024-06-15",
+      "terminationDate": "2034-06-15",
+      "frequency": "Semiannual",
+      "calendar": "UnitedStates",
+      "convention": "ModifiedFollowing",
+      "dateGenerationRule": "Backward",
+      "discountCurveId": "usd-sofr-discount",
+      "yieldDayCounter": "Thirty360",
+      "yieldCompounding": "Compounded",
+      "yieldFrequency": "Semiannual",
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "gbp_gilt_10y",
+      "name": "GBP 10Y Gilt",
+      "description": "10-year UK government gilt, 4% semi-annual coupon",
+      "settlementDays": 1,
+      "faceAmount": 100,
+      "couponRate": 0.04,
+      "accrualDayCounter": "ActualActualISMA",
+      "paymentConvention": "Following",
+      "redemption": 100,
+      "issueDate": "2025-01-22",
+      "effectiveDate": "2025-01-22",
+      "terminationDate": "2035-01-22",
+      "frequency": "Semiannual",
+      "calendar": "UnitedKingdom",
+      "convention": "Following",
+      "dateGenerationRule": "Backward",
+      "discountCurveId": "gbp-sonia-discount",
+      "yieldDayCounter": "ActualActualISMA",
+      "yieldCompounding": "Compounded",
+      "yieldFrequency": "Semiannual",
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    }
+  ],
+  "floatingBonds": [
+    {
+      "id": "eur_frn_3y",
+      "name": "EUR 3Y FRN Euribor 6M",
+      "description": "3-year EUR floating rate note linked to Euribor 6M + 50bp",
+      "settlementDays": 2,
+      "faceAmount": 100,
+      "spread": 0.005,
+      "accrualDayCounter": "Actual360",
+      "paymentConvention": "ModifiedFollowing",
+      "fixingDays": 2,
+      "inArrears": false,
+      "redemption": 100,
+      "issueDate": "2025-06-15",
+      "effectiveDate": "2025-06-15",
+      "terminationDate": "2028-06-15",
+      "frequency": "Semiannual",
+      "calendar": "TARGET",
+      "convention": "ModifiedFollowing",
+      "dateGenerationRule": "Backward",
+      "indexRefId": "EURIBOR_6M",
+      "indexPeriodNumber": 6,
+      "indexPeriodTimeUnit": "Months",
+      "indexSettlementDays": 2,
+      "indexCalendar": "TARGET",
+      "indexBusinessDayConvention": "ModifiedFollowing",
+      "indexEndOfMonth": false,
+      "indexDayCounter": "Actual360",
+      "discountCurveId": "eur-estr-discount",
+      "forecastCurveId": "eur-euribor-6m-forward",
+      "useSameCurve": false,
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    },
+    {
+      "id": "eur_frn_5y_3m",
+      "name": "EUR 5Y FRN Euribor 3M",
+      "description": "5-year EUR floating rate note linked to Euribor 3M + 75bp",
+      "settlementDays": 2,
+      "faceAmount": 100,
+      "spread": 0.0075,
+      "accrualDayCounter": "Actual360",
+      "paymentConvention": "ModifiedFollowing",
+      "fixingDays": 2,
+      "inArrears": false,
+      "redemption": 100,
+      "issueDate": "2025-03-20",
+      "effectiveDate": "2025-03-20",
+      "terminationDate": "2030-03-20",
+      "frequency": "Quarterly",
+      "calendar": "TARGET",
+      "convention": "ModifiedFollowing",
+      "dateGenerationRule": "Backward",
+      "indexRefId": "EURIBOR_3M",
+      "indexPeriodNumber": 3,
+      "indexPeriodTimeUnit": "Months",
+      "indexSettlementDays": 2,
+      "indexCalendar": "TARGET",
+      "indexBusinessDayConvention": "ModifiedFollowing",
+      "indexEndOfMonth": false,
+      "indexDayCounter": "Actual360",
+      "discountCurveId": "eur-estr-discount",
+      "forecastCurveId": "eur-estr-discount",
+      "useSameCurve": true,
+      "createdAt": "2026-02-09T10:00:00.000Z",
+      "updatedAt": "2026-02-09T10:00:00.000Z"
+    }
+  ],
+  "swaps": [
+    {
+      "pricing": {
+        "as_of_date": "2026-02-09",
+        "settlement_date": "2026-02-11",
+        "indices": [
+          {
+            "id": "EURIBOR_6M",
+            "name": "Euribor",
+            "index_type": "Ibor",
+            "currency": "EUR",
+            "tenor_number": 6,
+            "tenor_time_unit": "Months",
+            "fixing_days": 2,
+            "calendar": "TARGET",
+            "day_counter": "Actual360",
+            "business_day_convention": "ModifiedFollowing",
+            "end_of_month": false
+          }
+        ],
+        "curves": [
+          {
+            "id": "discount",
+            "day_counter": "Actual365Fixed",
+            "interpolator": "LogLinear",
+            "bootstrap_trait": "Discount",
+            "reference_date": "2026-02-09",
+            "points": [
+              {
+                "point_type": "DepositHelper",
+                "point": {
+                  "rate": 0.029,
+                  "tenor_time_unit": "Months",
+                  "tenor_number": 3,
+                  "fixing_days": 2,
+                  "calendar": "TARGET",
+                  "business_day_convention": "ModifiedFollowing",
+                  "day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "DepositHelper",
+                "point": {
+                  "rate": 0.0275,
+                  "tenor_time_unit": "Months",
+                  "tenor_number": 6,
+                  "fixing_days": 2,
+                  "calendar": "TARGET",
+                  "business_day_convention": "ModifiedFollowing",
+                  "day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "SwapHelper",
+                "point": {
+                  "rate": 0.025,
+                  "tenor_time_unit": "Years",
+                  "tenor_number": 2,
+                  "calendar": "TARGET",
+                  "sw_fixed_leg_frequency": "Annual",
+                  "sw_fixed_leg_convention": "ModifiedFollowing",
+                  "sw_fixed_leg_day_counter": "Thirty360",
+                  "float_index": {
+                    "id": "EURIBOR_6M"
+                  },
+                  "spread": 0,
+                  "fwd_start_days": 0
+                }
+              },
+              {
+                "point_type": "SwapHelper",
+                "point": {
+                  "rate": 0.024,
+                  "tenor_time_unit": "Years",
+                  "tenor_number": 5,
+                  "calendar": "TARGET",
+                  "sw_fixed_leg_frequency": "Annual",
+                  "sw_fixed_leg_convention": "ModifiedFollowing",
+                  "sw_fixed_leg_day_counter": "Thirty360",
+                  "float_index": {
+                    "id": "EURIBOR_6M"
+                  },
+                  "spread": 0,
+                  "fwd_start_days": 0
+                }
+              },
+              {
+                "point_type": "SwapHelper",
+                "point": {
+                  "rate": 0.027,
+                  "tenor_time_unit": "Years",
+                  "tenor_number": 10,
+                  "calendar": "TARGET",
+                  "sw_fixed_leg_frequency": "Annual",
+                  "sw_fixed_leg_convention": "ModifiedFollowing",
+                  "sw_fixed_leg_day_counter": "Thirty360",
+                  "float_index": {
+                    "id": "EURIBOR_6M"
+                  },
+                  "spread": 0,
+                  "fwd_start_days": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "swaps": [
+        {
+          "vanilla_swap": {
+            "swap_type": "Payer",
+            "fixed_leg": {
+              "notional": 10000000,
+              "rate": 0.025,
+              "day_counter": "Thirty360",
+              "payment_convention": "ModifiedFollowing",
+              "schedule": {
+                "calendar": "TARGET",
+                "effective_date": "2026-02-11",
+                "termination_date": "2031-02-11",
+                "frequency": "Annual",
+                "convention": "ModifiedFollowing",
+                "termination_date_convention": "ModifiedFollowing",
+                "date_generation_rule": "Forward"
+              }
+            },
+            "floating_leg": {
+              "notional": 10000000,
+              "index": {
+                "id": "EURIBOR_6M"
+              },
+              "spread": 0,
+              "day_counter": "Actual360",
+              "payment_convention": "ModifiedFollowing",
+              "fixing_days": 2,
+              "in_arrears": false,
+              "schedule": {
+                "calendar": "TARGET",
+                "effective_date": "2026-02-11",
+                "termination_date": "2031-02-11",
+                "frequency": "Semiannual",
+                "convention": "ModifiedFollowing",
+                "termination_date_convention": "ModifiedFollowing",
+                "date_generation_rule": "Forward"
+              }
+            }
+          },
+          "discounting_curve": "discount",
+          "forwarding_curve": "discount"
+        }
+      ],
+      "include_flows": true
+    }
+  ],
+  "swaptions": [
+    {
+      "pricing": {
+        "as_of_date": "2024-08-14",
+        "swaption_pricing_rebump": true,
+        "curves": [
+          {
+            "id": "USD_SOFR",
+            "day_counter": "Actual360",
+            "interpolator": "BackwardFlat",
+            "reference_date": "2024-08-14",
+            "bootstrap_trait": "FwdRate",
+            "points": [
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.053344,
+                  "tenor_number": 1,
+                  "tenor_time_unit": "Weeks",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.0533509,
+                  "tenor_number": 2,
+                  "tenor_time_unit": "Weeks",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.0533938,
+                  "tenor_number": 3,
+                  "tenor_time_unit": "Weeks",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.053444,
+                  "tenor_number": 1,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.0521415,
+                  "tenor_number": 2,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.051254,
+                  "tenor_number": 3,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.050361,
+                  "tenor_number": 4,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.049173,
+                  "tenor_number": 5,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.048025,
+                  "tenor_number": 6,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.0472188,
+                  "tenor_number": 7,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.046232,
+                  "tenor_number": 8,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.045383,
+                  "tenor_number": 9,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.0445405,
+                  "tenor_number": 10,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.043765,
+                  "tenor_number": 11,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.042998,
+                  "tenor_number": 12,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.0394167,
+                  "tenor_number": 18,
+                  "tenor_time_unit": "Months",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.037475,
+                  "tenor_number": 2,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.035274,
+                  "tenor_number": 3,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.034245,
+                  "tenor_number": 4,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.0338055,
+                  "tenor_number": 5,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.033651,
+                  "tenor_number": 6,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.033614,
+                  "tenor_number": 7,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.033668,
+                  "tenor_number": 8,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.03376,
+                  "tenor_number": 9,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.033878,
+                  "tenor_number": 10,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.034187,
+                  "tenor_number": 12,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.034542,
+                  "tenor_number": 15,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.034553,
+                  "tenor_number": 20,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.033878,
+                  "tenor_number": 25,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.033088,
+                  "tenor_number": 30,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.031135,
+                  "tenor_number": 40,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "OISHelper",
+                "point": {
+                  "rate": 0.02921,
+                  "tenor_number": 50,
+                  "tenor_time_unit": "Years",
+                  "overnight_index": {
+                    "id": "USD_SOFR"
+                  },
+                  "settlement_days": 2,
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "fixed_leg_frequency": "Annual",
+                  "fixed_leg_convention": "ModifiedFollowing",
+                  "fixed_leg_day_counter": "Actual360"
+                }
+              }
+            ]
+          }
+        ],
+        "vol_surfaces": [
+          {
+            "id": "usd_sofr_swo_vol",
+            "payload_type": "SwaptionVolSpec",
+            "payload": {
+              "base": {
+                "reference_date": "2024-08-14",
+                "calendar": "UnitedStatesGovernmentBond",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "shape": "Constant",
+                "volatility_type": "Normal",
+                "displacement": 0,
+                "constant_vol": 0.010267
+              }
+            }
+          }
+        ],
+        "models": [
+          {
+            "id": "bachelier_model",
+            "payload_type": "SwaptionModelSpec",
+            "payload": {
+              "model_type": "Bachelier"
+            }
+          }
+        ],
+        "indices": [
+          {
+            "id": "USD_SOFR",
+            "name": "SOFR",
+            "index_type": "Overnight",
+            "tenor_number": 0,
+            "tenor_time_unit": "Days",
+            "fixing_days": 0,
+            "calendar": "UnitedStatesGovernmentBond",
+            "business_day_convention": "Following",
+            "day_counter": "Actual360",
+            "currency": "USD"
+          }
+        ]
+      },
+      "swaptions": [
+        {
+          "swaption": {
+            "exercise_type": "European",
+            "settlement_type": "Cash",
+            "settlement_method": "CollateralizedCashPrice",
+            "exercise_date": "2024-09-16",
+            "underlying_type": "OisSwap",
+            "underlying": {
+              "swap_type": "Payer",
+              "fixed_leg": {
+                "notional": 1000000,
+                "schedule": {
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "effective_date": "2024-09-18",
+                  "termination_date": "2034-09-18",
+                  "frequency": "Annual",
+                  "convention": "ModifiedFollowing",
+                  "termination_date_convention": "ModifiedFollowing",
+                  "date_generation_rule": "Forward"
+                },
+                "rate": 0.03367463,
+                "day_counter": "Actual360",
+                "payment_convention": "ModifiedFollowing"
+              },
+              "overnight_leg": {
+                "notional": 1000000,
+                "schedule": {
+                  "calendar": "UnitedStatesGovernmentBond",
+                  "effective_date": "2024-09-18",
+                  "termination_date": "2034-09-18",
+                  "frequency": "Annual",
+                  "convention": "ModifiedFollowing",
+                  "termination_date_convention": "ModifiedFollowing",
+                  "date_generation_rule": "Forward"
+                },
+                "index": {
+                  "id": "USD_SOFR"
+                },
+                "spread": 0,
+                "day_counter": "Actual360",
+                "payment_convention": "ModifiedFollowing",
+                "payment_calendar": "UnitedStatesGovernmentBond",
+                "payment_lag": 2,
+                "averaging_method": "Compound",
+                "lookback_days": -1,
+                "lockout_days": 0,
+                "apply_observation_shift": false,
+                "telescopic_value_dates": false
+              }
+            }
+          },
+          "discounting_curve": "USD_SOFR",
+          "forwarding_curve": "USD_SOFR",
+          "volatility": "usd_sofr_swo_vol",
+          "model": "bachelier_model"
+        }
+      ]
+    },
+    {
+      "pricing": {
+        "as_of_date": "2026-02-09",
+        "indices": [
+          {
+            "id": "EURIBOR_6M",
+            "name": "Euribor",
+            "index_type": "Ibor",
+            "currency": "EUR",
+            "tenor_number": 6,
+            "tenor_time_unit": "Months",
+            "fixing_days": 2,
+            "calendar": "TARGET",
+            "day_counter": "Actual360",
+            "business_day_convention": "ModifiedFollowing",
+            "end_of_month": false
+          }
+        ],
+        "curves": [
+          {
+            "id": "discount",
+            "day_counter": "Actual365Fixed",
+            "interpolator": "LogLinear",
+            "bootstrap_trait": "Discount",
+            "reference_date": "2026-02-09",
+            "points": [
+              {
+                "point_type": "DepositHelper",
+                "point": {
+                  "rate": 0.029,
+                  "tenor_time_unit": "Months",
+                  "tenor_number": 6,
+                  "fixing_days": 2,
+                  "calendar": "TARGET",
+                  "business_day_convention": "ModifiedFollowing",
+                  "day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "SwapHelper",
+                "point": {
+                  "rate": 0.025,
+                  "tenor_time_unit": "Years",
+                  "tenor_number": 2,
+                  "calendar": "TARGET",
+                  "sw_fixed_leg_frequency": "Annual",
+                  "sw_fixed_leg_convention": "ModifiedFollowing",
+                  "sw_fixed_leg_day_counter": "Thirty360",
+                  "float_index": {
+                    "id": "EURIBOR_6M"
+                  },
+                  "spread": 0,
+                  "fwd_start_days": 0
+                }
+              },
+              {
+                "point_type": "SwapHelper",
+                "point": {
+                  "rate": 0.024,
+                  "tenor_time_unit": "Years",
+                  "tenor_number": 5,
+                  "calendar": "TARGET",
+                  "sw_fixed_leg_frequency": "Annual",
+                  "sw_fixed_leg_convention": "ModifiedFollowing",
+                  "sw_fixed_leg_day_counter": "Thirty360",
+                  "float_index": {
+                    "id": "EURIBOR_6M"
+                  },
+                  "spread": 0,
+                  "fwd_start_days": 0
+                }
+              },
+              {
+                "point_type": "SwapHelper",
+                "point": {
+                  "rate": 0.027,
+                  "tenor_time_unit": "Years",
+                  "tenor_number": 10,
+                  "calendar": "TARGET",
+                  "sw_fixed_leg_frequency": "Annual",
+                  "sw_fixed_leg_convention": "ModifiedFollowing",
+                  "sw_fixed_leg_day_counter": "Thirty360",
+                  "float_index": {
+                    "id": "EURIBOR_6M"
+                  },
+                  "spread": 0,
+                  "fwd_start_days": 0
+                }
+              }
+            ]
+          }
+        ],
+        "vol_surfaces": [
+          {
+            "id": "swaptvol",
+            "payload_type": "SwaptionVolSpec",
+            "payload": {
+              "base": {
+                "reference_date": "2026-02-09",
+                "calendar": "TARGET",
+                "business_day_convention": "ModifiedFollowing",
+                "day_counter": "Actual365Fixed",
+                "shape": "Constant",
+                "volatility_type": "Normal",
+                "constant_vol": 0.005
+              }
+            }
+          }
+        ],
+        "models": [
+          {
+            "id": "swaptmodel",
+            "payload_type": "SwaptionModelSpec",
+            "payload": {
+              "model_type": "Bachelier"
+            }
+          }
+        ]
+      },
+      "swaptions": [
+        {
+          "swaption": {
+            "exercise_type": "European",
+            "settlement_type": "Physical",
+            "exercise_date": "2027-02-09",
+            "underlying_swap": {
+              "swap_type": "Payer",
+              "fixed_leg": {
+                "notional": 10000000,
+                "schedule": {
+                  "calendar": "TARGET",
+                  "effective_date": "2027-02-11",
+                  "termination_date": "2032-02-11",
+                  "frequency": "Annual",
+                  "convention": "ModifiedFollowing",
+                  "termination_date_convention": "ModifiedFollowing",
+                  "date_generation_rule": "Forward"
+                },
+                "rate": 0.025,
+                "day_counter": "Thirty360",
+                "payment_convention": "ModifiedFollowing"
+              },
+              "floating_leg": {
+                "notional": 10000000,
+                "schedule": {
+                  "calendar": "TARGET",
+                  "effective_date": "2027-02-11",
+                  "termination_date": "2032-02-11",
+                  "frequency": "Semiannual",
+                  "convention": "ModifiedFollowing",
+                  "termination_date_convention": "ModifiedFollowing",
+                  "date_generation_rule": "Forward"
+                },
+                "index": {
+                  "id": "EURIBOR_6M"
+                },
+                "spread": 0,
+                "day_counter": "Actual360",
+                "payment_convention": "ModifiedFollowing",
+                "fixing_days": 2,
+                "in_arrears": false
+              }
+            }
+          },
+          "discounting_curve": "discount",
+          "forwarding_curve": "discount",
+          "volatility": "swaptvol",
+          "model": "swaptmodel"
+        }
+      ]
+    },
+    {
+      "pricing": {
+        "as_of_date": "2025-01-15",
+        "indices": [
+          {
+            "id": "EUR_6M",
+            "name": "Euribor",
+            "index_type": "Ibor",
+            "currency": "EUR",
+            "tenor": {
+              "n": 6,
+              "unit": "Months"
+            },
+            "fixing_days": 2,
+            "calendar": "TARGET",
+            "day_counter": "Actual360",
+            "business_day_convention": "ModifiedFollowing",
+            "end_of_month": false
+          }
+        ],
+        "curves": [
+          {
+            "id": "discount",
+            "day_counter": "Actual365Fixed",
+            "interpolator": "LogLinear",
+            "bootstrap_trait": "Discount",
+            "reference_date": "2025-01-15",
+            "points": [
+              {
+                "point_type": "DepositHelper",
+                "point": {
+                  "rate": 0.029,
+                  "tenor": {
+                    "n": 6,
+                    "unit": "Months"
+                  },
+                  "fixing_days": 2,
+                  "calendar": "TARGET",
+                  "business_day_convention": "ModifiedFollowing",
+                  "day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "SwapHelper",
+                "point": {
+                  "rate": 0.024,
+                  "tenor": {
+                    "n": 5,
+                    "unit": "Years"
+                  },
+                  "calendar": "TARGET",
+                  "sw_fixed_leg_frequency": "Annual",
+                  "sw_fixed_leg_convention": "ModifiedFollowing",
+                  "sw_fixed_leg_day_counter": "Thirty360",
+                  "float_index": {
+                    "id": "EUR_6M"
+                  },
+                  "spread": 0,
+                  "fwd_start_days": 0
+                }
+              }
+            ]
+          }
+        ],
+        "vol_surfaces": [
+          {
+            "id": "swaption_atm",
+            "payload_type": "SwaptionVolSpec",
+            "payload": {
+              "swap_index_id": "EUR_SWAP_6M",
+              "payload_type": "SwaptionVolConstantSpec",
+              "payload": {
+                "base": {
+                  "reference_date": "2025-01-15",
+                  "calendar": "TARGET",
+                  "business_day_convention": "ModifiedFollowing",
+                  "day_counter": "Actual365Fixed",
+                  "volatility_type": "Normal",
+                  "constant_vol": 0.21
+                }
+              }
+            }
+          }
+        ],
+        "models": [
+          {
+            "id": "hw_explicit_model",
+            "payload_type": "SwaptionModelSpec",
+            "payload": {
+              "model_type": "HullWhiteLattice",
+              "param_mode": "Explicit",
+              "hw_a": 0.03,
+              "hw_sigma": 0.01,
+              "lattice_steps": 50
+            }
+          }
+        ]
+      },
+      "swaptions": [
+        {
+          "swaption": {
+            "exercise_type": "Bermudan",
+            "settlement_type": "Physical",
+            "exercise_date": "2026-01-15",
+            "exercise_dates": [
+              "2026-01-15",
+              "2027-01-15",
+              "2028-01-15"
+            ],
+            "underlying_swap": {
+              "swap_type": "Payer",
+              "fixed_leg": {
+                "notional": 1000000,
+                "schedule": {
+                  "calendar": "TARGET",
+                  "effective_date": "2026-01-17",
+                  "termination_date": "2031-01-17",
+                  "frequency": "Annual",
+                  "convention": "ModifiedFollowing",
+                  "termination_date_convention": "ModifiedFollowing",
+                  "date_generation_rule": "Forward"
+                },
+                "rate": 0.035,
+                "day_counter": "Thirty360",
+                "payment_convention": "ModifiedFollowing"
+              },
+              "floating_leg": {
+                "notional": 1000000,
+                "schedule": {
+                  "calendar": "TARGET",
+                  "effective_date": "2026-01-17",
+                  "termination_date": "2031-01-17",
+                  "frequency": "Semiannual",
+                  "convention": "ModifiedFollowing",
+                  "termination_date_convention": "ModifiedFollowing",
+                  "date_generation_rule": "Forward"
+                },
+                "index": {
+                  "id": "EUR_6M"
+                },
+                "spread": 0,
+                "day_counter": "Actual360",
+                "payment_convention": "ModifiedFollowing",
+                "fixing_days": 2,
+                "in_arrears": false
+              }
+            }
+          },
+          "discounting_curve": "discount",
+          "forwarding_curve": "discount",
+          "volatility": "swaption_atm",
+          "model": "hw_explicit_model"
+        }
+      ]
+    }
+  ],
+  "cds": [
+    {
+      "pricing": {
+        "as_of_date": "2026-02-09",
+        "indices": [
+          {
+            "id": "EURIBOR_6M",
+            "name": "Euribor",
+            "index_type": "Ibor",
+            "currency": "EUR",
+            "tenor_number": 6,
+            "tenor_time_unit": "Months",
+            "fixing_days": 2,
+            "calendar": "TARGET",
+            "day_counter": "Actual360",
+            "business_day_convention": "ModifiedFollowing",
+            "end_of_month": false
+          }
+        ],
+        "curves": [
+          {
+            "id": "discount",
+            "day_counter": "Actual365Fixed",
+            "interpolator": "LogLinear",
+            "bootstrap_trait": "Discount",
+            "reference_date": "2026-02-09",
+            "points": [
+              {
+                "point_type": "DepositHelper",
+                "point": {
+                  "rate": 0.029,
+                  "tenor_time_unit": "Months",
+                  "tenor_number": 3,
+                  "fixing_days": 2,
+                  "calendar": "TARGET",
+                  "business_day_convention": "ModifiedFollowing",
+                  "day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "DepositHelper",
+                "point": {
+                  "rate": 0.0275,
+                  "tenor_time_unit": "Months",
+                  "tenor_number": 6,
+                  "fixing_days": 2,
+                  "calendar": "TARGET",
+                  "business_day_convention": "ModifiedFollowing",
+                  "day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "SwapHelper",
+                "point": {
+                  "rate": 0.025,
+                  "tenor_time_unit": "Years",
+                  "tenor_number": 2,
+                  "calendar": "TARGET",
+                  "sw_fixed_leg_frequency": "Annual",
+                  "sw_fixed_leg_convention": "ModifiedFollowing",
+                  "sw_fixed_leg_day_counter": "Thirty360",
+                  "float_index": {
+                    "id": "EURIBOR_6M"
+                  },
+                  "spread": 0,
+                  "fwd_start_days": 0
+                }
+              },
+              {
+                "point_type": "SwapHelper",
+                "point": {
+                  "rate": 0.024,
+                  "tenor_time_unit": "Years",
+                  "tenor_number": 5,
+                  "calendar": "TARGET",
+                  "sw_fixed_leg_frequency": "Annual",
+                  "sw_fixed_leg_convention": "ModifiedFollowing",
+                  "sw_fixed_leg_day_counter": "Thirty360",
+                  "float_index": {
+                    "id": "EURIBOR_6M"
+                  },
+                  "spread": 0,
+                  "fwd_start_days": 0
+                }
+              },
+              {
+                "point_type": "SwapHelper",
+                "point": {
+                  "rate": 0.027,
+                  "tenor_time_unit": "Years",
+                  "tenor_number": 10,
+                  "calendar": "TARGET",
+                  "sw_fixed_leg_frequency": "Annual",
+                  "sw_fixed_leg_convention": "ModifiedFollowing",
+                  "sw_fixed_leg_day_counter": "Thirty360",
+                  "float_index": {
+                    "id": "EURIBOR_6M"
+                  },
+                  "spread": 0,
+                  "fwd_start_days": 0
+                }
+              }
+            ]
+          }
+        ],
+        "models": [
+          {
+            "id": "cds_midpoint",
+            "payload_type": "CdsModelSpec",
+            "payload": {
+              "engine_type": "MidPoint"
+            }
+          }
+        ],
+        "credit_curves": [
+          {
+            "id": "inline_credit_curve",
+            "reference_date": "2026-02-09",
+            "calendar": "TARGET",
+            "day_counter": "Actual365Fixed",
+            "recovery_rate": 0.4,
+            "curve_interpolator": "LogLinear",
+            "helper_conventions": {
+              "settlement_days": 0,
+              "frequency": "Quarterly",
+              "business_day_convention": "Following",
+              "date_generation_rule": "TwentiethIMM",
+              "last_period_day_counter": "Actual365Fixed",
+              "settles_accrual": true,
+              "pays_at_default_time": true,
+              "rebates_accrual": true,
+              "helper_model": "MidPoint"
+            },
+            "quotes": [
+              {
+                "tenor_number": 1,
+                "tenor_time_unit": "Years",
+                "quote_type": "ParSpread",
+                "quoted_par_spread": 0.008
+              },
+              {
+                "tenor_number": 3,
+                "tenor_time_unit": "Years",
+                "quote_type": "ParSpread",
+                "quoted_par_spread": 0.01
+              },
+              {
+                "tenor_number": 5,
+                "tenor_time_unit": "Years",
+                "quote_type": "ParSpread",
+                "quoted_par_spread": 0.012
+              },
+              {
+                "tenor_number": 7,
+                "tenor_time_unit": "Years",
+                "quote_type": "ParSpread",
+                "quoted_par_spread": 0.0135
+              }
+            ]
+          }
+        ]
+      },
+      "cds_list": [
+        {
+          "cds": {
+            "side": "Buyer",
+            "notional": 10000000,
+            "upfront": 0,
+            "schedule": {
+              "calendar": "TARGET",
+              "effective_date": "2026-02-11",
+              "termination_date": "2031-02-11",
+              "frequency": "Quarterly",
+              "convention": "Following",
+              "termination_date_convention": "Unadjusted",
+              "date_generation_rule": "TwentiethIMM",
+              "end_of_month": false
+            },
+            "day_counter": "Actual360",
+            "business_day_convention": "Following",
+            "running_coupon": 0.01
+          },
+          "discounting_curve": "discount",
+          "credit_curve_id": "inline_credit_curve",
+          "model": "cds_midpoint"
+        }
+      ]
+    }
+  ],
+  "creditCurves": [
+    {
+      "id": "eur_corp_snr",
+      "name": "EUR Corporate Senior",
+      "reference_entity": "EUR_CORP",
+      "currency": "EUR",
+      "seniority": "SeniorUnsecured",
+      "source": "quote_book",
+      "recovery_rate": 0.4,
+      "points": [
+        {
+          "tenor_number": 1,
+          "tenor_time_unit": "Years",
+          "quote_id": "EUR_CDS_1Y",
+          "spread": 0.008
+        },
+        {
+          "tenor_number": 3,
+          "tenor_time_unit": "Years",
+          "quote_id": "EUR_CDS_3Y",
+          "spread": 0.01
+        },
+        {
+          "tenor_number": 5,
+          "tenor_time_unit": "Years",
+          "quote_id": "EUR_CDS_5Y",
+          "spread": 0.012
+        },
+        {
+          "tenor_number": 7,
+          "tenor_time_unit": "Years",
+          "quote_id": "EUR_CDS_7Y",
+          "spread": 0.0135
+        }
+      ]
+    }
+  ],
+  "quoteBook": [
+    {
+      "id": "EUR_DEPO_ON",
+      "kind": "Rate",
+      "label": "EUR O/N Deposit",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.031
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.03
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.029
+        }
+      ]
+    },
+    {
+      "id": "EUR_DEPO_1M",
+      "kind": "Rate",
+      "label": "EUR 1M Deposit",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0315
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0305
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0295
+        }
+      ]
+    },
+    {
+      "id": "EUR_DEPO_3M",
+      "kind": "Rate",
+      "label": "EUR 3M Deposit",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0308
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0298
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0288
+        }
+      ]
+    },
+    {
+      "id": "EUR_DEPO_6M",
+      "kind": "Rate",
+      "label": "EUR 6M Deposit",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0295
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0285
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0275
+        }
+      ]
+    },
+    {
+      "id": "EUR_OIS_1W",
+      "kind": "Rate",
+      "label": "EUR 1W ESTR OIS",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0308
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0298
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0288
+        }
+      ]
+    },
+    {
+      "id": "EUR_OIS_1M",
+      "kind": "Rate",
+      "label": "EUR 1M ESTR OIS",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0305
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0295
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0285
+        }
+      ]
+    },
+    {
+      "id": "EUR_OIS_3M",
+      "kind": "Rate",
+      "label": "EUR 3M ESTR OIS",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0298
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0288
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0278
+        }
+      ]
+    },
+    {
+      "id": "EUR_OIS_6M",
+      "kind": "Rate",
+      "label": "EUR 6M ESTR OIS",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0285
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0275
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0265
+        }
+      ]
+    },
+    {
+      "id": "EUR_OIS_1Y",
+      "kind": "Rate",
+      "label": "EUR 1Y ESTR OIS",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.027
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.026
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.025
+        }
+      ]
+    },
+    {
+      "id": "EUR_OIS_2Y",
+      "kind": "Rate",
+      "label": "EUR 2Y ESTR OIS",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.026
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.025
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.024
+        }
+      ]
+    },
+    {
+      "id": "EUR_OIS_5Y",
+      "kind": "Rate",
+      "label": "EUR 5Y ESTR OIS",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0255
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0245
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0235
+        }
+      ]
+    },
+    {
+      "id": "EUR_OIS_10Y",
+      "kind": "Rate",
+      "label": "EUR 10Y ESTR OIS",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0275
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0265
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0255
+        }
+      ]
+    },
+    {
+      "id": "EUR_OIS_20Y",
+      "kind": "Rate",
+      "label": "EUR 20Y ESTR OIS",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.029
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.028
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.027
+        }
+      ]
+    },
+    {
+      "id": "EUR_OIS_30Y",
+      "kind": "Rate",
+      "label": "EUR 30Y ESTR OIS",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0285
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0275
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0265
+        }
+      ]
+    },
+    {
+      "id": "EUR_IRS_1Y",
+      "kind": "Rate",
+      "label": "EUR 1Y IRS vs 6M",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.028
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.027
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.026
+        }
+      ]
+    },
+    {
+      "id": "EUR_IRS_2Y",
+      "kind": "Rate",
+      "label": "EUR 2Y IRS vs 6M",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.027
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.026
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.025
+        }
+      ]
+    },
+    {
+      "id": "EUR_IRS_3Y",
+      "kind": "Rate",
+      "label": "EUR 3Y IRS vs 6M",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0265
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0255
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0245
+        }
+      ]
+    },
+    {
+      "id": "EUR_IRS_5Y",
+      "kind": "Rate",
+      "label": "EUR 5Y IRS vs 6M",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0262
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0252
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0242
+        }
+      ]
+    },
+    {
+      "id": "EUR_IRS_7Y",
+      "kind": "Rate",
+      "label": "EUR 7Y IRS vs 6M",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0275
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0265
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0255
+        }
+      ]
+    },
+    {
+      "id": "EUR_IRS_10Y",
+      "kind": "Rate",
+      "label": "EUR 10Y IRS vs 6M",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.029
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.028
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.027
+        }
+      ]
+    },
+    {
+      "id": "EUR_IRS_15Y",
+      "kind": "Rate",
+      "label": "EUR 15Y IRS vs 6M",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.03
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.029
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.028
+        }
+      ]
+    },
+    {
+      "id": "EUR_IRS_20Y",
+      "kind": "Rate",
+      "label": "EUR 20Y IRS vs 6M",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0305
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0295
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0285
+        }
+      ]
+    },
+    {
+      "id": "EUR_IRS_30Y",
+      "kind": "Rate",
+      "label": "EUR 30Y IRS vs 6M",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.03
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.029
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.028
+        }
+      ]
+    },
+    {
+      "id": "USD_DEPO_ON",
+      "kind": "Rate",
+      "label": "USD O/N Deposit",
+      "currency": "USD",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0455
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0445
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0435
+        }
+      ]
+    },
+    {
+      "id": "USD_DEPO_1M",
+      "kind": "Rate",
+      "label": "USD 1M Deposit",
+      "currency": "USD",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0453
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0443
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0433
+        }
+      ]
+    },
+    {
+      "id": "USD_DEPO_3M",
+      "kind": "Rate",
+      "label": "USD 3M Deposit",
+      "currency": "USD",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0445
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0435
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0425
+        }
+      ]
+    },
+    {
+      "id": "USD_DEPO_6M",
+      "kind": "Rate",
+      "label": "USD 6M Deposit",
+      "currency": "USD",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0435
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0425
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0415
+        }
+      ]
+    },
+    {
+      "id": "USD_IRS_1Y",
+      "kind": "Rate",
+      "label": "USD 1Y SOFR Swap",
+      "currency": "USD",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.042
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.041
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.04
+        }
+      ]
+    },
+    {
+      "id": "USD_IRS_2Y",
+      "kind": "Rate",
+      "label": "USD 2Y SOFR Swap",
+      "currency": "USD",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.04
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.039
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.038
+        }
+      ]
+    },
+    {
+      "id": "USD_IRS_5Y",
+      "kind": "Rate",
+      "label": "USD 5Y SOFR Swap",
+      "currency": "USD",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.039
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.038
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.037
+        }
+      ]
+    },
+    {
+      "id": "USD_IRS_10Y",
+      "kind": "Rate",
+      "label": "USD 10Y SOFR Swap",
+      "currency": "USD",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.041
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.04
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.039
+        }
+      ]
+    },
+    {
+      "id": "USD_IRS_30Y",
+      "kind": "Rate",
+      "label": "USD 30Y SOFR Swap",
+      "currency": "USD",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.043
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.042
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.041
+        }
+      ]
+    },
+    {
+      "id": "GBP_DEPO_ON",
+      "kind": "Rate",
+      "label": "GBP O/N Deposit",
+      "currency": "GBP",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.047
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.046
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.045
+        }
+      ]
+    },
+    {
+      "id": "GBP_OIS_1W",
+      "kind": "Rate",
+      "label": "GBP 1W SONIA OIS",
+      "currency": "GBP",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0468
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0458
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0448
+        }
+      ]
+    },
+    {
+      "id": "GBP_OIS_1M",
+      "kind": "Rate",
+      "label": "GBP 1M SONIA OIS",
+      "currency": "GBP",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0465
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0455
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0445
+        }
+      ]
+    },
+    {
+      "id": "GBP_OIS_3M",
+      "kind": "Rate",
+      "label": "GBP 3M SONIA OIS",
+      "currency": "GBP",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0455
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0445
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0435
+        }
+      ]
+    },
+    {
+      "id": "GBP_OIS_6M",
+      "kind": "Rate",
+      "label": "GBP 6M SONIA OIS",
+      "currency": "GBP",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.044
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.043
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.042
+        }
+      ]
+    },
+    {
+      "id": "GBP_OIS_1Y",
+      "kind": "Rate",
+      "label": "GBP 1Y SONIA OIS",
+      "currency": "GBP",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.042
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.041
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.04
+        }
+      ]
+    },
+    {
+      "id": "GBP_OIS_2Y",
+      "kind": "Rate",
+      "label": "GBP 2Y SONIA OIS",
+      "currency": "GBP",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0405
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0395
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0385
+        }
+      ]
+    },
+    {
+      "id": "GBP_OIS_5Y",
+      "kind": "Rate",
+      "label": "GBP 5Y SONIA OIS",
+      "currency": "GBP",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.04
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.039
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.038
+        }
+      ]
+    },
+    {
+      "id": "GBP_OIS_10Y",
+      "kind": "Rate",
+      "label": "GBP 10Y SONIA OIS",
+      "currency": "GBP",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.042
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.041
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.04
+        }
+      ]
+    },
+    {
+      "id": "GBP_OIS_30Y",
+      "kind": "Rate",
+      "label": "GBP 30Y SONIA OIS",
+      "currency": "GBP",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0435
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0425
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0415
+        }
+      ]
+    },
+    {
+      "id": "EURIBOR_6M",
+      "kind": "Rate",
+      "label": "Euribor 6M Fixing",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2025-06-12",
+          "value": 0.027
+        },
+        {
+          "date": "2025-12-11",
+          "value": 0.0275
+        }
+      ]
+    },
+    {
+      "id": "EURIBOR_3M",
+      "kind": "Rate",
+      "label": "Euribor 3M Fixing",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2025-03-18",
+          "value": 0.0282
+        },
+        {
+          "date": "2025-06-18",
+          "value": 0.0278
+        },
+        {
+          "date": "2025-09-18",
+          "value": 0.0272
+        },
+        {
+          "date": "2025-12-18",
+          "value": 0.0271
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_1Y_1Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 1Yx1Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.005
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0049
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0048
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_1Y_2Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 1Yx2Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0052
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0051
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.005
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_1Y_5Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 1Yx5Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0057
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0056
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0055
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_1Y_10Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 1Yx10Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0061
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.006
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0059
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_2Y_1Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 2Yx1Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0051
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.005
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0049
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_2Y_2Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 2Yx2Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0053
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0052
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0051
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_2Y_5Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 2Yx5Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0058
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0057
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0056
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_2Y_10Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 2Yx10Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0062
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0061
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.006
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_3Y_1Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 3Yx1Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0052
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0051
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.005
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_3Y_2Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 3Yx2Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0054
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0053
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0052
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_3Y_5Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 3Yx5Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0059
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0058
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0057
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_3Y_10Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 3Yx10Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0064
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0063
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0062
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_5Y_1Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 5Yx1Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0054
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0053
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0052
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_5Y_2Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 5Yx2Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0056
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0055
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0054
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_5Y_5Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 5Yx5Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0062
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0061
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.006
+        }
+      ]
+    },
+    {
+      "id": "SWAPTION_5Y_10Y",
+      "kind": "Rate",
+      "label": "Swaption Vol 5Yx10Y",
+      "currency": "EUR",
+      "quote_type": "Volatility",
+      "series": [
+        {
+          "date": "2026-01-15",
+          "value": 0.0067
+        },
+        {
+          "date": "2026-02-01",
+          "value": 0.0066
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0065
+        }
+      ]
+    },
+    {
+      "id": "EUR_CDS_1Y",
+      "kind": "Spread",
+      "label": "EUR Corp CDS 1Y",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-02-01",
+          "value": 0.0082
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.008
+        }
+      ],
+      "quote_type": "Credit"
+    },
+    {
+      "id": "EUR_CDS_3Y",
+      "kind": "Spread",
+      "label": "EUR Corp CDS 3Y",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-02-01",
+          "value": 0.0102
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.01
+        }
+      ],
+      "quote_type": "Credit"
+    },
+    {
+      "id": "EUR_CDS_5Y",
+      "kind": "Spread",
+      "label": "EUR Corp CDS 5Y",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-02-01",
+          "value": 0.0123
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.012
+        }
+      ],
+      "quote_type": "Credit"
+    },
+    {
+      "id": "EUR_CDS_7Y",
+      "kind": "Spread",
+      "label": "EUR Corp CDS 7Y",
+      "currency": "EUR",
+      "series": [
+        {
+          "date": "2026-02-01",
+          "value": 0.0138
+        },
+        {
+          "date": "2026-02-09",
+          "value": 0.0135
+        }
+      ],
+      "quote_type": "Credit"
+    }
+  ],
+  "volSurfaces": [
+    {
+      "id": "swaptvol_dense",
+      "payload_type": "SwaptionVolSpec",
+      "base": {
+        "reference_date": "2026-02-15",
+        "calendar": "TARGET",
+        "business_day_convention": "ModifiedFollowing",
+        "day_counter": "Actual365Fixed",
+        "shape": "SmileCube3D",
+        "volatility_type": "Normal",
+        "constant_vol": 0.0072
+      },
+      "expiries": [
+        0.0833333333,
+        0.1666666667,
+        0.25,
+        0.5,
+        0.75,
+        1,
+        1.5,
+        2,
+        3,
+        4,
+        5,
+        7,
+        10,
+        15
+      ],
+      "tenors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        7,
+        10,
+        12,
+        15,
+        20,
+        30
+      ],
+      "grid": [
+        [
+          0.00489993,
+          0.00522238,
+          0.00545619,
+          0.00564026,
+          0.00579137,
+          0.00602517,
+          0.00625704,
+          0.0063569,
+          0.00645951,
+          0.00659116,
+          0.00685198
+        ],
+        [
+          0.0049782,
+          0.00530204,
+          0.00553721,
+          0.00572255,
+          0.00587475,
+          0.00610991,
+          0.00634125,
+          0.00643919,
+          0.00653778,
+          0.00666396,
+          0.00692242
+        ],
+        [
+          0.00505204,
+          0.00537735,
+          0.00561395,
+          0.00580063,
+          0.00595397,
+          0.00619058,
+          0.00642136,
+          0.00651726,
+          0.00661162,
+          0.00673204,
+          0.006988
+        ],
+        [
+          0.00525278,
+          0.00558294,
+          0.00582432,
+          0.00601542,
+          0.00617257,
+          0.00641395,
+          0.00664288,
+          0.00673206,
+          0.00681236,
+          0.00691364,
+          0.00716132
+        ],
+        [
+          0.0054308,
+          0.00576654,
+          0.0060134,
+          0.00620958,
+          0.00637108,
+          0.00661794,
+          0.00684475,
+          0.00692621,
+          0.00699039,
+          0.00706971,
+          0.00730791
+        ],
+        [
+          0.00559329,
+          0.00593532,
+          0.00618835,
+          0.00639025,
+          0.00655669,
+          0.00680972,
+          0.00703414,
+          0.00710689,
+          0.00715287,
+          0.00720743,
+          0.00743492
+        ],
+        [
+          0.00588782,
+          0.00624441,
+          0.00651176,
+          0.00672693,
+          0.00690476,
+          0.00717211,
+          0.007391,
+          0.00744356,
+          0.0074474,
+          0.0074446,
+          0.00764726
+        ],
+        [
+          0.00615519,
+          0.00652839,
+          0.00681207,
+          0.00704238,
+          0.00723322,
+          0.00751689,
+          0.00772946,
+          0.00775901,
+          0.00771477,
+          0.00764652,
+          0.00782088
+        ],
+        [
+          0.00662111,
+          0.0070283,
+          0.00734538,
+          0.00760665,
+          0.00782409,
+          0.00814117,
+          0.00834082,
+          0.00832328,
+          0.00818069,
+          0.00797856,
+          0.00809501
+        ],
+        [
+          0.00696245,
+          0.00739247,
+          0.00773198,
+          0.00801404,
+          0.00824936,
+          0.00858886,
+          0.00877984,
+          0.00873067,
+          0.00852203,
+          0.00823,
+          0.00830756
+        ],
+        [
+          0.00713566,
+          0.00756568,
+          0.00790519,
+          0.00818725,
+          0.00842256,
+          0.00876207,
+          0.00895305,
+          0.00890388,
+          0.00869524,
+          0.00840321,
+          0.00848077
+        ],
+        [
+          0.00708698,
+          0.00746018,
+          0.00774386,
+          0.00797417,
+          0.00816501,
+          0.00844868,
+          0.00866125,
+          0.0086908,
+          0.00864656,
+          0.00857831,
+          0.00875266
+        ],
+        [
+          0.00703339,
+          0.00734376,
+          0.00756568,
+          0.00773875,
+          0.0078804,
+          0.00810232,
+          0.00833878,
+          0.00845538,
+          0.00859297,
+          0.00877223,
+          0.00905365
+        ],
+        [
+          0.00735383,
+          0.00765793,
+          0.0078737,
+          0.00804106,
+          0.0081778,
+          0.00839356,
+          0.0086324,
+          0.00875769,
+          0.00891341,
+          0.00911735,
+          0.00940945
+        ]
+      ]
+    },
+    {
+      "id": "eq_black_prices_usd",
+      "payload_type": "BlackVolSpec",
+      "base": {
+        "reference_date": "2026-02-09",
+        "calendar": "NullCalendar",
+        "business_day_convention": "Following",
+        "day_counter": "Actual365Fixed",
+        "shape": "SurfaceFromPrices"
+      },
+      "price_option_type": "Call",
+      "surface_interpolator": "Bicubic",
+      "spot_quote_id": "EQ_AAPL_SPOT",
+      "use_flat_discount_rate": true,
+      "flat_discount_rate": 0.045,
+      "use_flat_dividend_rate": true,
+      "flat_dividend_rate": 0.012,
+      "price_expiries": [
+        "2026-03-20",
+        "2026-06-19",
+        "2026-09-18",
+        "2027-02-19",
+        "2028-02-18"
+      ],
+      "price_strikes": [
+        80,
+        90,
+        100,
+        110,
+        120
+      ],
+      "surface_prices": {
+        "n_rows": 5,
+        "n_cols": 5,
+        "values": [
+          21.85,
+          11.95,
+          3.62,
+          0.86,
+          0.19,
+          22.45,
+          12.94,
+          6.21,
+          2.31,
+          0.77,
+          22.94,
+          14.63,
+          8.57,
+          4.48,
+          2.11,
+          24.88,
+          17.21,
+          12.14,
+          7.98,
+          5.25,
+          27.66,
+          21.11,
+          16.67,
+          13.12,
+          10.08
+        ]
+      },
+      "surface_price_quote_ids": [
+        "EQ_AAPL_C_20260320_K080",
+        "EQ_AAPL_C_20260320_K090",
+        "EQ_AAPL_C_20260320_K100",
+        "EQ_AAPL_C_20260320_K110",
+        "EQ_AAPL_C_20260320_K120",
+        "EQ_AAPL_C_20260619_K080",
+        "EQ_AAPL_C_20260619_K090",
+        "EQ_AAPL_C_20260619_K100",
+        "EQ_AAPL_C_20260619_K110",
+        "EQ_AAPL_C_20260619_K120",
+        "EQ_AAPL_C_20260918_K080",
+        "EQ_AAPL_C_20260918_K090",
+        "EQ_AAPL_C_20260918_K100",
+        "EQ_AAPL_C_20260918_K110",
+        "EQ_AAPL_C_20260918_K120",
+        "EQ_AAPL_C_20270219_K080",
+        "EQ_AAPL_C_20270219_K090",
+        "EQ_AAPL_C_20270219_K100",
+        "EQ_AAPL_C_20270219_K110",
+        "EQ_AAPL_C_20270219_K120",
+        "EQ_AAPL_C_20280218_K080",
+        "EQ_AAPL_C_20280218_K090",
+        "EQ_AAPL_C_20280218_K100",
+        "EQ_AAPL_C_20280218_K110",
+        "EQ_AAPL_C_20280218_K120"
+      ]
+    }
+  ],
+  "equityOptions": [
+    {
+      "pricing": {
+        "as_of_date": "2026-02-09",
+        "settlement_date": "2026-02-11",
+        "curves": [],
+        "vol_surfaces": [
+          {
+            "id": "eq_black_prices_usd",
+            "payload_type": "BlackVolSpec",
+            "payload": {
+              "base": {
+                "reference_date": "2026-02-09",
+                "calendar": "NullCalendar",
+                "business_day_convention": "Following",
+                "day_counter": "Actual365Fixed",
+                "shape": "SurfaceFromPrices"
+              },
+              "price_option_type": "Call",
+              "surface_interpolator": "Bicubic",
+              "spot_quote_id": "EQ_AAPL_SPOT",
+              "use_flat_discount_rate": true,
+              "flat_discount_rate": 0.045,
+              "use_flat_dividend_rate": true,
+              "flat_dividend_rate": 0.012,
+              "price_expiries": [
+                "2026-03-20",
+                "2026-06-19",
+                "2026-09-18",
+                "2027-02-19",
+                "2028-02-18"
+              ],
+              "price_strikes": [
+                80,
+                90,
+                100,
+                110,
+                120
+              ],
+              "surface_prices": {
+                "n_rows": 5,
+                "n_cols": 5,
+                "values": [
+                  21.85,
+                  11.95,
+                  3.62,
+                  0.86,
+                  0.19,
+                  22.45,
+                  12.94,
+                  6.21,
+                  2.31,
+                  0.77,
+                  22.94,
+                  14.63,
+                  8.57,
+                  4.48,
+                  2.11,
+                  24.88,
+                  17.21,
+                  12.14,
+                  7.98,
+                  5.25,
+                  27.66,
+                  21.11,
+                  16.67,
+                  13.12,
+                  10.08
+                ],
+                "quote_ids": [
+                  "EQ_AAPL_C_20260320_K080",
+                  "EQ_AAPL_C_20260320_K090",
+                  "EQ_AAPL_C_20260320_K100",
+                  "EQ_AAPL_C_20260320_K110",
+                  "EQ_AAPL_C_20260320_K120",
+                  "EQ_AAPL_C_20260619_K080",
+                  "EQ_AAPL_C_20260619_K090",
+                  "EQ_AAPL_C_20260619_K100",
+                  "EQ_AAPL_C_20260619_K110",
+                  "EQ_AAPL_C_20260619_K120",
+                  "EQ_AAPL_C_20260918_K080",
+                  "EQ_AAPL_C_20260918_K090",
+                  "EQ_AAPL_C_20260918_K100",
+                  "EQ_AAPL_C_20260918_K110",
+                  "EQ_AAPL_C_20260918_K120",
+                  "EQ_AAPL_C_20270219_K080",
+                  "EQ_AAPL_C_20270219_K090",
+                  "EQ_AAPL_C_20270219_K100",
+                  "EQ_AAPL_C_20270219_K110",
+                  "EQ_AAPL_C_20270219_K120",
+                  "EQ_AAPL_C_20280218_K080",
+                  "EQ_AAPL_C_20280218_K090",
+                  "EQ_AAPL_C_20280218_K100",
+                  "EQ_AAPL_C_20280218_K110",
+                  "EQ_AAPL_C_20280218_K120"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "options": [
+        {
+          "trade_id": "eq_call_price_iv_demo",
+          "option_type": "Call",
+          "exercise_type": "European",
+          "expiry_date": "2026-08-15",
+          "strike": 100,
+          "quantity": 1,
+          "multiplier": 1,
+          "settlement_type": "Cash",
+          "underlying": {
+            "underlying_id": "AAPL",
+            "spot": 100,
+            "currency": "USD",
+            "dividend_yield_curve_id": "dividend",
+            "discrete_dividends": []
+          },
+          "discount_curve_id": "discount",
+          "volatility": "eq_black_prices_usd",
+          "base_structure": "Vanilla",
+          "features": {}
+        }
+      ]
+    }
+  ],
+  "inflationSwaps": [
+    {
+      "pricing": {
+        "as_of_date": "2026-02-09",
+        "curves": [
+          {
+            "id": "discount",
+            "day_counter": "Actual365Fixed",
+            "interpolator": "LogLinear",
+            "bootstrap_trait": "Discount",
+            "reference_date": "2026-02-09",
+            "points": [
+              {
+                "point_type": "DepositHelper",
+                "point": {
+                  "rate": 0.029,
+                  "tenor_number": 6,
+                  "tenor_time_unit": "Months",
+                  "fixing_days": 2,
+                  "calendar": "TARGET",
+                  "business_day_convention": "ModifiedFollowing",
+                  "day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "SwapHelper",
+                "point": {
+                  "rate": 0.0242,
+                  "tenor_number": 5,
+                  "tenor_time_unit": "Years",
+                  "calendar": "TARGET",
+                  "sw_fixed_leg_frequency": "Annual",
+                  "sw_fixed_leg_convention": "ModifiedFollowing",
+                  "sw_fixed_leg_day_counter": "Thirty360",
+                  "float_index": {
+                    "id": "EURIBOR_6M"
+                  },
+                  "spread": 0
+                }
+              }
+            ]
+          }
+        ],
+        "indices": [
+          {
+            "id": "EURIBOR_6M",
+            "name": "Euribor",
+            "index_type": "Ibor",
+            "currency": "EUR",
+            "tenor_number": 6,
+            "tenor_time_unit": "Months",
+            "fixing_days": 2,
+            "calendar": "TARGET",
+            "day_counter": "Actual360",
+            "business_day_convention": "ModifiedFollowing",
+            "end_of_month": false
+          }
+        ],
+        "inflation_indices": [
+          {
+            "id": "EUHICP",
+            "family_name": "EU HICP",
+            "currency": "EUR",
+            "calendar": "TARGET",
+            "day_counter": "Actual365Fixed",
+            "frequency": "Monthly",
+            "availability_lag": {
+              "n": 2,
+              "unit": "Months"
+            },
+            "observation_lag": {
+              "n": 3,
+              "unit": "Months"
+            },
+            "interpolated": true,
+            "revised": false,
+            "kind": "ZeroInflation",
+            "fixings": [
+              {
+                "date": "2025-10-01",
+                "value": 108.4
+              },
+              {
+                "date": "2025-11-01",
+                "value": 108.6
+              },
+              {
+                "date": "2025-12-01",
+                "value": 108.9
+              }
+            ]
+          }
+        ],
+        "inflation_curves": [
+          {
+            "id": "HICP_ZC",
+            "reference_date": "2026-02-09",
+            "calendar": "TARGET",
+            "business_day_convention": "ModifiedFollowing",
+            "day_counter": "Actual365Fixed",
+            "interpolator": "Linear",
+            "bootstrap_accuracy": 1e-12,
+            "kind": "ZeroInflation",
+            "index_id": "EUHICP",
+            "discount_curve_id": "discount",
+            "allow_extrapolation": true,
+            "points": [
+              {
+                "point_type": "ZeroCouponInflationSwapHelper",
+                "point": {
+                  "quote_value": 0.0195,
+                  "swap_observation_lag": {
+                    "n": 3,
+                    "unit": "Months"
+                  },
+                  "tenor": {
+                    "n": 1,
+                    "unit": "Years"
+                  },
+                  "calendar": "TARGET",
+                  "payment_convention": "ModifiedFollowing",
+                  "day_counter": "Actual365Fixed",
+                  "observation_interpolation": "Linear"
+                }
+              },
+              {
+                "point_type": "ZeroCouponInflationSwapHelper",
+                "point": {
+                  "quote_value": 0.0201,
+                  "swap_observation_lag": {
+                    "n": 3,
+                    "unit": "Months"
+                  },
+                  "tenor": {
+                    "n": 2,
+                    "unit": "Years"
+                  },
+                  "calendar": "TARGET",
+                  "payment_convention": "ModifiedFollowing",
+                  "day_counter": "Actual365Fixed",
+                  "observation_interpolation": "Linear"
+                }
+              },
+              {
+                "point_type": "ZeroCouponInflationSwapHelper",
+                "point": {
+                  "quote_value": 0.0213,
+                  "swap_observation_lag": {
+                    "n": 3,
+                    "unit": "Months"
+                  },
+                  "tenor": {
+                    "n": 5,
+                    "unit": "Years"
+                  },
+                  "calendar": "TARGET",
+                  "payment_convention": "ModifiedFollowing",
+                  "day_counter": "Actual365Fixed",
+                  "observation_interpolation": "Linear"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "swaps": [
+        {
+          "zero_coupon_inflation_swap": {
+            "swap_type": "Payer",
+            "nominal": 5000000,
+            "start_date": "2026-02-11",
+            "maturity_date": "2031-02-11",
+            "fixed_calendar": "TARGET",
+            "fixed_convention": "ModifiedFollowing",
+            "day_counter": "Actual365Fixed",
+            "fixed_rate": 0.0217,
+            "inflation_index_id": "EUHICP",
+            "observation_lag": {
+              "n": 3,
+              "unit": "Months"
+            },
+            "observation_interpolation": "Linear",
+            "adjust_observation_dates": false,
+            "inflation_calendar": "NullCalendar",
+            "inflation_convention": "Following"
+          },
+          "discounting_curve": "discount",
+          "inflation_curve": "HICP_ZC"
+        }
+      ],
+      "include_flows": true
+    },
+    {
+      "pricing": {
+        "as_of_date": "2026-02-09",
+        "curves": [
+          {
+            "id": "discount",
+            "day_counter": "Actual365Fixed",
+            "interpolator": "LogLinear",
+            "bootstrap_trait": "Discount",
+            "reference_date": "2026-02-09",
+            "points": [
+              {
+                "point_type": "DepositHelper",
+                "point": {
+                  "rate": 0.029,
+                  "tenor_number": 6,
+                  "tenor_time_unit": "Months",
+                  "fixing_days": 2,
+                  "calendar": "TARGET",
+                  "business_day_convention": "ModifiedFollowing",
+                  "day_counter": "Actual360"
+                }
+              },
+              {
+                "point_type": "SwapHelper",
+                "point": {
+                  "rate": 0.0242,
+                  "tenor_number": 5,
+                  "tenor_time_unit": "Years",
+                  "calendar": "TARGET",
+                  "sw_fixed_leg_frequency": "Annual",
+                  "sw_fixed_leg_convention": "ModifiedFollowing",
+                  "sw_fixed_leg_day_counter": "Thirty360",
+                  "float_index": {
+                    "id": "EURIBOR_6M"
+                  },
+                  "spread": 0
+                }
+              }
+            ]
+          }
+        ],
+        "indices": [
+          {
+            "id": "EURIBOR_6M",
+            "name": "Euribor",
+            "index_type": "Ibor",
+            "currency": "EUR",
+            "tenor_number": 6,
+            "tenor_time_unit": "Months",
+            "fixing_days": 2,
+            "calendar": "TARGET",
+            "day_counter": "Actual360",
+            "business_day_convention": "ModifiedFollowing",
+            "end_of_month": false
+          }
+        ],
+        "inflation_indices": [
+          {
+            "id": "EUHICP_YY",
+            "family_name": "EU HICP YoY",
+            "currency": "EUR",
+            "calendar": "TARGET",
+            "day_counter": "Actual365Fixed",
+            "frequency": "Monthly",
+            "availability_lag": {
+              "n": 2,
+              "unit": "Months"
+            },
+            "observation_lag": {
+              "n": 3,
+              "unit": "Months"
+            },
+            "interpolated": true,
+            "revised": false,
+            "kind": "YoYInflation",
+            "fixings": [
+              {
+                "date": "2025-10-01",
+                "value": 0.0186
+              },
+              {
+                "date": "2025-11-01",
+                "value": 0.0191
+              },
+              {
+                "date": "2025-12-01",
+                "value": 0.0194
+              }
+            ]
+          }
+        ],
+        "inflation_curves": [
+          {
+            "id": "HICP_YY",
+            "reference_date": "2026-02-09",
+            "calendar": "TARGET",
+            "business_day_convention": "ModifiedFollowing",
+            "day_counter": "Actual365Fixed",
+            "interpolator": "Linear",
+            "bootstrap_accuracy": 1e-12,
+            "kind": "YoYInflation",
+            "index_id": "EUHICP_YY",
+            "discount_curve_id": "discount",
+            "allow_extrapolation": true,
+            "points": [
+              {
+                "point_type": "YearOnYearInflationSwapHelper",
+                "point": {
+                  "quote_value": 0.0199,
+                  "swap_observation_lag": {
+                    "n": 3,
+                    "unit": "Months"
+                  },
+                  "tenor": {
+                    "n": 1,
+                    "unit": "Years"
+                  },
+                  "calendar": "TARGET",
+                  "payment_convention": "ModifiedFollowing",
+                  "day_counter": "Actual365Fixed",
+                  "observation_interpolation": "Linear",
+                  "nominal_curve_id": "discount"
+                }
+              },
+              {
+                "point_type": "YearOnYearInflationSwapHelper",
+                "point": {
+                  "quote_value": 0.0206,
+                  "swap_observation_lag": {
+                    "n": 3,
+                    "unit": "Months"
+                  },
+                  "tenor": {
+                    "n": 2,
+                    "unit": "Years"
+                  },
+                  "calendar": "TARGET",
+                  "payment_convention": "ModifiedFollowing",
+                  "day_counter": "Actual365Fixed",
+                  "observation_interpolation": "Linear",
+                  "nominal_curve_id": "discount"
+                }
+              },
+              {
+                "point_type": "YearOnYearInflationSwapHelper",
+                "point": {
+                  "quote_value": 0.0212,
+                  "swap_observation_lag": {
+                    "n": 3,
+                    "unit": "Months"
+                  },
+                  "tenor": {
+                    "n": 5,
+                    "unit": "Years"
+                  },
+                  "calendar": "TARGET",
+                  "payment_convention": "ModifiedFollowing",
+                  "day_counter": "Actual365Fixed",
+                  "observation_interpolation": "Linear",
+                  "nominal_curve_id": "discount"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "swaps": [
+        {
+          "year_on_year_inflation_swap": {
+            "swap_type": "Receiver",
+            "nominal": 3000000,
+            "fixed_schedule": {
+              "effective_date": "2026-02-11",
+              "termination_date": "2030-02-11",
+              "calendar": "TARGET",
+              "frequency": "Annual",
+              "convention": "ModifiedFollowing",
+              "termination_date_convention": "ModifiedFollowing",
+              "date_generation_rule": "Forward"
+            },
+            "fixed_rate": 0.0204,
+            "fixed_day_counter": "Actual365Fixed",
+            "yoy_schedule": {
+              "effective_date": "2026-02-11",
+              "termination_date": "2030-02-11",
+              "calendar": "TARGET",
+              "frequency": "Annual",
+              "convention": "ModifiedFollowing",
+              "termination_date_convention": "ModifiedFollowing",
+              "date_generation_rule": "Forward"
+            },
+            "inflation_index_id": "EUHICP_YY",
+            "observation_lag": {
+              "n": 3,
+              "unit": "Months"
+            },
+            "observation_interpolation": "Linear",
+            "spread": 0.0002,
+            "yoy_day_counter": "Actual365Fixed",
+            "payment_calendar": "TARGET",
+            "payment_convention": "ModifiedFollowing"
+          },
+          "discounting_curve": "discount",
+          "inflation_curve": "HICP_YY"
+        }
+      ],
+      "include_flows": true
+    }
+  ],
+  "swaptionModels": [
+    {
+      "id": "hw_explicit_model",
+      "kind": "HullWhiteLattice",
+      "hw_a": 0.03,
+      "hw_sigma": 0.01,
+      "rmse": 0,
+      "num_helpers": 4,
+      "as_of_date": "2025-01-15",
+      "vol_surface_id": "swaption_atm",
+      "discount_curve_id": "discount",
+      "forwarding_curve_id": "discount",
+      "swap_index_id": "EUR_SWAP_6M",
+      "createdAt": "2025-01-15T00:00:00.000Z",
+      "updatedAt": "2025-01-15T00:00:00.000Z"
+    }
+  ]
+}

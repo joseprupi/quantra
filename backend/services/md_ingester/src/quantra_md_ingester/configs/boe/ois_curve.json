@@ -1,0 +1,66 @@
+{
+  "source": "BOE",
+  "dataset": "OIS_PAR_FROM_SPOT_CURVE",
+  "series": [
+    {
+      "maturity_years": 0.5,
+      "canonical_id": "GBP.RATES.BOE.OIS.6M.PAR",
+      "tenor": "6M",
+      "description": "GBP SONIA OIS par rate at 6M (derived from BoE spot curve, daily public)"
+    },
+    {
+      "maturity_years": 1.0,
+      "canonical_id": "GBP.RATES.BOE.OIS.1Y.PAR",
+      "tenor": "1Y",
+      "description": "GBP SONIA OIS par rate at 1Y (derived from BoE spot curve, daily public)"
+    },
+    {
+      "maturity_years": 2.0,
+      "canonical_id": "GBP.RATES.BOE.OIS.2Y.PAR",
+      "tenor": "2Y",
+      "description": "GBP SONIA OIS par rate at 2Y (derived from BoE spot curve, daily public)"
+    },
+    {
+      "maturity_years": 3.0,
+      "canonical_id": "GBP.RATES.BOE.OIS.3Y.PAR",
+      "tenor": "3Y",
+      "description": "GBP SONIA OIS par rate at 3Y (derived from BoE spot curve, daily public)"
+    },
+    {
+      "maturity_years": 5.0,
+      "canonical_id": "GBP.RATES.BOE.OIS.5Y.PAR",
+      "tenor": "5Y",
+      "description": "GBP SONIA OIS par rate at 5Y (derived from BoE spot curve, daily public)"
+    },
+    {
+      "maturity_years": 7.0,
+      "canonical_id": "GBP.RATES.BOE.OIS.7Y.PAR",
+      "tenor": "7Y",
+      "description": "GBP SONIA OIS par rate at 7Y (derived from BoE spot curve, daily public)"
+    },
+    {
+      "maturity_years": 10.0,
+      "canonical_id": "GBP.RATES.BOE.OIS.10Y.PAR",
+      "tenor": "10Y",
+      "description": "GBP SONIA OIS par rate at 10Y (derived from BoE spot curve, daily public)"
+    },
+    {
+      "maturity_years": 15.0,
+      "canonical_id": "GBP.RATES.BOE.OIS.15Y.PAR",
+      "tenor": "15Y",
+      "description": "GBP SONIA OIS par rate at 15Y (derived from BoE spot curve, daily public)"
+    },
+    {
+      "maturity_years": 20.0,
+      "canonical_id": "GBP.RATES.BOE.OIS.20Y.PAR",
+      "tenor": "20Y",
+      "description": "GBP SONIA OIS par rate at 20Y (derived from BoE spot curve, daily public)"
+    },
+    {
+      "maturity_years": 25.0,
+      "canonical_id": "GBP.RATES.BOE.OIS.25Y.PAR",
+      "tenor": "25Y",
+      "description": "GBP SONIA OIS par rate at 25Y (derived from BoE spot curve, daily public)"
+    }
+  ]
+}

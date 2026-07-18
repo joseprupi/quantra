@@ -1,0 +1,86 @@
+{
+  "source": "TREASURY",
+  "dataset": "daily_treasury_yield_curve",
+  "series": [
+    {
+      "page_type": "daily_treasury_yield_curve",
+      "value_class_token": "views-field-field-bc-1month",
+      "archive_column": "1 mo",
+      "canonical_id": "USD.RATES.UST.OFFICIAL.1M.YIELD",
+      "tenor": "1M",
+      "description": "US Treasury nominal par yield curve 1M"
+    },
+    {
+      "page_type": "daily_treasury_yield_curve",
+      "value_class_token": "views-field-field-bc-3month",
+      "archive_column": "3 mo",
+      "canonical_id": "USD.RATES.UST.OFFICIAL.3M.YIELD",
+      "tenor": "3M",
+      "description": "US Treasury nominal par yield curve 3M"
+    },
+    {
+      "page_type": "daily_treasury_yield_curve",
+      "value_class_token": "views-field-field-bc-6month",
+      "archive_column": "6 mo",
+      "canonical_id": "USD.RATES.UST.OFFICIAL.6M.YIELD",
+      "tenor": "6M",
+      "description": "US Treasury nominal par yield curve 6M"
+    },
+    {
+      "page_type": "daily_treasury_yield_curve",
+      "value_class_token": "views-field-field-bc-1year",
+      "archive_column": "1 yr",
+      "canonical_id": "USD.RATES.UST.OFFICIAL.1Y.YIELD",
+      "tenor": "1Y",
+      "description": "US Treasury nominal par yield curve 1Y"
+    },
+    {
+      "page_type": "daily_treasury_yield_curve",
+      "value_class_token": "views-field-field-bc-2year",
+      "archive_column": "2 yr",
+      "canonical_id": "USD.RATES.UST.OFFICIAL.2Y.YIELD",
+      "tenor": "2Y",
+      "description": "US Treasury nominal par yield curve 2Y"
+    },
+    {
+      "page_type": "daily_treasury_yield_curve",
+      "value_class_token": "views-field-field-bc-5year",
+      "archive_column": "5 yr",
+      "canonical_id": "USD.RATES.UST.OFFICIAL.5Y.YIELD",
+      "tenor": "5Y",
+      "description": "US Treasury nominal par yield curve 5Y"
+    },
+    {
+      "page_type": "daily_treasury_yield_curve",
+      "value_class_token": "views-field-field-bc-7year",
+      "archive_column": "7 yr",
+      "canonical_id": "USD.RATES.UST.OFFICIAL.7Y.YIELD",
+      "tenor": "7Y",
+      "description": "US Treasury nominal par yield curve 7Y"
+    },
+    {
+      "page_type": "daily_treasury_yield_curve",
+      "value_class_token": "views-field-field-bc-10year",
+      "archive_column": "10 yr",
+      "canonical_id": "USD.RATES.UST.OFFICIAL.10Y.YIELD",
+      "tenor": "10Y",
+      "description": "US Treasury nominal par yield curve 10Y"
+    },
+    {
+      "page_type": "daily_treasury_yield_curve",
+      "value_class_token": "views-field-field-bc-20year",
+      "archive_column": "20 yr",
+      "canonical_id": "USD.RATES.UST.OFFICIAL.20Y.YIELD",
+      "tenor": "20Y",
+      "description": "US Treasury nominal par yield curve 20Y"
+    },
+    {
+      "page_type": "daily_treasury_yield_curve",
+      "value_class_token": "views-field-field-bc-30year",
+      "archive_column": "30 yr",
+      "canonical_id": "USD.RATES.UST.OFFICIAL.30Y.YIELD",
+      "tenor": "30Y",
+      "description": "US Treasury nominal par yield curve 30Y"
+    }
+  ]
+}

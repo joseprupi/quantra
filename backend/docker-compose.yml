@@ -1,0 +1,248 @@
+###############################################################################
+# Backend DEVELOPMENT stack.
+#
+# This compose file serves backend contributors: it provides Postgres (always)
+# plus opt-in profiles for the md-ingester CLI, its cron scheduler, and a live
+# pricing engine for the gated integration tests.
+#
+# It does NOT run the whole application — the REPO-ROOT ``docker-compose.yml``
+# owns that (orchestrator + market_data + portal + engine + first-boot init
+# chain, built from source):
+#
+#   cd .. && docker compose up -d
+#
+# The single Postgres instance hosts both `app.*` and `md.*` schemas with
+# separate roles. Schemas + roles + grants are provisioned by the Alembic
+# migrations under `migrations/alembic/versions/{app,md}/` — run with
+# `uv run alembic -n {app,md} upgrade head`. The container itself only ships
+# the `quantra` superuser; everything else is created by Alembic so every
+# environment uses exactly the same provisioning code.
+###############################################################################
+
+services:
+  postgres:
+    image: postgres:16
+    # container_name is overridable so an isolated compose project (e.g. a
+    # fresh-install proof under its own ``-p`` project name) can run its own
+    # postgres alongside the default-project one without the fixed name
+    # colliding. Defaults to the historical name for the default project.
+    container_name: ${POSTGRES_CONTAINER_NAME:-quantra-backend-postgres}
+    environment:
+      POSTGRES_DB: quantra
+      POSTGRES_USER: quantra
+      POSTGRES_PASSWORD: quantra
+    ports:
+      # Host port is overridable so contributors who already run another
+      # Postgres on 5432 can set POSTGRES_HOST_PORT=5434 (or similar) in
+      # their .env. Container port stays 5432.
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quantra -d quantra"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # --- MD-ingester CLI (on demand) -----------------------------------------
+  md_ingester:
+    build:
+      context: .
+      dockerfile: services/md_ingester/Dockerfile
+    # pin a stable image tag so the ofelia sidecar (which spawns
+    # short-lived containers per scheduled tick via ``job-run``) can refer
+    # to this image by name without depending on compose's auto-generated
+    # ``<project>_<service>`` tag, which varies with project name.
+    image: quantra-backend-md-ingester:local
+    container_name: quantra-backend-md-ingester
+    environment:
+      # Writes go through the md_rw role by design (the ingester is the
+      # single writer to md.*).
+      #
+      # The DSN is pinned to the docker-network host/port. Host-side
+      # processes use ``localhost:<host-port>`` via ``.env`` — the correct
+      # value off-network — but compose's ``${...:-default}`` expansion
+      # would let that host value shadow the in-network default and the
+      # container would wedge on ``ConnectionRefusedError`` (localhost
+      # inside the container goes nowhere). Hard-coding the value here
+      # makes the container pick the in-network DSN regardless of the host
+      # ``.env``.
+      POSTGRES_DSN_MD_RW: postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra
+      FRED_API_KEY: ${FRED_API_KEY:-}
+      ENV: ${ENV:-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # The scheduled runner is the ``ofelia`` sidecar below. For dev, keep
+    # this container idle (profile ``on-demand``) and either invoke
+    # subcommands manually
+    # (``docker compose run --rm md_ingester ingest --source boe_ois ...``)
+    # or bring up the ``scheduled`` profile to let ofelia fire the
+    # per-source cadence.
+    profiles: ["on-demand"]
+    command: ["--help"]
+
+  # --- Scheduled MD-ingester runner ----------------------------------------
+  # ``ofelia`` is a tiny, single-binary cron daemon that reads job
+  # definitions from docker labels. For each scheduled tick it
+  # ``docker run``s a fresh ``quantra-backend-md-ingester:local``
+  # container with the per-source CLI args. Labels-only config keeps
+  # the schedule co-located with the rest of the compose stack —
+  # there's no parallel ini/yaml to drift.
+  #
+  # **Opt-in.** Profile-gated so the default ``docker compose up`` stays
+  # fast (no extra container). Bring it up explicitly:
+  #
+  # docker compose --profile scheduled up -d ofelia
+  #
+  # **Why ``job-run`` and not ``job-exec``.** The md_ingester service is
+  # ``profiles: ["on-demand"]`` and not running by default; there's no
+  # long-lived container for ofelia to ``exec`` into. ``job-run`` spawns
+  # a fresh container per tick from the pinned image tag above.
+  #
+  # **Networking.** ``job-run``-spawned containers need an explicit
+  # docker network to reach ``postgres``. The top-level ``networks``
+  # block at the bottom of this file pins the project default network
+  # to a fixed (env-overridable) name so the labels can refer to it
+  # without depending on compose's auto-generated ``<project>_default``
+  # name (which varies with the working directory).
+  #
+  # **Cron expressions.** Six fields (seconds minutes hours dom mon dow);
+  # times are UTC. Per-source rationale documented inline below.
+  #
+  # **Retry semantics.** Not wrapped in ofelia — the upsert PK on
+  # ``md.quote_points`` (canonical_id, as_of) and the snapshot rebuild
+  # are idempotent, so a missed tick is corrected by the next scheduled
+  # run.
+  #
+  # **Live-vendor quota.** These crons WILL fire real vendor calls
+  # (FRED requires ``FRED_API_KEY``; ECB / BoE / Treasury are public
+  # endpoints). Contributors who don't want live calls in their dev
+  # stack should keep the ``scheduled`` profile down — automated tests
+  # exercise the scheduler via a fixture fetcher (the ``md_ingest_smoke``
+  # pytest lane), not via this sidecar.
+  ofelia:
+    image: mcuadros/ofelia:0.3
+    container_name: quantra-backend-ofelia
+    command: ["daemon", "--docker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # Read-only docker socket so ofelia can ``docker run`` per tick.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    profiles: ["scheduled"]
+    labels:
+      # FRED — daily at 22:00 UTC. FRED publishes most series end-of-day
+      # NY (18:00 EST); 22:00 UTC = 18:00 EST + a 4h cushion so a late
+      # publication still lands in the same business day's snapshot.
+      ofelia.job-run.md-ingest-fred.schedule: "0 0 22 * * *"
+      ofelia.job-run.md-ingest-fred.image: "quantra-backend-md-ingester:local"
+      ofelia.job-run.md-ingest-fred.command: "ingest --source fred"
+      ofelia.job-run.md-ingest-fred.network: "${QUANTRA_NET_NAME:-quantra-backend-net}"
+      ofelia.job-run.md-ingest-fred.environment: '["POSTGRES_DSN_MD_RW=postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra", "FRED_API_KEY=${FRED_API_KEY:-}", "ENV=${ENV:-dev}", "LOG_LEVEL=${LOG_LEVEL:-INFO}"]'
+
+      # ECB — twice daily. 14:30 UTC catches the daily FX reference rate
+      # publication (~14:15 UTC weekdays); 17:30 UTC picks up monthly
+      # HICP releases on release days (~10:00 UTC posted, but the second
+      # tick provides a same-day backstop for late corrections).
+      ofelia.job-run.md-ingest-ecb-am.schedule: "0 30 14 * * *"
+      ofelia.job-run.md-ingest-ecb-am.image: "quantra-backend-md-ingester:local"
+      ofelia.job-run.md-ingest-ecb-am.command: "ingest --source ecb"
+      ofelia.job-run.md-ingest-ecb-am.network: "${QUANTRA_NET_NAME:-quantra-backend-net}"
+      ofelia.job-run.md-ingest-ecb-am.environment: '["POSTGRES_DSN_MD_RW=postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra", "ENV=${ENV:-dev}", "LOG_LEVEL=${LOG_LEVEL:-INFO}"]'
+
+      ofelia.job-run.md-ingest-ecb-pm.schedule: "0 30 17 * * *"
+      ofelia.job-run.md-ingest-ecb-pm.image: "quantra-backend-md-ingester:local"
+      ofelia.job-run.md-ingest-ecb-pm.command: "ingest --source ecb"
+      ofelia.job-run.md-ingest-ecb-pm.network: "${QUANTRA_NET_NAME:-quantra-backend-net}"
+      ofelia.job-run.md-ingest-ecb-pm.environment: '["POSTGRES_DSN_MD_RW=postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra", "ENV=${ENV:-dev}", "LOG_LEVEL=${LOG_LEVEL:-INFO}"]'
+
+      # BoE — daily at 17:00 UTC. BoE govt curve publishes EOD ~16:30 UTC
+      # (LSE close); SONIA publishes ~07:00 UTC next business day but a
+      # 17:00 UTC daily run catches it as a backstop.
+      ofelia.job-run.md-ingest-boe.schedule: "0 0 17 * * *"
+      ofelia.job-run.md-ingest-boe.image: "quantra-backend-md-ingester:local"
+      ofelia.job-run.md-ingest-boe.command: "ingest --source boe"
+      ofelia.job-run.md-ingest-boe.network: "${QUANTRA_NET_NAME:-quantra-backend-net}"
+      ofelia.job-run.md-ingest-boe.environment: '["POSTGRES_DSN_MD_RW=postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra", "ENV=${ENV:-dev}", "LOG_LEVEL=${LOG_LEVEL:-INFO}"]'
+
+      # Treasury — daily at 21:00 UTC. Treasury nominal + real curve files
+      # publish EOD ~16:00-19:00 EST; 21:00 UTC = 17:00 EST + cushion.
+      ofelia.job-run.md-ingest-treasury.schedule: "0 0 21 * * *"
+      ofelia.job-run.md-ingest-treasury.image: "quantra-backend-md-ingester:local"
+      ofelia.job-run.md-ingest-treasury.command: "ingest --source treasury"
+      ofelia.job-run.md-ingest-treasury.network: "${QUANTRA_NET_NAME:-quantra-backend-net}"
+      ofelia.job-run.md-ingest-treasury.environment: '["POSTGRES_DSN_MD_RW=postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra", "ENV=${ENV:-dev}", "LOG_LEVEL=${LOG_LEVEL:-INFO}"]'
+
+      # Snapshot rebuild — daily at 23:00 UTC, after the ingest cadences
+      # above have landed. One rebuild per business day; rebuilding more
+      # often would churn ``version_etag`` without an upside.
+      ofelia.job-run.md-build-snapshot.schedule: "0 0 23 * * *"
+      ofelia.job-run.md-build-snapshot.image: "quantra-backend-md-ingester:local"
+      ofelia.job-run.md-build-snapshot.command: "build-snapshot"
+      ofelia.job-run.md-build-snapshot.network: "${QUANTRA_NET_NAME:-quantra-backend-net}"
+      ofelia.job-run.md-build-snapshot.environment: '["POSTGRES_DSN_MD_RW=postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra", "ENV=${ENV:-dev}", "LOG_LEVEL=${LOG_LEVEL:-INFO}"]'
+
+  # --- Live pricing engine (gated integration tests) -----------------------
+  # Real `quantraserver` C++ + QuantLib build, exposing the gRPC contract at
+  # `:50051`. Only spun up under the `live-engine` profile so the default
+  # `docker compose up` stays fast (engine cold start is several seconds, and
+  # the C++ image is large). Bring up explicitly:
+  #
+  # docker compose --profile live-engine up -d quantra-engine
+  #
+  # Defaults to the PUBLIC prebuilt engine image (the engine is a separate
+  # open-source project: github.com/joseprupi/quantraserver). With
+  # ``QUANTRA_ENGINE_COMMAND`` left EMPTY, compose resolves ``command: []``
+  # and Docker runs the image's OWN entrypoint (Envoy cluster + workers
+  # serving gRPC on :50051).
+  #
+  # To run an engine you built yourself instead, point
+  # ``QUANTRA_ENGINE_IMAGE`` at your local tag and set
+  # ``QUANTRA_ENGINE_COMMAND`` to the binary it needs to launch, e.g.
+  # ``QUANTRA_ENGINE_COMMAND=/src/build/server/sync_server 50051`` for an
+  # image built from the engine repo's ``builder`` target.
+  #
+  # The healthcheck pings the gRPC port directly (the engine's image ships
+  # ``python3`` but not ``nc``); the connect-and-close pattern returns
+  # success only after the server actually accepts on `:50051`.
+  quantra-engine:
+    image: ${QUANTRA_ENGINE_IMAGE:-ghcr.io/joseprupi/quantra-server:0.2.0}
+    # The published engine image is amd64-only; pin so arm64 hosts (Apple
+    # Silicon) pull + run under Rosetta instead of failing on
+    # "no matching manifest".
+    platform: linux/amd64
+    container_name: ${ENGINE_CONTAINER_NAME:-quantra-backend-engine}
+    environment:
+      # Bind on all interfaces so the docker port mapping works. The
+      # engine defaults to 127.0.0.1 if this is unset, which is fine
+      # for in-container clients but breaks docker -p forwarding.
+      QUANTRA_SERVER_BIND_HOST: "0.0.0.0"
+    # Colon-less ``-`` default: an EMPTY value wins (``command: []`` → the
+    # image's own entrypoint); only a non-empty value overrides it.
+    command: ${QUANTRA_ENGINE_COMMAND-}
+    ports:
+      - "${QUANTRA_ENGINE_HOST_PORT:-50051}:50051"
+    profiles: ["live-engine"]
+    healthcheck:
+      test:
+        ["CMD-SHELL",
+         "python3 -c 'import socket; s=socket.socket(); s.settimeout(1); s.connect((\"127.0.0.1\", 50051)); s.close()' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+volumes:
+  postgres_data:
+
+# Pin the project default network to a fixed docker name so the ofelia
+# sidecar's ``job-run`` labels above can refer to it without depending on
+# compose's auto-generated ``<project>_default`` name (which varies with the
+# working directory). Overridable so an isolated compose project gets its own
+# docker network instead of attaching to another stack's.
+networks:
+  default:
+    name: ${QUANTRA_NET_NAME:-quantra-backend-net}

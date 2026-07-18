@@ -1,0 +1,136 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel in-progress runs on the same ref when a new commit lands.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Detect which subtrees a change touches so a PR only runs the gates it
+  # needs. Pushes to main always run both.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'docker-compose.yml'
+              - 'README.md'
+              - 'CONTRIBUTING.md'
+              - '.gitignore'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - 'docker-compose.yml'
+              - 'README.md'
+              - 'CONTRIBUTING.md'
+              - '.gitignore'
+              - '.github/workflows/ci.yml'
+
+  backend:
+    name: backend (lint + types + tests)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          # Pin so CI is reproducible; bump deliberately.
+          version: "0.11.14"
+          enable-cache: true
+
+      - name: Set up Python
+        # uv reads backend/.python-version; this just pre-fetches it.
+        run: uv python install
+
+      - name: Sync workspace (frozen)
+        run: uv sync --frozen --all-packages --group dev
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check
+
+      - name: Mypy
+        run: uv run mypy packages services
+
+      - name: Pytest
+        run: uv run pytest
+
+  compose:
+    name: compose (config validation)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Cheap syntactic + interpolation validation of every compose file the
+      # docs point users at. Catches broken YAML, bad ${...} defaults, and
+      # dangling service references without pulling or building anything.
+      - name: Validate root docker-compose.yml
+        run: docker compose -f docker-compose.yml config -q
+
+      - name: Validate backend dev docker-compose.yml
+        run: docker compose -f backend/docker-compose.yml config -q
+
+      - name: Validate release docker-compose.release.yml
+        run: docker compose -f backend/deploy/docker-compose.release.yml config -q
+
+  frontend:
+    name: frontend (lint + types + tests + build)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Vitest
+        run: npx vitest run
+
+      - name: Build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run build

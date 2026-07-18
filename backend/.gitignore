@@ -1,0 +1,67 @@
+# Python bytecode / build
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+wheels/
+*.egg-info/
+*.egg
+.eggs/
+.hatch/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.python-version.local
+
+# Tooling caches
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+
+# uv
+# Lockfile is checked in (see README + decisions log D18). Caches/temps are not.
+uv.lock.bak
+
+# Editor / OS noise
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Local secrets and env files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Docker volumes / runtime state mounted from the repo
+.compose-data/
+postgres_data/
+
+# Alembic generated SQL dumps (versioned migrations themselves are tracked)
+migrations/alembic/versions/*.pyc
+
+# Release tarballs / scratch dirs — never commit build artifacts
+*.tar.gz
+tmp/
+
+# Local operator env-files and AI-session config
+ops/*.env
+CLAUDE.md
+.cursorignore

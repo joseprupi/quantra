@@ -1,0 +1,35 @@
+{
+  "source": "synthetic",
+  "dataset": "DEMO_STANDING",
+  "description": "Synthetic standing-data demo dataset. Economically-plausible, deterministic (seeded by as_of) values covering the full portal canonical-id vocabulary so all six products price end-to-end through real resolved MD. NOT real market data — every row is written with source='synthetic' and meta.synthetic=true. Rate curves span to 30Y to bootstrap past the longest product maturity.",
+  "series": [
+    { "canonical_id": "USD.IRS.3M", "tenor": "3M", "quote_kind": "rate", "curve": "USD.IRS", "description": "Synthetic USD IRS fixing 3M (demo)" },
+    { "canonical_id": "USD.IRS.1Y", "tenor": "1Y", "quote_kind": "rate", "curve": "USD.IRS", "description": "Synthetic USD IRS fixing 1Y (demo)" },
+    { "canonical_id": "USD.IRS.2Y", "tenor": "2Y", "quote_kind": "rate", "curve": "USD.IRS", "description": "Synthetic USD IRS fixing 2Y (demo)" },
+    { "canonical_id": "USD.IRS.5Y", "tenor": "5Y", "quote_kind": "rate", "curve": "USD.IRS", "description": "Synthetic USD IRS fixing 5Y (demo)" },
+    { "canonical_id": "USD.IRS.10Y", "tenor": "10Y", "quote_kind": "rate", "curve": "USD.IRS", "description": "Synthetic USD IRS fixing 10Y (demo)" },
+    { "canonical_id": "USD.IRS.12Y", "tenor": "12Y", "quote_kind": "rate", "curve": "USD.IRS", "description": "Synthetic USD IRS fixing 12Y (demo; spans past 10Y CDS, D86)" },
+    { "canonical_id": "USD.IRS.15Y", "tenor": "15Y", "quote_kind": "rate", "curve": "USD.IRS", "description": "Synthetic USD IRS fixing 15Y (demo span)" },
+    { "canonical_id": "USD.IRS.20Y", "tenor": "20Y", "quote_kind": "rate", "curve": "USD.IRS", "description": "Synthetic USD IRS fixing 20Y (demo span)" },
+    { "canonical_id": "USD.IRS.30Y", "tenor": "30Y", "quote_kind": "rate", "curve": "USD.IRS", "description": "Synthetic USD IRS fixing 30Y (demo span)" },
+
+    { "canonical_id": "USD.SOFR.2Y", "tenor": "2Y", "quote_kind": "rate", "curve": "USD.SOFR", "description": "Synthetic USD SOFR swap 2Y (demo)" },
+    { "canonical_id": "USD.SOFR.5Y", "tenor": "5Y", "quote_kind": "rate", "curve": "USD.SOFR", "description": "Synthetic USD SOFR swap 5Y (demo)" },
+    { "canonical_id": "USD.SOFR.10Y", "tenor": "10Y", "quote_kind": "rate", "curve": "USD.SOFR", "description": "Synthetic USD SOFR swap 10Y (demo span)" },
+
+    { "canonical_id": "EUR.IRS.1Y", "tenor": "1Y", "quote_kind": "rate", "curve": "EUR.IRS", "description": "Synthetic EUR IRS fixing 1Y (demo)" },
+    { "canonical_id": "EUR.IRS.2Y", "tenor": "2Y", "quote_kind": "rate", "curve": "EUR.IRS", "description": "Synthetic EUR IRS fixing 2Y (demo)" },
+    { "canonical_id": "EUR.IRS.5Y", "tenor": "5Y", "quote_kind": "rate", "curve": "EUR.IRS", "description": "Synthetic EUR IRS fixing 5Y (demo)" },
+    { "canonical_id": "EUR.IRS.10Y", "tenor": "10Y", "quote_kind": "rate", "curve": "EUR.IRS", "description": "Synthetic EUR IRS fixing 10Y (demo)" },
+    { "canonical_id": "EUR.IRS.12Y", "tenor": "12Y", "quote_kind": "rate", "curve": "EUR.IRS", "description": "Synthetic EUR IRS fixing 12Y (demo span)" },
+    { "canonical_id": "EUR.IRS.20Y", "tenor": "20Y", "quote_kind": "rate", "curve": "EUR.IRS", "description": "Synthetic EUR IRS fixing 20Y (demo span)" },
+    { "canonical_id": "EUR.IRS.30Y", "tenor": "30Y", "quote_kind": "rate", "curve": "EUR.IRS", "description": "Synthetic EUR IRS fixing 30Y (demo span)" },
+
+    { "canonical_id": "EUR.HICP.5Y", "tenor": "5Y", "quote_kind": "inflation", "curve": "EUR.HICP", "description": "Synthetic EUR HICP 5Y zero-coupon inflation rate (demo)" },
+    { "canonical_id": "EUR.HICP.10Y", "tenor": "10Y", "quote_kind": "inflation", "curve": "EUR.HICP", "description": "Synthetic EUR HICP 10Y zero-coupon inflation rate (demo span)" },
+
+    { "canonical_id": "USD.SWPTN.ATM.5Y10Y.VOL", "tenor": "5Y10Y", "quote_kind": "vol", "curve": "USD.SWPTN", "description": "Synthetic USD ATM swaption Black vol, 5Y into 10Y (demo)" },
+
+    { "canonical_id": "AAPL.DIV.1Y", "tenor": "1Y", "quote_kind": "dividend", "curve": "AAPL.DIV", "description": "Synthetic AAPL dividend yield 1Y (demo)" }
+  ]
+}

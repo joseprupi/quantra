@@ -1,0 +1,26 @@
+{
+  "name": "ecb_inflation_rates_default",
+  "description": "ECB monthly HICP inflation rates (annual change). The vendor publishes percent; normalized_unit=decimal_rate makes the connector store value/100 (2.4% -> 0.024), consistent with the other rate connectors.",
+  "series": [
+    {
+      "flow": "ICP",
+      "series_key": "M.U2.N.000000.4.ANR",
+      "canonical_id": "EUR.INFLATION.HICP.OVERALL.1M.RATE",
+      "tenor": "1M",
+      "description": "Euro area HICP overall annual rate of change",
+      "base_currency": "EUR",
+      "quote_currency": "EUR",
+      "normalized_unit": "decimal_rate"
+    },
+    {
+      "flow": "ICP",
+      "series_key": "M.U2.N.XEF000.4.ANR",
+      "canonical_id": "EUR.INFLATION.HICP.CORE.1M.RATE",
+      "tenor": "1M",
+      "description": "Euro area HICP core (ex energy and food) annual rate of change",
+      "base_currency": "EUR",
+      "quote_currency": "EUR",
+      "normalized_unit": "decimal_rate"
+    }
+  ]
+}

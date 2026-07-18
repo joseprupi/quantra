@@ -1,0 +1,432 @@
+###############################################################################
+# Quantra self-hosted — RELEASE flavor (image-only, pull-and-run).
+#
+# Runs the stack from the prebuilt, version-pinned platform images published
+# to GHCR on every release tag (``.github/workflows/release.yml``). Used two
+# ways: (a) pull-and-run via ./install.sh (public images, no login) and
+# (b) offline tarball installs via ./make-release-tarball.sh +
+# ./install-offline.sh (``docker load``, no registry). Building from source
+# instead? Use the repo-root ``docker-compose.yml`` (``docker compose up -d``).
+# See README.md in this directory.
+#
+# It mirrors the service graph of the repo-root ``docker-compose.yml``
+# EXACTLY — postgres + engine + market_data + orchestrator + the first-boot
+# init chain (migrate -> init-seed) + the real public-feed boot ingests
+# (BoE OIS / Treasury / ECB / FRED) + the daily ofelia cron + the browser
+# portal — with the SAME env wiring, healthchecks, depends_on ordering,
+# hard-pinned in-network DSNs, dev-auth bypass and same-origin portal proxy.
+# The ONLY difference: every in-house service references a pinned IMAGE ref
+# instead of a ``build:`` context. Nothing is built here.
+#
+# REAL-DATA-ONLY: no synthetic market data is seeded. The two seeded curves
+# (GBP SONIA OIS + USD Treasury) resolve against the genuine daily public
+# feeds, which ingest on boot (below) and refresh on the ofelia cron. A fresh
+# install therefore needs internet on first boot for those feeds to land
+# before the curves price.
+#
+# Bring it up (./install.sh does all of this + health waits for you):
+#
+#   cp .env.example .env
+#   docker compose --env-file .env -f docker-compose.release.yml up -d
+#
+# Configuration knobs (see .env.example — every one is documented there):
+#   REGISTRY               registry + namespace for the 3 backend images +
+#                          portal, e.g. ghcr.io/joseprupi (single variable so
+#                          the whole namespace is swappable).
+#   QUANTRA_VERSION        the version tag the in-house images are pinned to.
+#   QUANTRA_ENGINE_IMAGE   the pricing engine image (public GHCR by default).
+#   QUANTRA_ENGINE_COMMAND leave EMPTY to use the engine image's own
+#                          entrypoint (the off-box / pullable path).
+#
+# IMAGES-ONLY: the orchestrator image VENDORS the first-boot init assets —
+# ``alembic.ini`` + ``migrations/`` (for ``migrate``) and
+# ``scripts/seed_demo_entities.py`` (for ``init-seed``) — at the in-image
+# ``/app`` WORKDIR. So the ``migrate`` and ``init-seed`` services run from
+# IN-IMAGE paths with NO ``../`` bind mounts: the offline bundle is the
+# compose file + ``.env`` + installer scripts ONLY, needing NO repo checkout.
+###############################################################################
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: ${POSTGRES_CONTAINER_NAME:-quantra-release-postgres}
+    environment:
+      POSTGRES_DB: quantra
+      POSTGRES_USER: quantra
+      POSTGRES_PASSWORD: quantra
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quantra -d quantra"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # --- Live pricing engine ------------------------------------------------
+  # Public, pullable engine image by default (ghcr.io/joseprupi/quantra-server
+  # :0.2.0). QUANTRA_ENGINE_COMMAND left EMPTY (colon-less ``-`` default)
+  # resolves to ``command: []`` so Docker uses the image's OWN entrypoint
+  # (quantra start Envoy cluster + JSON server), which serves the gRPC contract
+  # on :50051 — the verified off-box drop-in.
+  quantra-engine:
+    image: ${QUANTRA_ENGINE_IMAGE:-ghcr.io/joseprupi/quantra-server:0.2.0}
+    # Release images are amd64-only; pin so arm64 hosts (Apple Silicon) pull +
+    # run under Rosetta instead of failing on "no matching manifest".
+    platform: linux/amd64
+    container_name: ${ENGINE_CONTAINER_NAME:-quantra-release-engine}
+    environment:
+      QUANTRA_SERVER_BIND_HOST: "0.0.0.0"
+    # DEFAULT = the PUBLIC GHCR engine's OWN entrypoint (empty command). The
+    # ``/src/build/server/sync_server`` path exists ONLY in a locally-built
+    # engine image; the pullable GHCR image ships its own entrypoint (quantra
+    # start Envoy cluster + JSON server on :50051) and does NOT have that path,
+    # so overriding it here would crash the container with
+    # ``exec: "/src/build/server/sync_server": no such file``. The colon-less
+    # ``-`` default makes an EMPTY value win → ``command: []`` → image
+    # entrypoint. A user pointing QUANTRA_ENGINE_IMAGE at a local-build engine
+    # can set QUANTRA_ENGINE_COMMAND=/src/build/server/sync_server 50051.
+    command: ${QUANTRA_ENGINE_COMMAND-}
+    ports:
+      - "${QUANTRA_ENGINE_HOST_PORT:-50051}:50051"
+    healthcheck:
+      test:
+        ["CMD-SHELL",
+         "python3 -c 'import socket; s=socket.socket(); s.settimeout(1); s.connect((\"127.0.0.1\", 50051)); s.close()' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  # migrate — one-shot Alembic upgrade of both schemas (app.* + md.*). Reuses
+  # the orchestrator image (its venv ships alembic). ``alembic.ini`` +
+  # ``migrations/`` are VENDORED into the image at ``/app`` (the image's
+  # WORKDIR), so this runs entirely from in-image paths — NO repo checkout /
+  # bind mount required. Uses the superuser (admin) DSN to CREATE ROLE /
+  # SCHEMA / GRANT.
+  migrate:
+    image: ${REGISTRY:-ghcr.io/joseprupi}/quantra-orchestrator:${QUANTRA_VERSION:-0.3.0}
+    platform: linux/amd64  # amd64-only release image (see quantra-engine note).
+    environment:
+      POSTGRES_DSN_ADMIN: postgresql+asyncpg://quantra:quantra@postgres:5432/quantra
+      ENV: dev
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    command:
+      ["sh", "-c", "alembic -n app upgrade head && alembic -n md upgrade head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # boe-ois-ingest — BOOT-time REAL ingest of the Bank of England SONIA OIS
+  # curve so a fresh bundle has genuine GBP.RATES.BOE.OIS.*.PAR quotes at a
+  # recent business day before the first daily cron tick. ``--since-month-start``
+  # widens the window to the first of the current month, which pulls the fresher
+  # "latest" BoE workbook (carries yesterday's fixing) instead of an empty
+  # one-day window on a date the feed has no data for. Best-effort: NOTHING that
+  # gates the app's readiness depends on this (a BoE outage must not break boot;
+  # the last-good GBP data on the volume persists), only the boot roll below
+  # waits for it.
+  boe-ois-ingest:
+    image: ${REGISTRY:-ghcr.io/joseprupi}/quantra-md-ingester:${QUANTRA_VERSION:-0.3.0}
+    platform: linux/amd64  # amd64-only release image (see quantra-engine note).
+    environment:
+      POSTGRES_DSN_MD_RW: postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra
+      ENV: dev
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    command: ["ingest", "--source", "boe_ois", "--since-month-start"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  # treasury-ingest — BOOT-time REAL ingest of the US Treasury nominal curve
+  # (USD.RATES.UST.OFFICIAL.*). Adds real USD govt series alongside; no seeded
+  # curve references them yet, so this is purely additive (the roll step's
+  # treasury target activates automatically if a UST curve is ever seeded).
+  # Same best-effort stance as boe-ois-ingest.
+  treasury-ingest:
+    image: ${REGISTRY:-ghcr.io/joseprupi}/quantra-md-ingester:${QUANTRA_VERSION:-0.3.0}
+    platform: linux/amd64  # amd64-only release image (see quantra-engine note).
+    environment:
+      POSTGRES_DSN_MD_RW: postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra
+      ENV: dev
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    command: ["ingest", "--source", "treasury", "--since-month-start"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  # fred-ingest — BOOT-time REAL ingest of the FRED public series (~31: UST
+  # DGS yields, SOFR/EFFR, CPI/PCE, inflation breakevens, credit OAS,
+  # VIX/MOVE). This is the single biggest breadth win, but FRED is the ONLY
+  # feed needing a key: set FRED_API_KEY in .env (free — see .env.example).
+  # WITHOUT a key this container exits non-zero immediately ("FRED_API_KEY is
+  # required") and the stack carries on: it is best-effort exactly like
+  # boe-ois-ingest/treasury-ingest — NOTHING depends on it, so a missing key
+  # (or a FRED outage) can never block boot or readiness. `docker compose up`
+  # still comes up healthy; only the FRED series are absent.
+  fred-ingest:
+    image: ${REGISTRY:-ghcr.io/joseprupi}/quantra-md-ingester:${QUANTRA_VERSION:-0.3.0}
+    platform: linux/amd64  # amd64-only release image (see quantra-engine note).
+    environment:
+      POSTGRES_DSN_MD_RW: postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra
+      FRED_API_KEY: ${FRED_API_KEY:-}
+      ENV: dev
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    command: ["ingest", "--source", "fred", "--since-month-start"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  # ecb-ingest — BOOT-time REAL ingest of the ECB public series (EUR FX
+  # reference rates + inflation). Keyless, like BoE/Treasury. Same best-effort
+  # stance as boe-ois-ingest: nothing depends on it.
+  ecb-ingest:
+    image: ${REGISTRY:-ghcr.io/joseprupi}/quantra-md-ingester:${QUANTRA_VERSION:-0.3.0}
+    platform: linux/amd64  # amd64-only release image (see quantra-engine note).
+    environment:
+      POSTGRES_DSN_MD_RW: postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra
+      ENV: dev
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    command: ["ingest", "--source", "ecb", "--since-month-start"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+  # roll-dates — BOOT-time "make it current": bump the real MD-backed curves'
+  # reference_date (GBP SONIA OIS → latest boe_ois date; USD Treasury → latest
+  # treasury date) so a fresh bundle prices those curves immediately on the
+  # freshest date the boot ingest produced. Marker- + owner-scoped and
+  # idempotent. Needs the curves seeded (init-seed) AND the real quotes present
+  # (boe-ois-ingest + treasury-ingest), so it waits on all three; reads md via
+  # md_rw, writes app.curves via app_rw.
+  roll-dates:
+    image: ${REGISTRY:-ghcr.io/joseprupi}/quantra-md-ingester:${QUANTRA_VERSION:-0.3.0}
+    platform: linux/amd64  # amd64-only release image (see quantra-engine note).
+    environment:
+      POSTGRES_DSN_MD_RW: postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra
+      POSTGRES_DSN_APP_RW: postgresql+asyncpg://app_rw:app_rw@postgres:5432/quantra
+      ENV: dev
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    command: ["roll-curve-dates"]
+    depends_on:
+      init-seed:
+        condition: service_completed_successfully
+      boe-ois-ingest:
+        condition: service_completed_successfully
+      treasury-ingest:
+        condition: service_completed_successfully
+    restart: "no"
+
+  # market_data — read-only MD service (resolves quote IDs). DSN hard-pinned
+  # to the in-network postgres:5432 so a host .env's localhost value can never
+  # shadow it.
+  market_data:
+    image: ${REGISTRY:-ghcr.io/joseprupi}/quantra-market-data:${QUANTRA_VERSION:-0.3.0}
+    platform: linux/amd64  # amd64-only release image (see quantra-engine note).
+    container_name: ${MD_CONTAINER_NAME:-quantra-release-market-data}
+    environment:
+      POSTGRES_DSN_MD_RO: postgresql+asyncpg://md_ro:md_ro@postgres:5432/quantra
+      MD_SERVICE_PORT: "8082"
+      DEFAULT_SNAPSHOT_NAME: ${DEFAULT_SNAPSHOT_NAME:-PUBLIC_USD_EOD}
+      ENV: dev
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${MD_SERVICE_HOST_PORT:-8082}:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # orchestrator — the Quantra API. Real gRPC engine wired
+  # (ENGINE_GRPC_TARGET), dev-auth bypass ON (single implicit dev-user; safe
+  # because ENV=dev — the boot guard refuses bypass under ENV=prod). DSNs
+  # hard-pinned in-network.
+  orchestrator:
+    image: ${REGISTRY:-ghcr.io/joseprupi}/quantra-orchestrator:${QUANTRA_VERSION:-0.3.0}
+    platform: linux/amd64  # amd64-only release image (see quantra-engine note).
+    environment:
+      ENV: dev
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ORCHESTRATOR_PORT: "8080"
+      DEV_AUTH_BYPASS: "true"
+      POSTGRES_DSN_APP_RW: postgresql+asyncpg://app_rw:app_rw@postgres:5432/quantra
+      POSTGRES_DSN_APP_RO: postgresql+asyncpg://app_ro:app_ro@postgres:5432/quantra
+      POSTGRES_DSN_MD_RO: postgresql+asyncpg://md_ro:md_ro@postgres:5432/quantra
+      # WRITE role for the sanctioned user market-data import route
+      # (POST /v1/market-data/import). Hard-pinned in-network like the
+      # ingester's md_rw; used ONLY by the import path, kept separate from the
+      # request-path md_ro reader above.
+      POSTGRES_DSN_MD_RW: postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra
+      MD_SERVICE_URL: http://market_data:8082
+      MD_SERVICE_TIMEOUT_S: "10.0"
+      ENGINE_GRPC_TARGET: quantra-engine:50051
+      ENGINE_GRPC_TIMEOUT_S: "30.0"
+    ports:
+      - "${ORCHESTRATOR_HOST_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      quantra-engine:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        ["CMD", "python", "-c",
+         "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).read()"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # init-seed — seed the REAL reference entities (SONIA/SOFR index conventions +
+  # the GBP SONIA OIS and USD Treasury MD-backed curves). REAL-DATA-ONLY: no
+  # synthetic demo entities are seeded. POST /auth/provision (creates the
+  # dev-user app.users row) first. Idempotent. Reuses the orchestrator image
+  # (ships httpx); ``scripts/seed_demo_entities.py`` is VENDORED into the image
+  # at ``/app/scripts`` — NO bind mount required. Runs once and exits. It only
+  # stores curve DEFINITIONS (quote_ids resolve later at pricing), so it needs
+  # only the orchestrator healthy, not the real ingests.
+  init-seed:
+    image: ${REGISTRY:-ghcr.io/joseprupi}/quantra-orchestrator:${QUANTRA_VERSION:-0.3.0}
+    platform: linux/amd64  # amd64-only release image (see quantra-engine note).
+    environment:
+      QUANTRA_ORCH_URL: http://orchestrator:8080
+    command: ["python", "scripts/seed_demo_entities.py"]
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    restart: "no"
+
+  # ofelia — daily cron sidecar that keeps the REAL public feeds current so the
+  # bundle prices off fresh market data every day (the boot ingests above give
+  # a fresh install day-0 data; these ticks refresh it). Each ``job-run`` label
+  # ``docker run``s the md-ingester image once per tick on the release network
+  # with the md_rw (and, for the roll, app_rw) DSN. Scheduled feeds: boe_ois
+  # (GBP OIS flagship), treasury (US govt), boe (UK gilt govt) and ecb (EUR FX
+  # + inflation) are all KEYLESS; fred (~31 US series) is the one feed needing
+  # a key and is simply skipped when FRED_API_KEY is unset — see .env.example.
+  # Times mirror the dev compose's cadence (UTC), sequenced so the roll runs
+  # after the day's ingests it consumes land.
+  #
+  # Requires the host Docker socket (mounted read-only). On an air-gapped host
+  # with no outbound internet these ticks simply fail-and-skip (the ingester
+  # logs md_ingester.ingest.failed and exits non-zero); the last-good data on
+  # the volume keeps serving.
+  ofelia:
+    image: mcuadros/ofelia:0.3
+    container_name: ${OFELIA_CONTAINER_NAME:-quantra-release-ofelia}
+    command: ["daemon", "--docker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    labels:
+      # BoE SONIA OIS — the GBP flagship. 12:30 UTC: the BoE yield-curve
+      # workbooks refresh around midday UK time; ``--since-month-start`` pulls
+      # the current-month "latest" ZIP so the newest published fixing lands.
+      ofelia.job-run.md-ingest-boe-ois.schedule: "0 30 12 * * *"
+      ofelia.job-run.md-ingest-boe-ois.image: "${REGISTRY:-ghcr.io/joseprupi}/quantra-md-ingester:${QUANTRA_VERSION:-0.3.0}"
+      ofelia.job-run.md-ingest-boe-ois.command: "ingest --source boe_ois --since-month-start"
+      ofelia.job-run.md-ingest-boe-ois.network: "${QUANTRA_NET_NAME:-quantra-release-net}"
+      ofelia.job-run.md-ingest-boe-ois.environment: '["POSTGRES_DSN_MD_RW=postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra", "ENV=${ENV:-dev}", "LOG_LEVEL=${LOG_LEVEL:-INFO}"]'
+
+      # BoE gilt government curve — daily at 17:00 UTC (EOD, ~LSE close).
+      ofelia.job-run.md-ingest-boe.schedule: "0 0 17 * * *"
+      ofelia.job-run.md-ingest-boe.image: "${REGISTRY:-ghcr.io/joseprupi}/quantra-md-ingester:${QUANTRA_VERSION:-0.3.0}"
+      ofelia.job-run.md-ingest-boe.command: "ingest --source boe"
+      ofelia.job-run.md-ingest-boe.network: "${QUANTRA_NET_NAME:-quantra-release-net}"
+      ofelia.job-run.md-ingest-boe.environment: '["POSTGRES_DSN_MD_RW=postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra", "ENV=${ENV:-dev}", "LOG_LEVEL=${LOG_LEVEL:-INFO}"]'
+
+      # US Treasury nominal + real curve — daily at 21:00 UTC (EOD NY + cushion).
+      ofelia.job-run.md-ingest-treasury.schedule: "0 0 21 * * *"
+      ofelia.job-run.md-ingest-treasury.image: "${REGISTRY:-ghcr.io/joseprupi}/quantra-md-ingester:${QUANTRA_VERSION:-0.3.0}"
+      ofelia.job-run.md-ingest-treasury.command: "ingest --source treasury --since-month-start"
+      ofelia.job-run.md-ingest-treasury.network: "${QUANTRA_NET_NAME:-quantra-release-net}"
+      ofelia.job-run.md-ingest-treasury.environment: '["POSTGRES_DSN_MD_RW=postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra", "ENV=${ENV:-dev}", "LOG_LEVEL=${LOG_LEVEL:-INFO}"]'
+
+      # ECB — EUR FX reference rates + inflation. Keyless. 17:30 UTC: the ECB
+      # publishes its reference rates ~16:00 CET, i.e. 15:00 UTC in winter and
+      # 14:00 UTC in summer, so a single 17:30 tick lands AFTER publication in
+      # both DST regimes (the dev compose splits this into am+pm ticks; one
+      # late tick is equivalent for the bundle and simpler).
+      ofelia.job-run.md-ingest-ecb.schedule: "0 30 17 * * *"
+      ofelia.job-run.md-ingest-ecb.image: "${REGISTRY:-ghcr.io/joseprupi}/quantra-md-ingester:${QUANTRA_VERSION:-0.3.0}"
+      ofelia.job-run.md-ingest-ecb.command: "ingest --source ecb"
+      ofelia.job-run.md-ingest-ecb.network: "${QUANTRA_NET_NAME:-quantra-release-net}"
+      ofelia.job-run.md-ingest-ecb.environment: '["POSTGRES_DSN_MD_RW=postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra", "ENV=${ENV:-dev}", "LOG_LEVEL=${LOG_LEVEL:-INFO}"]'
+
+      # Roll the real curves' reference_date to the freshest ingested day —
+      # 21:30 UTC, AFTER the day's ingests. Carries app_rw as well as md_rw.
+      ofelia.job-run.md-roll-curve-dates.schedule: "0 30 21 * * *"
+      ofelia.job-run.md-roll-curve-dates.image: "${REGISTRY:-ghcr.io/joseprupi}/quantra-md-ingester:${QUANTRA_VERSION:-0.3.0}"
+      ofelia.job-run.md-roll-curve-dates.command: "roll-curve-dates"
+      ofelia.job-run.md-roll-curve-dates.network: "${QUANTRA_NET_NAME:-quantra-release-net}"
+      ofelia.job-run.md-roll-curve-dates.environment: '["POSTGRES_DSN_MD_RW=postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra", "POSTGRES_DSN_APP_RW=postgresql+asyncpg://app_rw:app_rw@postgres:5432/quantra", "ENV=${ENV:-dev}", "LOG_LEVEL=${LOG_LEVEL:-INFO}"]'
+
+      # FRED — ~31 real series (UST DGS yields, SOFR/EFFR, CPI/PCE, inflation
+      # breakevens, credit OAS, VIX/MOVE). 22:00 UTC (EOD NY + cushion), the
+      # only job carrying FRED_API_KEY. Deliberately AFTER md-roll-curve-dates
+      # (21:30): the roll only advances the GBP-OIS/UST curves, which are fed by
+      # the boe_ois/treasury ticks above — it does not consume FRED data, so the
+      # ordering is safe. With FRED_API_KEY unset the tick fails-and-skips
+      # ("FRED_API_KEY is required"); every other feed is unaffected.
+      ofelia.job-run.md-ingest-fred.schedule: "0 0 22 * * *"
+      ofelia.job-run.md-ingest-fred.image: "${REGISTRY:-ghcr.io/joseprupi}/quantra-md-ingester:${QUANTRA_VERSION:-0.3.0}"
+      ofelia.job-run.md-ingest-fred.command: "ingest --source fred"
+      ofelia.job-run.md-ingest-fred.network: "${QUANTRA_NET_NAME:-quantra-release-net}"
+      ofelia.job-run.md-ingest-fred.environment: '["POSTGRES_DSN_MD_RW=postgresql+asyncpg://md_rw:md_rw@postgres:5432/quantra", "FRED_API_KEY=${FRED_API_KEY:-}", "ENV=${ENV:-dev}", "LOG_LEVEL=${LOG_LEVEL:-INFO}"]'
+
+  # portal — the browser UI (nginx). Serves the built SPA and reverse-proxies
+  # /v1/ + /auth/ to the orchestrator so the browser is same-origin (no CORS).
+  # ORCHESTRATOR_URL empty (same-origin); ORCHESTRATOR_PROXY_TARGET points at
+  # the in-network orchestrator. Dev-auth bypass ON to match the backend.
+  portal:
+    image: ${REGISTRY:-ghcr.io/joseprupi}/quantra-portal:${QUANTRA_VERSION:-0.3.0}
+    platform: linux/amd64  # amd64-only release image (see quantra-engine note).
+    container_name: ${PORTAL_CONTAINER_NAME:-quantra-release-portal}
+    environment:
+      ORCHESTRATOR_URL: ""
+      ORCHESTRATOR_PROXY_TARGET: http://orchestrator:8080
+      DEV_AUTH_BYPASS: "true"
+      # Pre-ingest fallback for the pricing forms' initial As-Of; once real
+      # public data lands, the portal rolls the As-Of forward automatically
+      # via the latest-date API (a user's explicit choice always wins).
+      DEFAULT_AS_OF: ${DEFAULT_AS_OF:-2025-01-15}
+    ports:
+      - "${PORTAL_HOST_PORT:-5173}:80"
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+volumes:
+  postgres_data:
+
+# Overridable network name so an isolated project can get its own docker
+# network instead of colliding with any other running stack.
+networks:
+  default:
+    name: ${QUANTRA_NET_NAME:-quantra-release-net}

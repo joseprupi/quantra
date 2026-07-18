@@ -1,0 +1,38 @@
+{
+  "source": "TREASURY",
+  "dataset": "daily_treasury_bill_rates",
+  "series": [
+    {
+      "page_type": "daily_treasury_bill_rates",
+      "value_class_token": "views-field-field-br-round-b1-yield-4wk-2",
+      "archive_column": "4 weeks coupon equivalent",
+      "canonical_id": "USD.RATES.BILLS.TBILL.4W.YIELD",
+      "tenor": "4W",
+      "description": "US Treasury bill coupon-equivalent yield 4W"
+    },
+    {
+      "page_type": "daily_treasury_bill_rates",
+      "value_class_token": "views-field-field-br-round-b1-yield-13wk-2",
+      "archive_column": "13 weeks coupon equivalent",
+      "canonical_id": "USD.RATES.BILLS.TBILL.13W.YIELD",
+      "tenor": "13W",
+      "description": "US Treasury bill coupon-equivalent yield 13W"
+    },
+    {
+      "page_type": "daily_treasury_bill_rates",
+      "value_class_token": "views-field-field-br-round-b1-yield-26wk-2",
+      "archive_column": "26 weeks coupon equivalent",
+      "canonical_id": "USD.RATES.BILLS.TBILL.26W.YIELD",
+      "tenor": "26W",
+      "description": "US Treasury bill coupon-equivalent yield 26W"
+    },
+    {
+      "page_type": "daily_treasury_bill_rates",
+      "value_class_token": "b1yield52wk",
+      "archive_column": "52 weeks coupon equivalent",
+      "canonical_id": "USD.RATES.BILLS.TBILL.52W.YIELD",
+      "tenor": "52W",
+      "description": "US Treasury bill coupon-equivalent yield 52W"
+    }
+  ]
+}

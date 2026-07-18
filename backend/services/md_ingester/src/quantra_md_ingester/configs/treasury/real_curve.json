@@ -1,0 +1,46 @@
+{
+  "source": "TREASURY",
+  "dataset": "daily_treasury_real_yield_curve",
+  "series": [
+    {
+      "page_type": "daily_treasury_real_yield_curve",
+      "value_class_token": "views-field-field-tc-5year",
+      "archive_column": "5 yr",
+      "canonical_id": "USD.RATES.TIPS.REAL.5Y.YIELD",
+      "tenor": "5Y",
+      "description": "US Treasury real par yield curve 5Y"
+    },
+    {
+      "page_type": "daily_treasury_real_yield_curve",
+      "value_class_token": "views-field-field-tc-7year",
+      "archive_column": "7 yr",
+      "canonical_id": "USD.RATES.TIPS.REAL.7Y.YIELD",
+      "tenor": "7Y",
+      "description": "US Treasury real par yield curve 7Y"
+    },
+    {
+      "page_type": "daily_treasury_real_yield_curve",
+      "value_class_token": "views-field-field-tc-10year",
+      "archive_column": "10 yr",
+      "canonical_id": "USD.RATES.TIPS.REAL.10Y.YIELD",
+      "tenor": "10Y",
+      "description": "US Treasury real par yield curve 10Y"
+    },
+    {
+      "page_type": "daily_treasury_real_yield_curve",
+      "value_class_token": "tc20year",
+      "archive_column": "20 yr",
+      "canonical_id": "USD.RATES.TIPS.REAL.20Y.YIELD",
+      "tenor": "20Y",
+      "description": "US Treasury real par yield curve 20Y"
+    },
+    {
+      "page_type": "daily_treasury_real_yield_curve",
+      "value_class_token": "tc30year",
+      "archive_column": "30 yr",
+      "canonical_id": "USD.RATES.TIPS.REAL.30Y.YIELD",
+      "tenor": "30Y",
+      "description": "US Treasury real par yield curve 30Y"
+    }
+  ]
+}

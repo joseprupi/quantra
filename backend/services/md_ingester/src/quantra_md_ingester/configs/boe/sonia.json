@@ -1,0 +1,12 @@
+{
+  "source": "BOE",
+  "dataset": "IADB",
+  "series": [
+    {
+      "series_code": "IUDSOIA",
+      "canonical_id": "GBP.RATES.BOE.SONIA.1D.RATE",
+      "tenor": "1D",
+      "description": "Bank of England Sterling Overnight Index Average (SONIA)"
+    }
+  ]
+}

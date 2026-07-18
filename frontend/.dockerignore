@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.firebase
+coverage
+playwright-report
+test-results
+tmp
+*.log
+.env
+.env.*
+!.env.example

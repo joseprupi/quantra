@@ -1,0 +1,183 @@
+###############################################################################
+# release — tag -> public images + downloadable install bundle.
+#
+# Push a tag `vX.Y.Z` and this workflow:
+#   1. version-guard: fails fast unless the tag matches the versions committed
+#      in the tree (orchestrator pyproject + ORCHESTRATOR_VERSION + frontend
+#      package.json) — see .github/scripts/check-release-version.sh.
+#   2. images: builds the 4 platform images (linux/amd64) and pushes them to
+#      GHCR as ghcr.io/<owner>/quantra-{orchestrator,market-data,md-ingester,
+#      portal}:{X.Y.Z,latest} using the workflow's GITHUB_TOKEN.
+#   3. release: assembles the install bundle — an offline `docker save`
+#      tarball of the 4 images plus the pull-and-run files
+#      (docker-compose.release.yml, .env.example, install.sh,
+#      install-offline.sh, upgrade.sh, README-INSTALL.md) — and attaches
+#      everything to a GitHub Release whose body is the CHANGELOG entries for
+#      the version.
+#
+# ONE-TIME operator step after the FIRST release: flip each of the 4 GHCR
+# packages public (they are created private by default) — see
+# backend/deploy/README.md, "After the first release".
+###############################################################################
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # create the GitHub Release + upload assets
+  packages: write # push images to GHCR
+
+jobs:
+  # --- 1. Tag ↔ tree version agreement, before anything is built ------------
+  version-guard:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.guard.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches the committed versions
+        id: guard
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          bash .github/scripts/check-release-version.sh "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  # --- 2. Build + push the 4 platform images (linux/amd64) ------------------
+  images:
+    needs: version-guard
+    runs-on: ubuntu-latest
+    strategy:
+      # Independent builds; let the others finish even if one fails so a rerun
+      # only rebuilds the broken leg.
+      fail-fast: false
+      matrix:
+        include:
+          - name: quantra-orchestrator
+            context: backend
+            dockerfile: backend/services/orchestrator/Dockerfile
+          - name: quantra-market-data
+            context: backend
+            dockerfile: backend/services/market_data/Dockerfile
+          - name: quantra-md-ingester
+            context: backend
+            dockerfile: backend/services/md_ingester/Dockerfile
+          # Portal: the Dockerfile's build stage already exports
+          # NODE_OPTIONS=--max-old-space-size=4096 — the Vite/tsc build peaks
+          # above Node's ~2GB default heap and OOMs on CI without it.
+          - name: quantra-portal
+            context: frontend
+            dockerfile: frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build + push ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ needs.version-guard.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:latest
+          # BUILD_SHA: only the orchestrator Dockerfile declares it (reported
+          # by /health + /v1/version); the others ignore the unused arg.
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
+
+  # --- 3. Offline tarball + pull-and-run bundle -> GitHub Release -----------
+  release:
+    needs: [version-guard, images]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version-guard.outputs.version }}
+      REGISTRY: ghcr.io/${{ github.repository_owner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The runner has ~14GB free and the preinstalled tool images eat several
+      # of them; reclaim before pulling 4 images + writing a multi-GB tarball.
+      - name: Reclaim runner disk
+        run: |
+          docker system prune -af >/dev/null
+          df -h /
+
+      - name: Pull the 4 published images (sequentially — disk + determinism)
+        run: |
+          for img in quantra-orchestrator quantra-market-data quantra-md-ingester quantra-portal; do
+            docker pull --platform linux/amd64 "$REGISTRY/$img:$VERSION"
+          done
+
+      - name: Pin the bundled .env.example to this release
+        # The bundle must pull the images it was cut with; never let the
+        # committed default drift from the tag being released.
+        run: |
+          sed -i "s/^QUANTRA_VERSION=.*/QUANTRA_VERSION=${VERSION}/" backend/deploy/.env.example
+          grep '^QUANTRA_VERSION=' backend/deploy/.env.example
+
+      - name: Build the offline install tarball
+        # make-release-tarball.sh docker-saves the 4 images (gzip) and packs
+        # them with docker-compose.release.yml + .env.example +
+        # install-offline.sh + upgrade.sh + a generated README-INSTALL.md
+        # into quantra-selfhosted-<version>.tar.gz.
+        working-directory: backend/deploy
+        run: |
+          ./make-release-tarball.sh "$VERSION"
+          ls -lh "quantra-selfhosted-${VERSION}.tar.gz"
+          df -h /
+
+      - name: Extract this version's CHANGELOG entries for the release body
+        run: |
+          {
+            echo "Platform release **v${VERSION}** — the four images are published to GHCR:"
+            echo
+            for img in quantra-orchestrator quantra-market-data quantra-md-ingester quantra-portal; do
+              echo "- \`${REGISTRY}/${img}:${VERSION}\`"
+            done
+            echo
+            echo "Install: see the attached bundle (\`install.sh\` pulls from GHCR;"
+            echo "\`quantra-selfhosted-${VERSION}.tar.gz\` installs fully offline) or"
+            echo "build from source with the repo-root \`docker compose up -d\`."
+            echo
+            echo "## Backend"
+            echo
+            awk "/^## \\[${VERSION}\\]/{flag=1; next} /^## \\[/{flag=0} flag" backend/CHANGELOG.md
+            echo
+            echo "## Portal"
+            echo
+            awk "/^## \\[${VERSION}\\]/{flag=1; next} /^## \\[/{flag=0} flag" frontend/CHANGELOG.md
+          } > release-body.md
+          cat release-body.md
+
+      - name: Create the GitHub Release with the bundle attached
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ env.VERSION }}
+          body_path: release-body.md
+          files: |
+            backend/deploy/quantra-selfhosted-${{ env.VERSION }}.tar.gz
+            backend/deploy/docker-compose.release.yml
+            backend/deploy/.env.example
+            backend/deploy/install.sh
+            backend/deploy/install-offline.sh
+            backend/deploy/upgrade.sh
+            backend/deploy/README.md
