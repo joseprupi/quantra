@@ -244,6 +244,11 @@ services:
       MD_SERVICE_TIMEOUT_S: "10.0"
       ENGINE_GRPC_TARGET: quantra-engine:50051
       ENGINE_GRPC_TIMEOUT_S: "30.0"
+      # Engine WIRE layout for the four slot-shifted leg/bond tables (see
+      # backend quantra_common.engine_client.wire_compat): "0.2" matches the
+      # pinned quantra-server:0.2.0 image (the default); set "0.5" when
+      # pointing QUANTRA_ENGINE_IMAGE at an engine built from master/0.5.0.
+      ENGINE_WIRE_COMPAT: ${ENGINE_WIRE_COMPAT:-0.2}
     ports:
       - "${ORCHESTRATOR_HOST_PORT:-8080}:8080"
     depends_on:
