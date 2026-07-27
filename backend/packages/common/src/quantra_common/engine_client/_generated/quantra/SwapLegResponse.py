@@ -46,7 +46,7 @@ class SwapLegResponse(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra_common.engine_client.wire_compat import SwapLegFlow
+            from quantra_common.engine_client._generated.quantra.SwapLegFlow import SwapLegFlow
             obj = SwapLegFlow()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -132,7 +132,7 @@ class SwapLegResponseT(object):
 
     # SwapLegResponseT
     def _UnPack(self, swapLegResponse):
-        from quantra_common.engine_client.wire_compat import SwapLegFlowT
+        from quantra_common.engine_client._generated.quantra.SwapLegFlow import SwapLegFlowT
         if swapLegResponse is None:
             return
         self.npv = swapLegResponse.Npv()

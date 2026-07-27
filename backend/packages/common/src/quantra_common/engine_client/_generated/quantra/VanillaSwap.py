@@ -140,8 +140,8 @@ class VanillaSwapT(object):
     # VanillaSwapT
     def _UnPack(self, vanillaSwap):
         from quantra_common.engine_client._generated.quantra.SwapCmsLeg import SwapCmsLegT
-        from quantra_common.engine_client.wire_compat import SwapFixedLegT
-        from quantra_common.engine_client.wire_compat import SwapFloatingLegT
+        from quantra_common.engine_client._generated.quantra.SwapFixedLeg import SwapFixedLegT
+        from quantra_common.engine_client._generated.quantra.SwapFloatingLeg import SwapFloatingLegT
         if vanillaSwap is None:
             return
         self.swapType = vanillaSwap.SwapType()

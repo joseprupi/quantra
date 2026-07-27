@@ -118,7 +118,7 @@ class BasisSwapT(object):
 
     # BasisSwapT
     def _UnPack(self, basisSwap):
-        from quantra_common.engine_client.wire_compat import SwapFloatingLegT
+        from quantra_common.engine_client._generated.quantra.SwapFloatingLeg import SwapFloatingLegT
         if basisSwap is None:
             return
         self.swapType = basisSwap.SwapType()

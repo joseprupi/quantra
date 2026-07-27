@@ -97,22 +97,6 @@ from quantra_orchestrator.pricing.swaption.models import (
     SwaptionTrade,
 )
 
-
-@pytest.fixture(autouse=True)
-def _canonical_engine_wire(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Pin the canonical (0.5) wire layout for request-content assertions.
-
-    The default ``ENGINE_WIRE_COMPAT=0.2`` packs the four slot-shifted tables
-    (legs / bonds) in the legacy engine-0.2.0 layout (see
-    ``quantra_common.engine_client.wire_compat``), which the canonical raw
-    readers used below would misread. The legacy layout itself is byte-pinned
-    by the golden-hex tests (which re-pin ``0.2`` explicitly) and by
-    ``test_wire_compat.py``.
-    """
-
-    monkeypatch.setenv("ENGINE_WIRE_COMPAT", "0.5")
-
-
 _VOL_QUOTE_ID = "USD.SWPTN.ATM.5Y10Y.VOL"
 
 
@@ -671,10 +655,9 @@ async def test_price_swaption_batch_propagates_engine_exceptions() -> None:
 # EUR-6M fixture). Golden bytes captured from the previous swaption request path.
 # ---------------------------------------------------------------------------
 
-# golden re-captured after ``build_swaption_request`` began forcing
-# FlatBuffers defaults onto the wire (``builder.ForceDefaults(True)``). The
-# added bytes are the previously-dropped zero-valued convention fields; the
-# priced NPV is unchanged on both 0.1.1 and 0.2.0 (live A/B).
+# golden = the canonical engine-0.5.0 wire (the compose engine pin), captured
+# from the v0.5.0-tag bindings after the ENGINE_WIRE_COMPAT seam was retired;
+# NPV byte-parity vs the engine-0.2.0 baseline was live-proven at the pin bump.
 _SWAPTION_GOLDEN_HEX = (
     "140000000000000000000a0010000c00080007000a000000000000000800000064020000010000001400000000"
     "000e001800140010000c00080004000e000000140000003c000000640000008c000000c4000000240000003434"
@@ -682,12 +665,12 @@ _SWAPTION_GOLDEN_HEX = (
     "33333333332d333333332d333333332d333333332d333333333333333333333333000000002400000032323232"
     "323232322d323232322d323232322d323232322d32323232323232323232323200000000240000003131313131"
     "3131312d313131312d313131312d313131312d3131313131313131313131310000120016001500140013000c00"
-    "00000b000400120000001c000000000000013c0100000000000000000a0010000f00080004000a000000200000"
-    "00b400000000000000140030002c0020001c0010000f000e000800070014000000000000000200000000000200"
+    "00000b000400120000001c000000000000013c0100000000000000000a000e000d00080004000a000000200000"
+    "00b40000000000160030002c00200000001c0010000f000e000800070016000000000000000200000000000200"
     "000000000000000000000000140000000000000080842e41000000002400000016feffff040000001000000066"
     "6f7277617264696e675f696e6465780000000098ffffff000000000202020b0c00000018000000000000200a00"
-    "0000323033312d30312d313700000a000000323032362d30312d3137000000000e0020001c0010000800070006"
-    "000e0000000000020eec51b81e85eba13f0000000080842e41000000001800000014001800170010000c000b00"
+    "0000323033312d30312d313700000a000000323032362d30312d31370000100020001c00100000000800070006"
+    "00100000000000020eec51b81e85eba13f0000000080842e41000000001800000014001800170010000c000b00"
     "0a000900080007001400000000000000020202000c00000018000000000000200a000000323033312d30312d31"
     "3700000a000000323032362d30312d313700000a000000323032362d30312d3135000000001600180014001000"
     "00000c000000080000000000040016000000200000002c0000007801000044030000500300000c000800070006"
@@ -713,9 +696,7 @@ _SWAPTION_GOLDEN_HEX = (
 )
 
 
-def test_build_request_bytes_unchanged_pre_post_16c(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_build_request_bytes_unchanged_pre_post_16c() -> None:
     """The EUR-6M fixture produces byte-identical engine bytes before and after the refactor.
 
     The role-split consumes curves by role; the role map points
@@ -723,11 +704,6 @@ def test_build_request_bytes_unchanged_pre_post_16c(
     chose, and no resolved index is supplied so the default forwarding index is
     emitted unchanged. The vol surface / model translation is unchanged.
     """
-
-    # The golden bytes are the LEGACY (engine-0.2.0) wire — the layout the
-    # compose engine pin ships. Pin it explicitly so the autouse canonical
-    # fixture above does not flip it.
-    monkeypatch.setenv("ENGINE_WIRE_COMPAT", "0.2")
 
     discount_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
     forwarding_id = uuid.UUID("22222222-2222-2222-2222-222222222222")

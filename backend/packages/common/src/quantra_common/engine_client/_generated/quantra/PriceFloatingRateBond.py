@@ -144,7 +144,7 @@ class PriceFloatingRateBondT(object):
 
     # PriceFloatingRateBondT
     def _UnPack(self, priceFloatingRateBond):
-        from quantra_common.engine_client.wire_compat import FloatingRateBondT
+        from quantra_common.engine_client._generated.quantra.FloatingRateBond import FloatingRateBondT
         from quantra_common.engine_client._generated.quantra.Yield import YieldT
         from quantra_common.engine_client._generated.quantra.CouponPricer import CouponPricer
         from quantra_common.engine_client._generated.quantra.FloatingRateBond import FloatingRateBond

@@ -67,9 +67,10 @@ from quantra_common.engine_client._generated.quantra.PriceVanillaSwapResponse im
     PriceVanillaSwapResponse,
 )
 from quantra_common.engine_client._generated.quantra.Schedule import ScheduleT
+from quantra_common.engine_client._generated.quantra.SwapFixedLeg import SwapFixedLegT
+from quantra_common.engine_client._generated.quantra.SwapFloatingLeg import SwapFloatingLegT
 from quantra_common.engine_client._generated.quantra.SwapLegFlow import SwapLegFlow
 from quantra_common.engine_client._generated.quantra.VanillaSwap import VanillaSwapT
-from quantra_common.engine_client.wire_compat import SwapFixedLegT, SwapFloatingLegT
 from quantra_orchestrator.engine.errors import EngineMissingFixingError
 from quantra_orchestrator.pricing._fb_helpers import build_index_ref
 from quantra_orchestrator.pricing._translator import (
@@ -397,12 +398,9 @@ def _decode_one_flow(flow: SwapLegFlow) -> SwapFlow:
 
     # Engine 0.5.0 (#119) dropped ``has_cms_swap_rate`` — presence of
     # ``cms_swap_rate`` alone carries the flag and the accessor returns
-    # ``None`` when absent. The legacy 0.2.0 layout (reachable via the
-    # ``ENGINE_WIRE_COMPAT=0.2`` reader dispatch) still has the explicit
-    # boolean and a default-0.0 ``CmsSwapRate``.
-    legacy_has_cms = getattr(flow, "HasCmsSwapRate", None)
+    # ``None`` when absent (non-CMS coupons).
     cms_raw = flow.CmsSwapRate()
-    has_cms = bool(legacy_has_cms()) if legacy_has_cms is not None else cms_raw is not None
+    has_cms = cms_raw is not None
 
     return SwapFlow(
         payment_date=_decode_str(flow.PaymentDate()),

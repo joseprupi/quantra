@@ -81,7 +81,7 @@ class OisSwapResponse(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra_common.engine_client.wire_compat import SwapLegFlow
+            from quantra_common.engine_client._generated.quantra.SwapLegFlow import SwapLegFlow
             obj = SwapLegFlow()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -101,7 +101,7 @@ class OisSwapResponse(object):
 
     # OisSwapResponse
     def OvernightLegFlows(self, j):
-        from quantra_common.engine_client.wire_compat import SwapLegFlow
+        from quantra_common.engine_client._generated.quantra.SwapLegFlow import SwapLegFlow
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             x = self._tab.Vector(o)
@@ -240,7 +240,7 @@ class OisSwapResponseT(object):
 
     # OisSwapResponseT
     def _UnPack(self, oisSwapResponse):
-        from quantra_common.engine_client.wire_compat import SwapLegFlowT
+        from quantra_common.engine_client._generated.quantra.SwapLegFlow import SwapLegFlowT
         if oisSwapResponse is None:
             return
         self.npv = oisSwapResponse.Npv()

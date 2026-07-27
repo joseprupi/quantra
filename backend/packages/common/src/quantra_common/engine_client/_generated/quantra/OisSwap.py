@@ -119,7 +119,7 @@ class OisSwapT(object):
     # OisSwapT
     def _UnPack(self, oisSwap):
         from quantra_common.engine_client._generated.quantra.OisFloatingLeg import OisFloatingLegT
-        from quantra_common.engine_client.wire_compat import SwapFixedLegT
+        from quantra_common.engine_client._generated.quantra.SwapFixedLeg import SwapFixedLegT
         if oisSwap is None:
             return
         self.swapType = oisSwap.SwapType()

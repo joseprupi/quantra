@@ -100,21 +100,6 @@ def _deposit_point(
     return {"point_type": "DepositHelper", "point": point}
 
 
-@pytest.fixture(autouse=True)
-def _canonical_engine_wire(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Pin the canonical (0.5) wire layout for request-content assertions.
-
-    The default ``ENGINE_WIRE_COMPAT=0.2`` packs the four slot-shifted tables
-    (legs / bonds) in the legacy engine-0.2.0 layout (see
-    ``quantra_common.engine_client.wire_compat``), which the canonical raw
-    readers used below would misread. The legacy layout itself is byte-pinned
-    by the golden-hex tests (which re-pin ``0.2`` explicitly) and by
-    ``test_wire_compat.py``.
-    """
-
-    monkeypatch.setenv("ENGINE_WIRE_COMPAT", "0.5")
-
-
 def _resolved_curve(
     curve_id: uuid.UUID,
     *,
@@ -687,23 +672,21 @@ async def test_price_swap_ir_batch_propagates_engine_exceptions() -> None:
 # swap_ir request path; any drift fails here.
 # ---------------------------------------------------------------------------
 
-# golden re-captured after ``build_swap_ir_request`` began forcing
-# FlatBuffers defaults onto the wire (``builder.ForceDefaults(True)``) so engine
-# 0.2.0's presence-based schema no longer reads a zero-default enum (e.g.
-# ``Schedule.frequency == Frequency.Annual == 0``) as missing. The added bytes
-# are exactly the previously-dropped zero-valued fields; the priced NPV is
-# unchanged on both 0.1.1 and 0.2.0 (verified by the live A/B). See
-# ``test_swap_ir_wire_forces_schedule_conventions`` for the presence assertions.
+# golden = the canonical engine-0.5.0 wire (the compose engine pin), captured
+# from the v0.5.0-tag bindings after the ENGINE_WIRE_COMPAT seam was retired.
+# 7-product NPV byte-parity vs the engine-0.2.0 baseline was live-proven at the
+# pin bump. See ``test_swap_ir_wire_forces_schedule_conventions`` for the
+# presence assertions.
 _SWAP_IR_GOLDEN_HEX = (
     "1000000000000a0010000c00080007000a0000000000000108000000d0010000010000001000000000000a0010"
     "000c00080004000a0000000c00000034000000640000002400000032323232323232322d323232322d32323232"
     "2d323232322d323232323232323232323232000000002400000031313131313131312d313131312d313131312d"
-    "313131312d31313131313131313131313100000a0010000f00080004000a00000020000000bc00000000000000"
-    "140032002c0020001c0010000f000e000800070014000000000000000200000000000200000000000000000000"
+    "313131312d31313131313131313131313100000a000e000d00080004000a00000020000000bc00000000001600"
+    "32002c00200000001c0010000f000e000800070016000000000000000200000000000200000000000000000000"
     "0000001c0000000000000080842e41000000002c0000000000060008000400060000000400000010000000666f"
     "7277617264696e675f696e6465780000000098ffffff000000000202020b0c00000018000000000000200a0000"
-    "00323033312d30362d313500000a000000323032362d30362d3135000000000e0020001c001000080007000600"
-    "0e0000000000020eec51b81e85eba13f0000000080842e41000000001800000014001800170010000c000b000a"
+    "00323033312d30362d313500000a000000323032362d30362d31350000100020001c0010000000080007000600"
+    "100000000000020eec51b81e85eba13f0000000080842e41000000001800000014001800170010000c000b000a"
     "000900080007001400000000000000020202000c00000018000000000000200a000000323033312d30362d3135"
     "00000a000000323032362d30362d3135000000001600140010000c000000080000000000000000000400160000"
     "001c0000002c000000f8010000040200000c000a0009000800070006000c0000000000000000000a000c000800"
@@ -722,9 +705,7 @@ _SWAP_IR_GOLDEN_HEX = (
 )
 
 
-def test_build_request_bytes_unchanged_pre_post_16c(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_build_request_bytes_unchanged_pre_post_16c() -> None:
     """The EUR-6M fixture produces stable engine bytes (now with include_flows).
 
     The role-split (curves consumed by role) + the resolved-index path are
@@ -734,11 +715,6 @@ def test_build_request_bytes_unchanged_pre_post_16c(
     golden bytes were re-captured when ``build_swap_ir_request`` began setting
     ``include_flows = True`` (the only intended drift vs. the pre-flows golden).
     """
-
-    # The golden bytes are the LEGACY (engine-0.2.0) wire — the layout the
-    # compose engine pin ships. Pin it explicitly so the autouse canonical
-    # fixture above does not flip it.
-    monkeypatch.setenv("ENGINE_WIRE_COMPAT", "0.2")
 
     discount_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
     forwarding_id = uuid.UUID("22222222-2222-2222-2222-222222222222")

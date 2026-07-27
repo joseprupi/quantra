@@ -195,56 +195,6 @@ for py in sorted(base.glob("*.py")):
 print(f"   injected deferred imports into {touched} files")
 PY
 
-echo "==> Redirecting slot-shifted tables through wire_compat"
-# Engine 0.4.0 inserted ``notionals`` MID-TABLE into four request tables and
-# engine 0.5.0 (#119) REMOVED ``SwapLegFlow.has_cms_swap_rate`` mid-table on
-# the response side, shifting their FlatBuffers slot ids — binary wire breaks
-# vs engine 0.2.0 (see quantra_common/engine_client/wire_compat.py). Redirect
-# every OTHER generated module's deferred import of those ``<Name>T`` classes
-# to the wire_compat dispatchers so decode follows the same layout the
-# request was packed with; for ``SwapLegFlow`` ALSO redirect the bare READER
-# import (response vector accessors instantiate the reader directly). The
-# defining modules themselves stay canonical (they are what wire_compat
-# wraps).
-TARGET_DIR="${TARGET_DIR}" NEW_PKG_PREFIX="${NEW_PKG_PREFIX}" python3 <<'PY'
-import os
-import re
-from pathlib import Path
-
-base = Path(os.environ["TARGET_DIR"])
-new_pkg = re.escape(os.environ["NEW_PKG_PREFIX"])
-shifted = (
-    "SwapFixedLeg",
-    "SwapFloatingLeg",
-    "FixedRateBond",
-    "FloatingRateBond",
-    "SwapLegFlow",
-)
-reader_shifted = ("SwapLegFlow",)
-count = 0
-for py in sorted(base.glob("*.py")):
-    if py.stem in shifted:
-        continue
-    src = py.read_text()
-    out = src
-    for name in shifted:
-        out = re.sub(
-            rf"from {new_pkg}\.{name} import {name}T\b",
-            f"from quantra_common.engine_client.wire_compat import {name}T",
-            out,
-        )
-    for name in reader_shifted:
-        out = re.sub(
-            rf"from {new_pkg}\.{name} import {name}(?!T)\b",
-            f"from quantra_common.engine_client.wire_compat import {name}",
-            out,
-        )
-    if out != src:
-        py.write_text(out)
-        count += 1
-print(f"   redirected shifted-table imports in {count} files")
-PY
-
 echo "==> Smoke-importing the bindings (uv run python)"
 cd "$(dirname "$0")/.."
 uv run python -c "
