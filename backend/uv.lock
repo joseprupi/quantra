@@ -1433,7 +1433,7 @@ wheels = [
 
 [[package]]
 name = "quantra-common"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "packages/common" }
 dependencies = [
     { name = "alembic" },
@@ -1464,7 +1464,7 @@ requires-dist = [
 
 [[package]]
 name = "quantra-market-data"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "services/market_data" }
 dependencies = [
     { name = "quantra-common" },
@@ -1486,7 +1486,7 @@ provides-extras = ["test"]
 
 [[package]]
 name = "quantra-md-ingester"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "services/md_ingester" }
 dependencies = [
     { name = "openpyxl" },
@@ -1501,7 +1501,7 @@ requires-dist = [
 
 [[package]]
 name = "quantra-orchestrator"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "services/orchestrator" }
 dependencies = [
     { name = "flatbuffers" },

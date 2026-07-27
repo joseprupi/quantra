@@ -12,6 +12,12 @@ Versions 0.2.x and earlier predate this monorepo — they are the
 pre-open-source release history of the portal, kept for reference. 0.3.0 is
 the first release cut from the monorepo.
 
+## [0.4.1] - 2026-07-27
+
+### Removed
+- Removed a stale hint claiming discount-factor and forward-rate curves need
+  a newer engine (the platform ships engine 0.5.0).
+
 ## [0.4.0] - 2026-07-27
 
 Platform release **v0.4.0**, cut against pricing engine 0.5.0.

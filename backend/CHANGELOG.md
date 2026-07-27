@@ -9,6 +9,14 @@ Backend and portal are released together at the same platform `vX.Y.Z` tag.
 Versions **0.2.x and earlier are historical release tags from before this
 monorepo was assembled**; 0.3.0 is the first release cut from the monorepo.
 
+## [0.4.1] - 2026-07-27
+
+### Fixed
+- Report engine version 0.5.0 in `/v1/version`, matching the pinned engine
+  image (the value is still a documented stopgap until the engine exposes
+  its version over gRPC). The release env example now also pins the engine
+  image to 0.5.0.
+
 ## [0.4.0] - 2026-07-27
 
 Platform release pinned to the OSS pricing engine **0.5.0**.
