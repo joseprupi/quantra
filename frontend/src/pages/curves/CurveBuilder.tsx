@@ -40,12 +40,13 @@ import {
 import {
   ValueQuantity,
   VALUE_QUANTITIES,
+  anchorPoint,
   convertValuePoints,
   mapServerErrorToRows,
-  pinnedDfPoint,
   pointValue,
   quantityForTrait,
   quantitySpec,
+  splitStoredValuePoints,
   stampZeroConventions,
   validateValuePoints,
 } from '../../lib/valueCurves';
@@ -126,11 +127,13 @@ export default function CurveBuilder() {
   // Curve points (bootstrap construction: rate helpers)
   const [points, setPoints] = useState<CurvePoint[]>([]);
 
-  // Values construction ("Interpolate given values", engine Interpolated*)
+  // Values construction ("Interpolate given values", engine Interpolated*).
+  // valueRows = the EDITABLE rows; the pinned reference-date anchor is
+  // assembled separately (DF fixed 1.0, zero / fwd = anchorValue).
   const [construction, setConstruction] = useState<'bootstrap' | 'values'>('bootstrap');
   const [valueQuantity, setValueQuantity] = useState<ValueQuantity>('zero');
-  const [valuePoints, setValuePoints] = useState<ValueCurvePoint[]>([]);
-  const [pillarStyle, setPillarStyle] = useState<'tenor' | 'date'>('tenor');
+  const [valueRows, setValueRows] = useState<ValueCurvePoint[]>([]);
+  const [anchorValue, setAnchorValue] = useState<number | undefined>(undefined);
   const [zeroCompounding, setZeroCompounding] = useState<Compounding>('Continuous');
   const [zeroFrequency, setZeroFrequency] = useState<Frequency>('Annual');
   const [serverRowErrors, setServerRowErrors] = useState<Map<number, string>>(new Map());
@@ -228,9 +231,11 @@ export default function CurveBuilder() {
                 : 'zero');
           setConstruction('values');
           setValueQuantity(quantity);
-          setValuePoints(storedValuePoints);
-          setPillarStyle(storedValuePoints.some(p => p.point.date && !p.point.tenor_number) &&
-            !storedValuePoints.some(p => p.point.tenor_number !== undefined) ? 'date' : 'tenor');
+          // First stored point = the pinned anchor; the rest are editable
+          // rows (each keeps its stored tenor / date for display).
+          const split = splitStoredValuePoints(storedValuePoints, curve.reference_date);
+          setValueRows(split.rows);
+          setAnchorValue(quantity === 'df' ? undefined : split.anchorValue);
           const firstZero = storedValuePoints.find(p => p.point_type === 'ZeroRatePoint');
           if (firstZero?.point_type === 'ZeroRatePoint') {
             if (firstZero.point.compounding) setZeroCompounding(firstZero.point.compounding);
@@ -280,36 +285,23 @@ export default function CurveBuilder() {
   // Clear bootstrap result when points change
   useEffect(() => {
     setBootstrapResult(null);
-  }, [points, valuePoints, construction, valueQuantity, zeroCompounding, zeroFrequency, inflationCurve, dayCounter, interpolator, bootstrapTrait, referenceDate, role]);
+  }, [points, valueRows, anchorValue, construction, valueQuantity, zeroCompounding, zeroFrequency, inflationCurve, dayCounter, interpolator, bootstrapTrait, referenceDate, role]);
 
   // Server-mapped row errors are for the LAST preview attempt only.
   useEffect(() => {
     setServerRowErrors(new Map());
-  }, [valuePoints, valueQuantity, referenceDate]);
+  }, [valueRows, anchorValue, valueQuantity, referenceDate]);
 
-  // DF curves start at 1.0 ON the reference date — keep the pinned first row
-  // in sync when the reference date moves.
-  useEffect(() => {
-    if (construction !== 'values' || valueQuantity !== 'df') return;
-    setValuePoints(prev => {
-      if (prev.length === 0) return prev;
-      const first = prev[0];
-      const pinnedShape =
-        !first.point.quote_id && pointValue(first) === 1.0 && !!first.point.date;
-      if (pinnedShape && first.point.date !== referenceDate) {
-        return [pinnedDfPoint(referenceDate), ...prev.slice(1)];
-      }
-      return prev;
-    });
-  }, [construction, valueQuantity, referenceDate]);
-
-  /** Points as persisted / sent in values mode: zero conventions stamped on. */
+  /** Points as persisted / sent in values mode: the pinned reference-date
+   * anchor first (DF fixed 1.0, zero / fwd the entered short-end value), then
+   * the editable rows, zero conventions stamped on. */
   const effectiveValuePoints = useMemo(() => {
+    const all = [anchorPoint(valueQuantity, referenceDate, anchorValue), ...valueRows];
     if (valueQuantity === 'zero') {
-      return stampZeroConventions(valuePoints, zeroCompounding, zeroFrequency);
+      return stampZeroConventions(all, zeroCompounding, zeroFrequency);
     }
-    return valuePoints;
-  }, [valuePoints, valueQuantity, zeroCompounding, zeroFrequency]);
+    return all;
+  }, [valueRows, anchorValue, valueQuantity, referenceDate, zeroCompounding, zeroFrequency]);
 
   // Client-side validation mirrors the backend's 422 rules; merged with any
   // rows the last server 422 mapped onto.
@@ -327,15 +319,14 @@ export default function CurveBuilder() {
 
   const handleQuantityChange = (next: ValueQuantity) => {
     if (next === valueQuantity) return;
-    setValuePoints(prev => convertValuePoints(prev, valueQuantity, next, referenceDate));
+    const keepValues = quantitySpec(valueQuantity).percent === quantitySpec(next).percent;
+    setValueRows(prev => convertValuePoints(prev, valueQuantity, next));
+    setAnchorValue(prev => (keepValues ? prev : undefined));
     setValueQuantity(next);
   };
 
   const handleConstructionChange = (next: 'bootstrap' | 'values') => {
     setConstruction(next);
-    if (next === 'values' && valueQuantity === 'df' && valuePoints.length === 0) {
-      setValuePoints([pinnedDfPoint(referenceDate)]);
-    }
   };
 
   useEffect(() => {
@@ -469,7 +460,7 @@ export default function CurveBuilder() {
         return;
       }
     } else if (isValuesMode) {
-      if (valuePoints.length === 0) {
+      if (valueRows.length === 0) {
         setError('Add at least one point to preview');
         return;
       }
@@ -708,7 +699,13 @@ export default function CurveBuilder() {
     }
     
     const activePoints: AnyCurvePoint[] = isValuesMode ? effectiveValuePoints : points;
-    if (isInflationCurve ? inflationCurve.points.length === 0 : activePoints.length === 0) {
+    if (
+      isInflationCurve
+        ? inflationCurve.points.length === 0
+        : isValuesMode
+          ? valueRows.length === 0
+          : activePoints.length === 0
+    ) {
       setError(
         isInflationCurve
           ? 'Please add at least one inflation helper'
@@ -756,7 +753,13 @@ export default function CurveBuilder() {
   
   const handleExport = () => {
     const activePoints: AnyCurvePoint[] = isValuesMode ? effectiveValuePoints : points;
-    if (isInflationCurve ? inflationCurve.points.length === 0 : activePoints.length === 0) {
+    if (
+      isInflationCurve
+        ? inflationCurve.points.length === 0
+        : isValuesMode
+          ? valueRows.length === 0
+          : activePoints.length === 0
+    ) {
       setError(isInflationCurve ? 'Add inflation helpers before exporting' : 'Add points before exporting');
       return;
     }
@@ -985,30 +988,6 @@ export default function CurveBuilder() {
                           </div>
                         </div>
 
-                        <div>
-                          <label className={labelClass}>Pillar Style</label>
-                          <div className="flex gap-2">
-                            {([
-                              { value: 'tenor', label: 'Tenor' },
-                              { value: 'date', label: 'Date' },
-                            ] as { value: 'tenor' | 'date'; label: string }[]).map(({ value, label }) => (
-                              <button
-                                key={value}
-                                type="button"
-                                onClick={() => setPillarStyle(value)}
-                                className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                                  pillarStyle === value
-                                    ? 'bg-[#0a0a0a] text-white'
-                                    : 'bg-[#f5f5f5] text-[#525252] hover:bg-[#e5e5e5]'
-                                }`}
-                              >
-                                {label}
-                              </button>
-                            ))}
-                          </div>
-                          <p className="text-[10px] text-[#a3a3a3] mt-1">New rows use this pillar entry style.</p>
-                        </div>
-
                         {valueQuantity === 'zero' && (
                           <>
                             <div>
@@ -1101,7 +1080,7 @@ export default function CurveBuilder() {
               <div className="bg-white border border-[#e5e5e5] rounded-xl p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-sm font-semibold text-[#0a0a0a]">
-                    Curve Values ({valuePoints.length})
+                    Curve Values ({effectiveValuePoints.length})
                   </h2>
                   <span className="text-[11px] text-[#a3a3a3]">
                     {valueSpec.percent ? 'values in percent' : 'raw discount factors'}
@@ -1109,10 +1088,11 @@ export default function CurveBuilder() {
                 </div>
                 <ValuePointsTable
                   quantity={valueQuantity}
-                  points={valuePoints}
-                  onChange={setValuePoints}
+                  rows={valueRows}
+                  onRowsChange={setValueRows}
+                  anchorValue={anchorValue}
+                  onAnchorValueChange={setAnchorValue}
                   referenceDate={referenceDate}
-                  pillarStyle={pillarStyle}
                   rowErrors={valueRowErrors}
                 />
               </div>
@@ -1217,7 +1197,7 @@ export default function CurveBuilder() {
                   )}
                   <button
                     onClick={handleBootstrap}
-                    disabled={bootstrapping || (isInflationCurve ? inflationCurve.points.length === 0 : isValuesMode ? valuePoints.length === 0 : points.length === 0)}
+                    disabled={bootstrapping || (isInflationCurve ? inflationCurve.points.length === 0 : isValuesMode ? valueRows.length === 0 : points.length === 0)}
                     className="px-3 py-1 text-xs font-medium text-white bg-[#0a0a0a] rounded hover:bg-[#262626] disabled:opacity-50 transition-colors flex items-center gap-1"
                   >
                     {bootstrapping ? (
@@ -1476,14 +1456,14 @@ export default function CurveBuilder() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#737373]">Points</span>
-                      <span className="font-medium">{valuePoints.length}</span>
+                      <span className="font-medium">{effectiveValuePoints.length}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#737373]">Quote references</span>
-                      <span className="font-medium">{valuePoints.filter(p => !!p.point.quote_id).length}</span>
+                      <span className="font-medium">{valueRows.filter(p => !!p.point.quote_id).length}</span>
                     </div>
                     {(() => {
-                      const values = valuePoints
+                      const values = effectiveValuePoints
                         .map(pointValue)
                         .filter((v): v is number => v !== undefined && !Number.isNaN(v));
                       if (values.length === 0) return null;

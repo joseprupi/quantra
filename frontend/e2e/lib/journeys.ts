@@ -156,6 +156,12 @@ export interface ValueCurveOpts {
   quantity?: 'Zero rates' | 'Discount factors' | 'Forward rates'
   /** Two-column paste block applied through "Paste table…". */
   pasteTable?: string
+  /**
+   * Value for the PINNED reference-date row (zero / fwd short end), in the
+   * entry unit (percent). Ignored for DF (fixed at 1.0). Alternative: put a
+   * reference-date line in pasteTable — it feeds the pinned row.
+   */
+  anchorValue?: string
 }
 
 /**
@@ -176,6 +182,19 @@ export async function fillValueCurveForm(page: Page, opts: ValueCurveOpts) {
     await page.getByTestId('paste-table-input').fill(opts.pasteTable)
     await page.getByRole('button', { name: 'Apply', exact: true }).click()
   }
+  if (opts.anchorValue !== undefined) {
+    await page.getByLabel('Reference date value').fill(opts.anchorValue)
+  }
+}
+
+/**
+ * Set the Maturity of an editable value-curve row (1-based) and commit it
+ * (blur -> parse + auto-sort by resolved date).
+ */
+export async function setValueRowMaturity(page: Page, row: number, maturity: string) {
+  const input = page.getByLabel(`Maturity ${row}`)
+  await input.fill(maturity)
+  await input.press('Enter')
 }
 
 /**

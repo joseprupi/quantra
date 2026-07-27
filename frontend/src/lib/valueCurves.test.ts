@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  anchorPoint,
   convertValuePoints,
   makeValuePoint,
   mapServerErrorToRows,
@@ -10,7 +11,9 @@ import {
   pointValue,
   quantityForTrait,
   quantitySpec,
+  resolvedPillarIso,
   sortValuePoints,
+  splitStoredValuePoints,
   stampZeroConventions,
   validateValuePoints,
 } from './valueCurves';
@@ -29,6 +32,7 @@ describe('parsePillarToken', () => {
     expect(parsePillarToken('10y')).toEqual({ kind: 'tenor', n: 10, unit: 'Years' });
     expect(parsePillarToken('2W')).toEqual({ kind: 'tenor', n: 2, unit: 'Weeks' });
     expect(parsePillarToken('30D')).toEqual({ kind: 'tenor', n: 30, unit: 'Days' });
+    expect(parsePillarToken('18 m')).toEqual({ kind: 'tenor', n: 18, unit: 'Months' });
   });
 
   it('parses ISO dates', () => {
@@ -43,7 +47,7 @@ describe('parsePillarToken', () => {
   });
 });
 
-describe('pillarDate', () => {
+describe('pillarDate / resolvedPillarIso', () => {
   it('anchors tenors at the reference date with month-end clamping', () => {
     const p = makeValuePoint('zero', { kind: 'tenor', n: 1, unit: 'Years' }, { value: 0.02 });
     expect(pillarDate(p, REF)?.toISOString().slice(0, 10)).toBe('2026-01-15');
@@ -55,42 +59,77 @@ describe('pillarDate', () => {
     const p = makeValuePoint('zero', { kind: 'date', iso: '2027-06-30' }, { value: 0.02 });
     expect(pillarDate(p, REF)?.toISOString().slice(0, 10)).toBe('2027-06-30');
   });
+
+  it('resolvedPillarIso returns the ISO date or null for an unset maturity', () => {
+    expect(resolvedPillarIso(zeroPt('1Y', 0.02), REF)).toBe('2026-01-15');
+    expect(resolvedPillarIso({ point_type: 'ZeroRatePoint', point: {} }, REF)).toBeNull();
+  });
+});
+
+describe('anchorPoint / splitStoredValuePoints', () => {
+  it('builds the DF anchor as the mandatory 1.0 at the reference date', () => {
+    expect(anchorPoint('df', REF)).toEqual(pinnedDfPoint(REF));
+  });
+
+  it('builds the zero / fwd anchor from the entered short-end value', () => {
+    expect(anchorPoint('zero', REF, 0.021).point).toMatchObject({ date: REF, zero_rate: 0.021 });
+    expect(pointValue(anchorPoint('fwd', REF))).toBeUndefined();
+  });
+
+  it('splits a stored curve into anchor value + editable rows', () => {
+    const stored = [zeroPt(REF, 0.02), zeroPt('6M', 0.021), zeroPt('1Y', 0.022)];
+    const { anchorValue, rows } = splitStoredValuePoints(stored, REF);
+    expect(anchorValue).toBe(0.02);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].point.tenor_number).toBe(6);
+  });
+
+  it('keeps a non-anchor first point as an editable row', () => {
+    const stored = [zeroPt('6M', 0.021), zeroPt('1Y', 0.022)];
+    const { anchorValue, rows } = splitStoredValuePoints(stored, REF);
+    expect(anchorValue).toBeUndefined();
+    expect(rows).toHaveLength(2);
+  });
 });
 
 describe('parsePastedTable', () => {
-  it('parses tab/comma/space separated pillar-value lines (percent for zeros) and anchors at the reference date', () => {
-    const { points, errors } = parsePastedTable('6M\t2.0\n1Y, 2.25\n10Y 3.10', 'zero', REF);
+  it('parses tab/comma/space separated maturity-value lines (percent for zeros), sorted, no anchor row', () => {
+    const { rows, anchorValue, errors } = parsePastedTable('6M\t2.0\n1Y, 2.25\n10Y 3.10', 'zero', REF);
     expect(errors).toEqual([]);
-    expect(points).toHaveLength(4);
-    // The interpolated curve starts at its first pillar -> a reference-date
-    // anchor row carrying the first value is prepended.
-    expect(points[0].point).toMatchObject({ date: REF, zero_rate: 0.02 });
-    expect(points[1].point).toMatchObject({ tenor_number: 6, tenor_time_unit: 'Months', zero_rate: 0.02 });
-    expect(points[3].point).toMatchObject({ tenor_number: 10, tenor_time_unit: 'Years', zero_rate: 0.031 });
+    expect(anchorValue).toBeUndefined();
+    expect(rows).toHaveLength(3);
+    expect(rows[0].point).toMatchObject({ tenor_number: 6, tenor_time_unit: 'Months', zero_rate: 0.02 });
+    expect(rows[2].point).toMatchObject({ tenor_number: 10, tenor_time_unit: 'Years', zero_rate: 0.031 });
   });
 
-  it('sorts parsed rows by pillar', () => {
-    const { points } = parsePastedTable('10Y 3.1\n6M 2.0', 'zero', REF);
-    expect(points[1].point.tenor_number).toBe(6);
+  it('sorts parsed rows by resolved date', () => {
+    const { rows } = parsePastedTable('10Y 3.1\n6M 2.0', 'zero', REF);
+    expect(rows[0].point.tenor_number).toBe(6);
   });
 
-  it('does not double-anchor when the paste already starts at the reference date', () => {
-    const { points } = parsePastedTable(`${REF} 2.0\n10Y 3.1`, 'zero', REF);
-    expect(points).toHaveLength(2);
-    expect(points[0].point).toMatchObject({ date: REF, zero_rate: 0.02 });
+  it('a reference-date line feeds the pinned anchor value (zero / fwd)', () => {
+    const { rows, anchorValue } = parsePastedTable(`${REF} 2.0\n10Y 3.1`, 'zero', REF);
+    expect(anchorValue).toBe(0.02);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].point.tenor_number).toBe(10);
   });
 
-  it('keeps DF values raw and prepends the pinned reference-date row', () => {
-    const { points, errors } = parsePastedTable('1Y 0.97\n5Y 0.85', 'df', REF);
-    expect(errors).toEqual([]);
-    expect(points).toHaveLength(3);
-    expect(points[0].point).toMatchObject({ date: REF, discount_factor: 1.0 });
-    expect(points[1].point).toMatchObject({ discount_factor: 0.97 });
+  it('DF: keeps values raw and ignores a reference-date line with a note', () => {
+    const plain = parsePastedTable('1Y 0.97\n5Y 0.85', 'df', REF);
+    expect(plain.errors).toEqual([]);
+    expect(plain.anchorNote).toBeUndefined();
+    expect(plain.rows).toHaveLength(2);
+    expect(plain.rows[0].point).toMatchObject({ discount_factor: 0.97 });
+
+    const withRef = parsePastedTable(`${REF} 1.0\n1Y 0.97`, 'df', REF);
+    expect(withRef.rows).toHaveLength(1);
+    expect(withRef.anchorValue).toBeUndefined();
+    expect(withRef.anchorNote).toContain('ignored');
   });
 
-  it('accepts ISO-date pillars and reports bad lines without dropping good ones', () => {
-    const { points, errors } = parsePastedTable('2025-01-15 2.0\nnot-a-pillar 3\n2030-01-15 2.9', 'zero', REF);
-    expect(points).toHaveLength(2);
+  it('accepts ISO-date maturities and reports bad lines without dropping good ones', () => {
+    const { rows, errors } = parsePastedTable('2026-01-15 2.0\nnot-a-maturity 3\n2030-01-15 2.9', 'zero', REF);
+    expect(rows).toHaveLength(2);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain('Line 2');
   });
@@ -106,28 +145,47 @@ describe('validateValuePoints', () => {
     expect(v.ok).toBe(true);
   });
 
-  it('flags a zero curve whose first pillar is not at the reference date', () => {
+  it('flags a zero curve whose first point is not at the reference date', () => {
     const v = validateValuePoints([zeroPt('6M', 0.02), zeroPt('1Y', 0.022)], 'zero', REF);
     expect(v.rowErrors.get(0)).toMatch(/anchored at its first point/);
   });
 
-  it('flags unsorted pillars on the offending row', () => {
-    const v = validateValuePoints([zeroPt('5Y', 0.03), zeroPt('1Y', 0.022)], 'zero', REF);
+  it('flags out-of-order maturities as a safety net', () => {
+    const v = validateValuePoints([zeroPt(REF, 0.02), zeroPt('5Y', 0.03), zeroPt('1Y', 0.022)], 'zero', REF);
     expect(v.ok).toBe(false);
-    expect(v.rowErrors.get(1)).toMatch(/strictly increasing/);
+    expect(v.rowErrors.get(2)).toMatch(/increasing date order/);
   });
 
-  it('flags duplicate pillars', () => {
-    const v = validateValuePoints([zeroPt('1Y', 0.02), zeroPt('1Y', 0.022)], 'zero', REF);
-    expect(v.rowErrors.get(1)).toMatch(/strictly increasing/);
+  it('flags duplicate resolved dates with a dedicated message', () => {
+    const v = validateValuePoints([zeroPt(REF, 0.02), zeroPt('1Y', 0.02), zeroPt('1Y', 0.022)], 'zero', REF);
+    expect(v.rowErrors.get(2)).toMatch(/Duplicate maturity/);
+  });
+
+  it('flags a row duplicating the reference-date anchor', () => {
+    const v = validateValuePoints([zeroPt(REF, 0.02), zeroPt('2025-01-15', 0.022)], 'zero', REF);
+    expect(v.rowErrors.get(1)).toMatch(/Duplicate maturity/);
   });
 
   it('requires exactly one of value | quote', () => {
     const both = zeroPt('1Y', 0.02, 'EUR.ZERO.1Y');
     const neither = zeroPt('2Y');
-    const v = validateValuePoints([both, neither], 'zero', REF);
-    expect(v.rowErrors.get(0)).toMatch(/not both/);
-    expect(v.rowErrors.get(1)).toMatch(/Value required/);
+    const v = validateValuePoints([zeroPt(REF, 0.02), both, neither], 'zero', REF);
+    expect(v.rowErrors.get(1)).toMatch(/not both/);
+    expect(v.rowErrors.get(2)).toMatch(/Value required/);
+  });
+
+  it('prompts for the short-end value on an empty zero / fwd anchor', () => {
+    const v = validateValuePoints([anchorPoint('zero', REF), zeroPt('1Y', 0.022)], 'zero', REF);
+    expect(v.rowErrors.get(0)).toMatch(/value at the reference date/);
+  });
+
+  it('flags an unset maturity', () => {
+    const v = validateValuePoints(
+      [zeroPt(REF, 0.02), { point_type: 'ZeroRatePoint', point: { zero_rate: 0.02 } }],
+      'zero',
+      REF,
+    );
+    expect(v.rowErrors.get(1)).toMatch(/Maturity required/);
   });
 
   it('quote-referenced rows skip the numeric checks', () => {
@@ -169,32 +227,32 @@ describe('validateValuePoints', () => {
 });
 
 describe('sortValuePoints / conversions', () => {
-  it('sorts mixed tenor + date pillars chronologically', () => {
+  it('sorts mixed tenor + date maturities chronologically', () => {
     const pts = [zeroPt('10Y', 0.03), zeroPt('2026-01-01', 0.021), zeroPt('6M', 0.02)];
     const sorted = sortValuePoints(pts, REF);
     expect(sorted.map(p => p.point.tenor_number ?? p.point.date)).toEqual([6, '2026-01-01', 10]);
   });
 
-  it('zero -> fwd keeps pillars, values and quote refs', () => {
+  it('zero -> fwd keeps maturities, values and quote refs', () => {
     const pts = [zeroPt('6M', 0.02), zeroPt('1Y', undefined, 'EUR.Z.1Y')];
-    const out = convertValuePoints(pts, 'zero', 'fwd', REF);
+    const out = convertValuePoints(pts, 'zero', 'fwd');
     expect(out[0]).toMatchObject({ point_type: 'ForwardRatePoint', point: { forward_rate: 0.02 } });
     expect(out[1].point.quote_id).toBe('EUR.Z.1Y');
   });
 
-  it('zero -> df drops inline values (unit change) and prepends the pinned row', () => {
-    const out = convertValuePoints([zeroPt('1Y', 0.02)], 'zero', 'df', REF);
-    expect(out[0].point).toMatchObject({ date: REF, discount_factor: 1.0 });
-    expect(out[1].point_type).toBe('DiscountFactorPoint');
-    expect(pointValue(out[1])).toBeUndefined();
+  it('zero -> df drops inline values (unit change), keeps maturities', () => {
+    const out = convertValuePoints([zeroPt('1Y', 0.02)], 'zero', 'df');
+    expect(out).toHaveLength(1);
+    expect(out[0].point_type).toBe('DiscountFactorPoint');
+    expect(out[0].point).toMatchObject({ tenor_number: 1, tenor_time_unit: 'Years' });
+    expect(pointValue(out[0])).toBeUndefined();
   });
 
-  it('df -> zero keeps the reference anchor row (value cleared, unit change)', () => {
-    const pts = [pinnedDfPoint(REF), makeValuePoint('df', { kind: 'tenor', n: 1, unit: 'Years' }, { value: 0.97 })];
-    const out = convertValuePoints(pts, 'df', 'zero', REF);
-    expect(out).toHaveLength(2);
+  it('df -> zero re-types rows with values cleared (unit change)', () => {
+    const pts = [makeValuePoint('df', { kind: 'tenor', n: 1, unit: 'Years' }, { value: 0.97 })];
+    const out = convertValuePoints(pts, 'df', 'zero');
+    expect(out).toHaveLength(1);
     expect(out[0].point_type).toBe('ZeroRatePoint');
-    expect(out[0].point).toMatchObject({ date: REF });
     expect(pointValue(out[0])).toBeUndefined();
   });
 });

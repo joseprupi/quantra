@@ -2,9 +2,10 @@
  * Value-based curves ("Interpolate given values", engine Interpolated*
  * families): the zero family works END TO END on the pinned engine 0.2.0
  * (auto-dispatched ZeroRatePoint) and ships UNGATED — paste-table entry,
+ * the pinned reference-date anchor row, auto-sorted free-text maturities,
  * preview grid, save, curve set, IR swap priced discounting on the value
- * curve, quote-referenced rows, and both error paths (client-side unsorted
- * pillars; server-side unresolvable quote id mapped onto the row).
+ * curve, quote-referenced rows, and both error paths (client-side duplicate
+ * maturities; server-side unresolvable quote id mapped onto the row).
  *
  * DiscountFactorPoint / ForwardRatePoint need engine >= 0.5.0 (the union
  * members do not exist in 0.2.0) — their SUCCESS journeys are gated on the
@@ -15,7 +16,7 @@ import { test, expect } from '@playwright/test'
 import { fieldFor, gotoReady, pickStandaloneCurve, selectByTextContains } from '../lib/ui'
 import { assertPricingParity, capturePricing, waitForRealData } from '../lib/api'
 import { PORTAL_URL, SEEDED, uniq, uniqCanonicalId } from '../lib/stack'
-import { fillValueCurveForm, saveCurve, valueCurvePreview } from '../lib/journeys'
+import { fillValueCurveForm, saveCurve, setValueRowMaturity, valueCurvePreview } from '../lib/journeys'
 
 test.beforeEach(async ({ request }) => {
   await waitForRealData(request)
@@ -64,16 +65,19 @@ test.describe('value curves — zero family (works on engine 0.2.0, UNGATED)', (
     const setName = uniq('E2E value set')
 
     // 1. Create through the PASTE workflow (the primary path: reproduce a
-    //    published curve from a two-column block; percent entry for zeros).
+    //    published curve from a two-column block; percent entry for zeros)
+    //    plus the pinned reference-date row's short-end value.
     await fillValueCurveForm(page, {
       name: curveName,
       currency: 'GBP',
       referenceDate: refDate,
       pasteTable: '6M\t3.90\n1Y, 3.95\n2Y 4.00\n5Y 4.10\n10Y 4.25\n30Y 4.35',
+      anchorValue: '3.90',
     })
-    // 6 pasted rows + the auto-prepended reference-date anchor row (the
-    // interpolated curve is ANCHORED at its first pillar).
-    await expect(page.getByTestId('value-point-row')).toHaveCount(7)
+    // 6 pasted editable rows; the reference-date anchor is the PINNED header
+    // row above them (the interpolated curve is ANCHORED at its first point).
+    await expect(page.getByTestId('value-point-row')).toHaveCount(6)
+    await expect(page.getByTestId('value-anchor-row')).toContainText(`Reference date · ${refDate}`)
 
     // 2. Preview via the orchestrator + engine: non-trivial zero grid close
     //    to the pasted levels, and the wire trait is InterpolatedZero with
@@ -142,25 +146,26 @@ test.describe('value curves — zero family (works on engine 0.2.0, UNGATED)', (
     const refDate = await latestDate(request)
     const curveName = uniq('E2E zero quote curve')
 
+    // A pasted reference-date line feeds the PINNED row (no anchor row is
+    // created among the editable rows).
     await fillValueCurveForm(page, {
       name: curveName,
       currency: 'GBP',
       referenceDate: refDate,
-      pasteTable: '1Y 4.0\n10Y 4.2',
+      pasteTable: `${refDate} 4.0\n1Y 4.0\n10Y 4.2`,
     })
+    await expect(page.getByLabel('Reference date value')).toHaveValue('4')
 
     // Add a row sourced from the REAL BoE OIS catalog (same MD dropdown the
     // instrument editor uses; value shown resolved at the global As-Of).
     await page.getByRole('button', { name: '+ Add row' }).click()
     const rows = page.getByTestId('value-point-row')
-    await expect(rows).toHaveCount(4) // anchor + 2 pasted + the new row
-    await rows.nth(3).getByLabel('Pillar 4').fill('5Y')
-    await rows.nth(3).getByLabel('Pillar 4').press('Enter')
-    await rows.nth(3).getByLabel('Source 4').selectOption('quote')
-    const quoteSelect = rows.nth(3).getByLabel('Quote 4')
-    await selectByTextContains(quoteSelect, `${SEEDED.boeQuotePrefix}5Y`)
-    // Sort so the 5Y row sits between 1Y and 10Y.
-    await page.getByRole('button', { name: 'Sort by pillar' }).click()
+    await expect(rows).toHaveCount(3) // 2 pasted + the new row
+    await rows.nth(2).getByLabel('Source 3').selectOption('quote')
+    await selectByTextContains(rows.nth(2).getByLabel('Quote 3'), `${SEEDED.boeQuotePrefix}5Y`)
+    // Committing the maturity AUTO-SORTS the 5Y row between 1Y and 10Y.
+    await setValueRowMaturity(page, 3, '5Y')
+    await expect(rows.nth(1).getByLabel('Maturity 2')).toHaveValue('5Y')
 
     const preview = await valueCurvePreview(page)
     expect(preview.status, `preview: ${JSON.stringify(preview.body).slice(0, 400)}`).toBe(200)
@@ -176,36 +181,45 @@ test.describe('value curves — zero family (works on engine 0.2.0, UNGATED)', (
     expect(quotePoint?.point.zero_rate).toBeUndefined()
   })
 
-  test('unsorted pillars render a per-row error and preview is blocked client-side', async ({
+  test('maturities auto-sort on entry; duplicates render a per-row error and block preview', async ({
     page,
     request,
   }) => {
     const refDate = await latestDate(request)
     await fillValueCurveForm(page, {
-      name: uniq('E2E unsorted'),
+      name: uniq('E2E autosort'),
       currency: 'GBP',
       referenceDate: refDate,
       pasteTable: '6M 3.0\n5Y 3.2',
+      anchorValue: '3.0',
     })
 
-    // Break the ordering: pull the 5Y row before the 6M one.
     const rows = page.getByTestId('value-point-row')
-    await expect(rows).toHaveCount(3) // anchor + 6M + 5Y
-    await rows.nth(2).getByLabel('Pillar 3').fill('3M')
-    await rows.nth(2).getByLabel('Pillar 3').press('Enter')
+    await expect(rows).toHaveCount(2) // 6M + 5Y (the anchor is pinned above)
 
-    // The offending ROW carries a friendly message (mirrors the backend's
-    // pillars_not_sorted 422 without a round-trip).
+    // A new row typed with an EARLIER maturity auto-sorts to the front on
+    // commit; each row shows its resolved date.
+    await page.getByRole('button', { name: '+ Add row' }).click()
+    await expect(rows).toHaveCount(3)
+    await rows.nth(2).getByLabel('Value 3').fill('2.9')
+    await setValueRowMaturity(page, 3, '3M')
+    await expect(rows.nth(0).getByLabel('Maturity 1')).toHaveValue('3M')
+    await expect(rows.nth(0).getByTestId('resolved-date')).toContainText('→')
+    await expect(page.getByTestId('value-point-row-error')).toHaveCount(0)
+
+    // A DUPLICATE maturity is the per-row error case (auto-sort makes plain
+    // ordering errors unreachable while typing).
+    await setValueRowMaturity(page, 1, '6M')
     await expect(
-      page.getByTestId('value-point-row-error').filter({ hasText: 'strictly increasing' }).first(),
+      page.getByTestId('value-point-row-error').filter({ hasText: 'Duplicate maturity' }).first(),
     ).toBeVisible()
 
     // Preview refuses to round-trip while rows are invalid.
     await page.getByRole('button', { name: 'Preview', exact: true }).click()
     await expect(page.getByText('Fix the highlighted rows before previewing.')).toBeVisible()
 
-    // Sort fixes it; the row error clears.
-    await page.getByRole('button', { name: 'Sort by pillar' }).click()
+    // Fixing the maturity clears the error.
+    await setValueRowMaturity(page, 1, '3M')
     await expect(page.getByTestId('value-point-row-error')).toHaveCount(0)
   })
 
@@ -232,15 +246,15 @@ test.describe('value curves — zero family (works on engine 0.2.0, UNGATED)', (
       currency: 'USD',
       referenceDate: refDate,
       pasteTable: '1Y 4.0\n10Y 4.2',
+      anchorValue: '4.0',
     })
     await page.getByRole('button', { name: '+ Add row' }).click()
     const rows = page.getByTestId('value-point-row')
-    await expect(rows).toHaveCount(4) // anchor + 2 pasted + the new row
-    await rows.nth(3).getByLabel('Pillar 4').fill('5Y')
-    await rows.nth(3).getByLabel('Pillar 4').press('Enter')
-    await rows.nth(3).getByLabel('Source 4').selectOption('quote')
-    await selectByTextContains(rows.nth(3).getByLabel('Quote 4'), emptySeriesId)
-    await page.getByRole('button', { name: 'Sort by pillar' }).click()
+    await expect(rows).toHaveCount(3) // 2 pasted + the new row
+    await rows.nth(2).getByLabel('Source 3').selectOption('quote')
+    await selectByTextContains(rows.nth(2).getByLabel('Quote 3'), emptySeriesId)
+    // Committing the maturity auto-sorts the 5Y row between 1Y and 10Y.
+    await setValueRowMaturity(page, 3, '5Y')
 
     const preview = await valueCurvePreview(page)
     expect(preview.status, 'unresolvable quote must 422').toBe(422)
@@ -264,10 +278,13 @@ test.describe('value curves — DF / Fwd families (engine >= 0.5.0)', () => {
       quantity: 'Discount factors',
       pasteTable: '1Y 0.96\n5Y 0.82\n10Y 0.66',
     })
-    // Paste auto-prepends the pinned DF=1.0 row at the reference date.
+    // The pinned reference-date header row carries the fixed DF = 1.0; the
+    // pasted lines are the editable rows below it.
     const rows = page.getByTestId('value-point-row')
-    await expect(rows).toHaveCount(4)
-    await expect(rows.nth(0)).toContainText('(reference)')
+    await expect(rows).toHaveCount(3)
+    const anchorRow = page.getByTestId('value-anchor-row')
+    await expect(anchorRow).toContainText(`Reference date · ${refDate}`)
+    await expect(anchorRow).toContainText('1.0000')
 
     const preview = await valueCurvePreview(page)
     // Request shape is right regardless of the engine's verdict.
@@ -328,6 +345,7 @@ test.describe('value curves — DF / Fwd families (engine >= 0.5.0)', () => {
       referenceDate: refDate,
       quantity: 'Forward rates',
       pasteTable: '6M 3.9\n2Y 4.1\n10Y 4.4',
+      anchorValue: '3.9',
     })
     const preview = await valueCurvePreview(page)
     expect(preview.status, JSON.stringify(preview.body).slice(0, 400)).toBe(200)

@@ -80,7 +80,7 @@ const TENOR_UNITS: Record<string, TimeUnit> = {
   y: 'Years',
 };
 
-/** Parse a pillar token: a tenor like `6M` / `10Y` / `2w` or an ISO date. */
+/** Parse a maturity token: a tenor like `6M` / `10Y` / `2w` or an ISO date. */
 export function parsePillarToken(raw: string): ParsedPillar | null {
   const text = raw.trim();
   if (!text) return null;
@@ -99,7 +99,8 @@ export function parsePillarToken(raw: string): ParsedPillar | null {
   return null;
 }
 
-/** Mirror the backend's unadjusted tenor anchoring for the ordering check. */
+/** Mirror the backend's unadjusted tenor anchoring: reference date + tenor,
+ * no calendar adjustment — exactly what goes on the wire today. */
 export function pillarDate(point: ValueCurvePoint, referenceDate: string): Date | null {
   const p = point.point;
   if (p.date) {
@@ -138,6 +139,12 @@ export function pillarLabel(point: ValueCurvePoint): string {
   return '';
 }
 
+/** Resolved maturity date (ISO) of a point, or null when the maturity is unset. */
+export function resolvedPillarIso(point: ValueCurvePoint, referenceDate: string): string | null {
+  const d = pillarDate(point, referenceDate);
+  return d ? d.toISOString().slice(0, 10) : null;
+}
+
 // ---------------------------------------------------------------------------
 // Points
 // ---------------------------------------------------------------------------
@@ -168,6 +175,42 @@ export function pinnedDfPoint(referenceDate: string): ValueCurvePoint {
   };
 }
 
+/**
+ * The pinned reference-date anchor as it goes ON THE WIRE (always the first
+ * point of the curve): DF = the mandatory 1.0; zero / fwd = the entered
+ * short-end value at the reference date (omitted while still empty).
+ */
+export function anchorPoint(
+  quantity: ValueQuantity,
+  referenceDate: string,
+  anchorValue?: number,
+): ValueCurvePoint {
+  if (quantity === 'df') return pinnedDfPoint(referenceDate);
+  return makeValuePoint(quantity, { kind: 'date', iso: referenceDate }, { value: anchorValue });
+}
+
+/**
+ * Split STORED points into the pinned anchor + the editable rows: the first
+ * point renders as the pinned reference-date row (its inline value feeds the
+ * pinned input for zero / fwd) and the rest are editable rows. A first point
+ * that is NOT at the reference date (or is quote-referenced) cannot be the
+ * anchor — it stays an editable row and validation guides the user.
+ */
+export function splitStoredValuePoints(
+  points: ValueCurvePoint[],
+  referenceDate: string,
+): { anchorValue: number | undefined; rows: ValueCurvePoint[] } {
+  const first = points[0];
+  if (
+    first &&
+    !first.point.quote_id &&
+    resolvedPillarIso(first, referenceDate) === referenceDate
+  ) {
+    return { anchorValue: pointValue(first), rows: points.slice(1) };
+  }
+  return { anchorValue: undefined, rows: points };
+}
+
 /** Inline value of a point (decimal / raw), regardless of family. */
 export function pointValue(point: ValueCurvePoint): number | undefined {
   const p = point.point as Record<string, unknown>;
@@ -195,43 +238,35 @@ export function sortValuePoints(
     .map(entry => entry.point);
 }
 
-/** Re-target existing rows onto another quantity, keeping pillars + quote refs.
- * Inline values survive between the two percent families (zero <-> fwd) and are
- * dropped when the unit changes (to / from raw discount factors). */
+/** Re-target existing rows onto another quantity, keeping maturities + quote
+ * refs. Inline values survive between the two percent families (zero <-> fwd)
+ * and are dropped when the unit changes (to / from raw discount factors).
+ * Operates on EDITABLE rows only — the pinned anchor is assembled separately. */
 export function convertValuePoints(
   points: ValueCurvePoint[],
   from: ValueQuantity,
   to: ValueQuantity,
-  referenceDate: string,
 ): ValueCurvePoint[] {
   if (from === to) return points;
   const fromSpec = quantitySpec(from);
   const toSpec = quantitySpec(to);
   const keepValues = fromSpec.percent === toSpec.percent;
-  const converted = points
-    .map(pt => {
-      const { date, tenor_number, tenor_time_unit, quote_id } = pt.point;
-      const inner: Record<string, unknown> = {};
-      if (date) inner.date = date;
-      if (tenor_number !== undefined) {
-        inner.tenor_number = tenor_number;
-        inner.tenor_time_unit = tenor_time_unit;
-      }
-      if (quote_id) {
-        inner.quote_id = quote_id;
-      } else if (keepValues) {
-        const v = pointValue(pt);
-        if (v !== undefined) inner[toSpec.valueKey] = v;
-      }
-      return { point_type: toSpec.pointType, point: inner } as ValueCurvePoint;
-    });
-  if (to === 'df') {
-    const first = converted[0];
-    const firstIsPinned =
-      first?.point.date === referenceDate && pointValue(first) === 1.0 && !first.point.quote_id;
-    if (!firstIsPinned) converted.unshift(pinnedDfPoint(referenceDate));
-  }
-  return converted;
+  return points.map(pt => {
+    const { date, tenor_number, tenor_time_unit, quote_id } = pt.point;
+    const inner: Record<string, unknown> = {};
+    if (date) inner.date = date;
+    if (tenor_number !== undefined) {
+      inner.tenor_number = tenor_number;
+      inner.tenor_time_unit = tenor_time_unit;
+    }
+    if (quote_id) {
+      inner.quote_id = quote_id;
+    } else if (keepValues) {
+      const v = pointValue(pt);
+      if (v !== undefined) inner[toSpec.valueKey] = v;
+    }
+    return { point_type: toSpec.pointType, point: inner } as ValueCurvePoint;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -239,15 +274,22 @@ export function convertValuePoints(
 // ---------------------------------------------------------------------------
 
 export interface PasteResult {
-  points: ValueCurvePoint[];
+  /** Editable rows, sorted by resolved date. NEVER contains the anchor. */
+  rows: ValueCurvePoint[];
+  /** Value from a pasted reference-date line (zero / fwd): feeds the pinned row. */
+  anchorValue?: number;
+  /** Subtle non-blocking note (e.g. a DF reference-date line was ignored). */
+  anchorNote?: string;
   errors: string[];
 }
 
 /**
- * Parse a pasted two-column block: one `pillar value` pair per line, tab /
- * comma / whitespace separated. Pillars are tenors (`6M`, `10Y`) or ISO
+ * Parse a pasted two-column block: one `maturity value` pair per line, tab /
+ * comma / whitespace separated. Maturities are tenors (`6M`, `10Y`) or ISO
  * dates; values follow the quantity's entry unit (percent for zeros /
- * forwards, raw decimal for DFs).
+ * forwards, raw decimal for DFs). Paste never creates or duplicates the
+ * pinned reference-date anchor: a line AT the reference date feeds the
+ * pinned row's value (zero / fwd) or is ignored with a note (DF, fixed 1.0).
  */
 export function parsePastedTable(
   text: string,
@@ -263,12 +305,12 @@ export function parsePastedTable(
     if (!trimmed) return;
     const cols = trimmed.split(/[\t,;]+|\s+/).filter(Boolean);
     if (cols.length < 2) {
-      errors.push(`Line ${lineNo + 1}: expected "pillar value", got "${trimmed}"`);
+      errors.push(`Line ${lineNo + 1}: expected "maturity value", got "${trimmed}"`);
       return;
     }
     const pillar = parsePillarToken(cols[0]);
     if (!pillar) {
-      errors.push(`Line ${lineNo + 1}: unrecognized pillar "${cols[0]}" (use 6M / 10Y or YYYY-MM-DD)`);
+      errors.push(`Line ${lineNo + 1}: unrecognized maturity "${cols[0]}" (use 6M / 10Y or YYYY-MM-DD)`);
       return;
     }
     const rawValue = Number(cols[1].replace('%', ''));
@@ -279,26 +321,19 @@ export function parsePastedTable(
     const value = spec.percent ? rawValue / 100 : rawValue;
     points.push(makeValuePoint(quantity, pillar, { value }));
   });
-  let sorted = sortValuePoints(points, referenceDate);
-  // The engine anchors an Interpolated* curve AT ITS FIRST PILLAR (QuantLib:
-  // dates[0] IS the curve reference date), so every family needs a
-  // reference-date first row. DFs get the mandatory 1.0 row; zeros/forwards
-  // get an anchor row carrying the first pasted value (flat short end).
-  const first = sorted[0];
-  const firstAtReference =
-    !!first && pillarDate(first, referenceDate)?.toISOString().slice(0, 10) === referenceDate;
-  if (quantity === 'df') {
-    const firstIsReference =
-      firstAtReference && first.point.date === referenceDate && pointValue(first) === 1.0;
-    if (!firstIsReference) sorted = [pinnedDfPoint(referenceDate), ...sorted];
-  } else if (sorted.length > 0 && !firstAtReference) {
-    const anchorValue = pointValue(sorted[0]);
-    sorted = [
-      makeValuePoint(quantity, { kind: 'date', iso: referenceDate }, { value: anchorValue }),
-      ...sorted,
-    ];
+  let rows = sortValuePoints(points, referenceDate);
+  let anchorValue: number | undefined;
+  let anchorNote: string | undefined;
+  const first = rows[0];
+  if (first && resolvedPillarIso(first, referenceDate) === referenceDate) {
+    rows = rows.slice(1);
+    if (quantity === 'df') {
+      anchorNote = `The ${referenceDate} line was ignored: the pinned reference-date row fixes the discount factor at 1.0.`;
+    } else {
+      anchorValue = pointValue(first);
+    }
   }
-  return { points: sorted, errors };
+  return { rows, anchorValue, anchorNote, errors };
 }
 
 // ---------------------------------------------------------------------------
@@ -328,7 +363,7 @@ export function validateValuePoints(
     const d = pillarDate(pt, referenceDate);
     dates.push(d);
     if (d === null) {
-      rowErrors.set(i, 'Pillar required — a tenor like 6M / 10Y or a date.');
+      rowErrors.set(i, 'Maturity required: a tenor like 6M / 10Y or a date like 2033-01-15.');
       return;
     }
     const hasQuote = !!p.quote_id;
@@ -339,7 +374,12 @@ export function validateValuePoints(
     }
     if (!hasQuote) {
       if (value === undefined || !Number.isFinite(value)) {
-        rowErrors.set(i, 'Value required — enter a number or pick a quote.');
+        rowErrors.set(
+          i,
+          i === 0 && quantity !== 'df'
+            ? 'Enter the value at the reference date (the curve short end).'
+            : 'Value required: enter a number or pick a quote.',
+        );
         return;
       }
       if (quantity === 'df') {
@@ -354,11 +394,12 @@ export function validateValuePoints(
       }
     }
     if (quantity === 'df' && i === 0 && pt.point.date !== referenceDate) {
-      rowErrors.set(i, `The first discount-factor pillar must sit AT the reference date (${referenceDate}).`);
+      rowErrors.set(i, `The first discount factor must sit AT the reference date (${referenceDate}).`);
     }
-    // The interpolated curve is ANCHORED at its first pillar (QuantLib
-    // semantics: dates[0] is the curve reference date) — a first pillar
-    // beyond the reference date silently shifts the whole curve.
+    // The interpolated curve is ANCHORED at its first point (QuantLib
+    // semantics: dates[0] is the curve reference date). The UI assembles the
+    // pinned reference-date anchor as the first point, so this only fires as
+    // a safety net on malformed stored data.
     if (
       quantity !== 'df' &&
       i === 0 &&
@@ -368,19 +409,25 @@ export function validateValuePoints(
     ) {
       rowErrors.set(
         0,
-        `The first pillar must sit at the reference date (${referenceDate}) — the interpolated curve is anchored at its first point. "Paste table…" adds it automatically.`,
+        `The first point must sit at the reference date (${referenceDate}): the interpolated curve is anchored at its first point.`,
       );
     }
   });
 
+  // Rows are auto-sorted by the UI, so out-of-order dates are a pre-submit
+  // safety net; duplicates are the real user-facing case.
   for (let i = 1; i < points.length; i++) {
     const prev = dates[i - 1];
     const cur = dates[i];
-    if (prev && cur && cur.getTime() <= prev.getTime() && !rowErrors.has(i)) {
-      rowErrors.set(
-        i,
-        `Pillars must be strictly increasing — this pillar does not follow ${pillarLabel(points[i - 1])}. Use "Sort" or fix the pillar.`,
-      );
+    if (prev && cur && !rowErrors.has(i)) {
+      if (cur.getTime() === prev.getTime()) {
+        rowErrors.set(
+          i,
+          `Duplicate maturity: this row resolves to the same date as "${pillarLabel(points[i - 1])}".`,
+        );
+      } else if (cur.getTime() < prev.getTime()) {
+        rowErrors.set(i, 'Points must be in increasing date order.');
+      }
     }
   }
 
