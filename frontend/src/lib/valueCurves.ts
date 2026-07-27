@@ -28,8 +28,6 @@ export interface ValueQuantitySpec {
   valueKey: 'zero_rate' | 'discount_factor' | 'forward_rate';
   /** Values are entered in percent (zeros / forwards) vs raw decimal (DFs). */
   percent: boolean;
-  /** Extra requirement on the running engine (union members absent pre-0.5.0). */
-  requiresEngine?: string;
 }
 
 export const VALUE_QUANTITIES: ValueQuantitySpec[] = [
@@ -48,7 +46,6 @@ export const VALUE_QUANTITIES: ValueQuantitySpec[] = [
     pointType: 'DiscountFactorPoint',
     valueKey: 'discount_factor',
     percent: false,
-    requiresEngine: '0.5.0',
   },
   {
     quantity: 'fwd',
@@ -57,7 +54,6 @@ export const VALUE_QUANTITIES: ValueQuantitySpec[] = [
     pointType: 'ForwardRatePoint',
     valueKey: 'forward_rate',
     percent: true,
-    requiresEngine: '0.5.0',
   },
 ];
 

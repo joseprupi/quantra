@@ -983,12 +983,6 @@ export default function CurveBuilder() {
                               </button>
                             ))}
                           </div>
-                          {valueSpec.requiresEngine && (
-                            <p className="text-[10px] text-amber-600 mt-1">
-                              {valueSpec.label} curves require pricing engine {valueSpec.requiresEngine} — on
-                              older engines the preview / pricing request is rejected.
-                            </p>
-                          )}
                         </div>
 
                         <div>

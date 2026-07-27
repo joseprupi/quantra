@@ -239,10 +239,4 @@ describe('quantity model', () => {
     expect(quantityForTrait('InterpolatedFwd')?.quantity).toBe('fwd');
     expect(quantityForTrait('Discount')).toBeUndefined();
   });
-
-  it('flags DF/Fwd as engine-0.5.0 gated, zeros not', () => {
-    expect(quantitySpec('zero').requiresEngine).toBeUndefined();
-    expect(quantitySpec('df').requiresEngine).toBe('0.5.0');
-    expect(quantitySpec('fwd').requiresEngine).toBe('0.5.0');
-  });
 });

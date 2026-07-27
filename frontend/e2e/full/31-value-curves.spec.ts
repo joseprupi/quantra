@@ -250,7 +250,7 @@ test.describe('value curves — zero family (works on engine 0.2.0, UNGATED)', (
 })
 
 test.describe('value curves — DF / Fwd families (engine >= 0.5.0)', () => {
-  test('DF quantity: 0.5.0 hint, pinned reference row, request shape, clean error render pre-0.5.0', async ({
+  test('DF quantity: pinned reference row, request shape, clean error render pre-0.5.0', async ({
     page,
     request,
   }) => {
@@ -264,8 +264,6 @@ test.describe('value curves — DF / Fwd families (engine >= 0.5.0)', () => {
       quantity: 'Discount factors',
       pasteTable: '1Y 0.96\n5Y 0.82\n10Y 0.66',
     })
-    // The enabled-but-hinted affordance.
-    await expect(page.getByText(/require pricing engine 0\.5\.0/)).toBeVisible()
     // Paste auto-prepends the pinned DF=1.0 row at the reference date.
     const rows = page.getByTestId('value-point-row')
     await expect(rows).toHaveCount(4)
