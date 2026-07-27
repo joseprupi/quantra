@@ -183,18 +183,47 @@ export async function fillValueCurveForm(page: Page, opts: ValueCurveOpts) {
     await page.getByRole('button', { name: 'Apply', exact: true }).click()
   }
   if (opts.anchorValue !== undefined) {
-    await page.getByLabel('Reference date value').fill(opts.anchorValue)
+    await page.getByLabel('Start value at the reference date').fill(opts.anchorValue)
   }
 }
 
+const TENOR_UNIT_LABELS: Record<string, string> = {
+  d: 'Days',
+  w: 'Weeks',
+  m: 'Months',
+  y: 'Years',
+}
+
 /**
- * Set the Maturity of an editable value-curve row (1-based) and commit it
- * (blur -> parse + auto-sort by resolved date).
+ * Set the Maturity of an editable value-curve row (1-based) through the
+ * per-row [Tenor | Date] controls and commit it (Enter -> auto-sort by
+ * resolved date). Accepts a tenor token like '5Y' / '3M' or an ISO date.
  */
 export async function setValueRowMaturity(page: Page, row: number, maturity: string) {
-  const input = page.getByLabel(`Maturity ${row}`)
-  await input.fill(maturity)
-  await input.press('Enter')
+  const rowLoc = page.getByTestId('value-point-row').nth(row - 1)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(maturity)) {
+    await rowLoc.getByRole('button', { name: 'Date', exact: true }).click()
+    const input = page.getByLabel(`Maturity date ${row}`)
+    await input.fill(maturity)
+    await input.press('Enter')
+  } else {
+    const m = /^(\d+)\s*([dwmy])$/i.exec(maturity)
+    if (!m) throw new Error(`setValueRowMaturity: unrecognized maturity "${maturity}"`)
+    await rowLoc.getByRole('button', { name: 'Tenor', exact: true }).click()
+    // Number first: typing updates the row WITHOUT sorting, so the row cannot
+    // move mid-edit. The commit (+ auto-sort) then happens exactly once: via
+    // the unit change when the unit differs, else via Enter on the number
+    // (React swallows a same-value select change, so it would not commit).
+    const num = page.getByLabel(`Tenor number ${row}`)
+    await num.fill(m[1])
+    const unitSelect = page.getByLabel(`Tenor unit ${row}`)
+    const unitLabel = TENOR_UNIT_LABELS[m[2].toLowerCase()]
+    if ((await unitSelect.inputValue()) === unitLabel) {
+      await num.press('Enter')
+    } else {
+      await unitSelect.selectOption(unitLabel)
+    }
+  }
 }
 
 /**

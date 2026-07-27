@@ -2,10 +2,11 @@
  * Value-based curves ("Interpolate given values", engine Interpolated*
  * families): the zero family works END TO END on the pinned engine 0.2.0
  * (auto-dispatched ZeroRatePoint) and ships UNGATED — paste-table entry,
- * the pinned reference-date anchor row, auto-sorted free-text maturities,
- * preview grid, save, curve set, IR swap priced discounting on the value
- * curve, quote-referenced rows, and both error paths (client-side duplicate
- * maturities; server-side unresolvable quote id mapped onto the row).
+ * the pinned reference-date anchor row, per-row [Tenor | Date] maturity
+ * controls with auto-sort, preview grid, save, curve set, IR swap priced
+ * discounting on the value curve, quote-referenced rows, and both error
+ * paths (client-side duplicate maturities; server-side unresolvable quote id
+ * mapped onto the row).
  *
  * DiscountFactorPoint / ForwardRatePoint need engine >= 0.5.0 (the union
  * members do not exist in 0.2.0) — their SUCCESS journeys are gated on the
@@ -77,7 +78,7 @@ test.describe('value curves — zero family (works on engine 0.2.0, UNGATED)', (
     // 6 pasted editable rows; the reference-date anchor is the PINNED header
     // row above them (the interpolated curve is ANCHORED at its first point).
     await expect(page.getByTestId('value-point-row')).toHaveCount(6)
-    await expect(page.getByTestId('value-anchor-row')).toContainText(`Reference date · ${refDate}`)
+    await expect(page.getByTestId('value-anchor-row')).toContainText(`Start · ${refDate}`)
 
     // 2. Preview via the orchestrator + engine: non-trivial zero grid close
     //    to the pasted levels, and the wire trait is InterpolatedZero with
@@ -154,7 +155,7 @@ test.describe('value curves — zero family (works on engine 0.2.0, UNGATED)', (
       referenceDate: refDate,
       pasteTable: `${refDate} 4.0\n1Y 4.0\n10Y 4.2`,
     })
-    await expect(page.getByLabel('Reference date value')).toHaveValue('4')
+    await expect(page.getByLabel('Start value at the reference date')).toHaveValue('4')
 
     // Add a row sourced from the REAL BoE OIS catalog (same MD dropdown the
     // instrument editor uses; value shown resolved at the global As-Of).
@@ -165,7 +166,8 @@ test.describe('value curves — zero family (works on engine 0.2.0, UNGATED)', (
     await selectByTextContains(rows.nth(2).getByLabel('Quote 3'), `${SEEDED.boeQuotePrefix}5Y`)
     // Committing the maturity AUTO-SORTS the 5Y row between 1Y and 10Y.
     await setValueRowMaturity(page, 3, '5Y')
-    await expect(rows.nth(1).getByLabel('Maturity 2')).toHaveValue('5Y')
+    await expect(rows.nth(1).getByLabel('Tenor number 2')).toHaveValue('5')
+    await expect(rows.nth(1).getByLabel('Tenor unit 2')).toHaveValue('Years')
 
     const preview = await valueCurvePreview(page)
     expect(preview.status, `preview: ${JSON.stringify(preview.body).slice(0, 400)}`).toBe(200)
@@ -203,7 +205,8 @@ test.describe('value curves — zero family (works on engine 0.2.0, UNGATED)', (
     await expect(rows).toHaveCount(3)
     await rows.nth(2).getByLabel('Value 3').fill('2.9')
     await setValueRowMaturity(page, 3, '3M')
-    await expect(rows.nth(0).getByLabel('Maturity 1')).toHaveValue('3M')
+    await expect(rows.nth(0).getByLabel('Tenor number 1')).toHaveValue('3')
+    await expect(rows.nth(0).getByLabel('Tenor unit 1')).toHaveValue('Months')
     await expect(rows.nth(0).getByTestId('resolved-date')).toContainText('→')
     await expect(page.getByTestId('value-point-row-error')).toHaveCount(0)
 
@@ -283,7 +286,7 @@ test.describe('value curves — DF / Fwd families (engine >= 0.5.0)', () => {
     const rows = page.getByTestId('value-point-row')
     await expect(rows).toHaveCount(3)
     const anchorRow = page.getByTestId('value-anchor-row')
-    await expect(anchorRow).toContainText(`Reference date · ${refDate}`)
+    await expect(anchorRow).toContainText(`Start · ${refDate}`)
     await expect(anchorRow).toContainText('1.0000')
 
     const preview = await valueCurvePreview(page)

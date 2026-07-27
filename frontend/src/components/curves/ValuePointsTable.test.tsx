@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { useState } from 'react';
 
 afterEach(cleanup);
 import { ValueCurvePoint } from '../../lib/types';
@@ -45,19 +46,45 @@ function renderTable(overrides: Partial<ValuePointsTableProps> = {}) {
   return props;
 }
 
+/** Stateful wrapper: rows actually update between events (the component is
+ * controlled, so multi-step interactions need a live parent). */
+function renderStateful(initialRows: ValueCurvePoint[], quantity: 'zero' | 'df' | 'fwd' = 'zero') {
+  const latest = { rows: initialRows };
+  function Harness() {
+    const [rows, setRows] = useState(initialRows);
+    latest.rows = rows;
+    return (
+      <ValuePointsTable
+        quantity={quantity}
+        rows={rows}
+        onRowsChange={setRows}
+        anchorValue={0.019}
+        onAnchorValueChange={vi.fn()}
+        referenceDate={REF}
+        rowErrors={new Map()}
+      />
+    );
+  }
+  render(<Harness />);
+  return latest;
+}
+
 describe('ValuePointsTable', () => {
   it('renders the pinned anchor + rows with percent values and supports add/delete', () => {
     const { onRowsChange } = renderTable({ rows: zeroRows(), anchorValue: 0.019 });
 
     // Pinned reference-date header row: not part of the editable row list.
     const anchor = screen.getByTestId('value-anchor-row');
-    expect(anchor).toHaveTextContent(`Reference date · ${REF}`);
-    expect(screen.getByLabelText('Reference date value')).toHaveValue(1.9);
+    expect(anchor).toHaveTextContent(`Start · ${REF}`);
+    expect(screen.getByLabelText('Start value at the reference date')).toHaveValue(1.9);
 
     expect(screen.getAllByTestId('value-point-row')).toHaveLength(2);
     // Percent entry: 0.02 renders as "2".
     expect(screen.getByLabelText('Value 1')).toHaveValue(2);
-    // Resolved dates render next to the maturities.
+    // Stored tenor rows load in Tenor mode with their n/unit.
+    expect(screen.getByLabelText('Tenor number 1')).toHaveValue(6);
+    expect(screen.getByLabelText('Tenor unit 1')).toHaveValue('Months');
+    // Resolved dates render as grey hints on tenor rows.
     expect(screen.getAllByTestId('resolved-date')[0]).toHaveTextContent('→ 2026-07-15');
     expect(screen.getAllByTestId('resolved-date')[1]).toHaveTextContent('→ 2027-01-15');
 
@@ -69,53 +96,81 @@ describe('ValuePointsTable', () => {
     expect((onRowsChange as ReturnType<typeof vi.fn>).mock.calls[1][0]).toHaveLength(1);
   });
 
-  it('parses the maturity on blur (tenor or date) and auto-sorts rows by resolved date', () => {
-    const { onRowsChange } = renderTable({ rows: zeroRows(), anchorValue: 0.019 });
-    const calls = (onRowsChange as ReturnType<typeof vi.fn>).mock.calls;
+  it('tenor number edits commit on blur and auto-sort rows by resolved date', () => {
+    const state = renderStateful(zeroRows());
 
-    // Retype the 1Y row as 3M: on blur the rows re-sort (3M before 6M).
-    const maturity2 = screen.getByLabelText('Maturity 2');
-    fireEvent.change(maturity2, { target: { value: '3m' } });
-    expect(onRowsChange).not.toHaveBeenCalled(); // never mid-keystroke
-    fireEvent.blur(maturity2, { target: { value: '3m' } });
-    const sorted = calls[0][0] as ValueCurvePoint[];
-    expect(sorted[0].point).toMatchObject({ tenor_number: 3, tenor_time_unit: 'Months' });
-    expect(sorted[1].point).toMatchObject({ tenor_number: 6, tenor_time_unit: 'Months' });
+    // Retype the 1Y row's number as 3 (unit stays Months after switching):
+    // typing updates the row, the SORT happens on blur, never mid-keystroke.
+    const number2 = screen.getByLabelText('Tenor number 2');
+    fireEvent.change(number2, { target: { value: '3' } });
+    // Still in entry order (3Y sorts after 6M anyway; change unit next).
+    fireEvent.blur(number2);
+    expect(state.rows[1].point).toMatchObject({ tenor_number: 3, tenor_time_unit: 'Years' });
+
+    // A unit change is a completed choice: commits AND sorts immediately
+    // (3 Years -> 3 Months sorts before 6 Months).
+    fireEvent.change(screen.getByLabelText('Tenor unit 2'), { target: { value: 'Months' } });
+    expect(state.rows[0].point).toMatchObject({ tenor_number: 3, tenor_time_unit: 'Months' });
+    expect(state.rows[1].point).toMatchObject({ tenor_number: 6, tenor_time_unit: 'Months' });
   });
 
-  it('accepts an ISO date as a maturity and echoes it as the resolved date', () => {
-    const { onRowsChange } = renderTable({
-      rows: [{ point_type: 'ZeroRatePoint', point: { tenor_number: 6, tenor_time_unit: 'Months', zero_rate: 0.02 } }],
-      anchorValue: 0.019,
-    });
-    const maturity = screen.getByLabelText('Maturity 1');
-    fireEvent.change(maturity, { target: { value: '2033-01-15' } });
-    fireEvent.blur(maturity, { target: { value: '2033-01-15' } });
-    const next = (onRowsChange as ReturnType<typeof vi.fn>).mock.calls[0][0] as ValueCurvePoint[];
-    expect(next[0].point).toMatchObject({ date: '2033-01-15' });
-    expect(next[0].point.tenor_number).toBeUndefined();
+  it('Date mode: converts a tenor to its resolved date, accepts a date, no hint shown', () => {
+    const state = renderStateful([
+      { point_type: 'ZeroRatePoint', point: { tenor_number: 6, tenor_time_unit: 'Months', zero_rate: 0.02 } },
+      { point_type: 'ZeroRatePoint', point: { tenor_number: 1, tenor_time_unit: 'Years', zero_rate: 0.022 } },
+    ]);
+    const row1 = screen.getAllByTestId('value-point-row')[0];
+
+    // Toggle row 1 to Date mode: the committed 6M tenor becomes its resolved date.
+    fireEvent.click(row1.querySelector('button[aria-pressed="false"]')!);
+    expect(state.rows[0].point).toMatchObject({ date: '2026-07-15' });
+    expect(state.rows[0].point.tenor_number).toBeUndefined();
+
+    // Date rows show a date input and NO resolved-date hint (redundant).
+    const dateInput = screen.getByLabelText('Maturity date 1');
+    expect(dateInput).toHaveValue('2026-07-15');
+    expect(screen.getAllByTestId('resolved-date')).toHaveLength(1); // only the 1Y tenor row
+
+    // Editing the date and committing re-sorts (2033 sorts after 1Y).
+    fireEvent.change(dateInput, { target: { value: '2033-01-15' } });
+    fireEvent.blur(screen.getByLabelText('Maturity date 1'));
+    expect(state.rows[1].point).toMatchObject({ date: '2033-01-15' });
+    expect(state.rows[0].point).toMatchObject({ tenor_number: 1, tenor_time_unit: 'Years' });
   });
 
-  it('shows a per-row error for an unparsable maturity and keeps the text', () => {
-    renderTable({ rows: zeroRows(), anchorValue: 0.019 });
-    const maturity1 = screen.getByLabelText('Maturity 1');
-    fireEvent.change(maturity1, { target: { value: 'banana' } });
-    fireEvent.blur(maturity1, { target: { value: 'banana' } });
-    expect(screen.getByLabelText('Maturity 1')).toHaveValue('banana');
-    expect(screen.getByTestId('value-point-row-error')).toHaveTextContent('Unrecognized maturity "banana"');
+  it('new rows default to Tenor mode and can be committed via number + unit', () => {
+    const state = renderStateful([
+      { point_type: 'ZeroRatePoint', point: { tenor_number: 5, tenor_time_unit: 'Years', zero_rate: 0.03 } },
+    ]);
+    fireEvent.click(screen.getByText('+ Add row'));
+    // The new empty row shows the Tenor controls (default mode).
+    expect(screen.getByLabelText('Tenor number 2')).toHaveValue(null);
+    const tenorBtn = screen.getAllByTestId('value-point-row')[1].querySelector('button[aria-pressed="true"]')!;
+    expect(tenorBtn).toHaveTextContent('Tenor');
+
+    // Pick the unit first (no maturity yet: no sort), then type the number.
+    fireEvent.change(screen.getByLabelText('Tenor unit 2'), { target: { value: 'Months' } });
+    fireEvent.change(screen.getByLabelText('Tenor number 2'), { target: { value: '6' } });
+    fireEvent.keyDown(screen.getByLabelText('Tenor number 2'), { key: 'Enter' });
+    // 6M auto-sorts before 5Y.
+    expect(state.rows[0].point).toMatchObject({ tenor_number: 6, tenor_time_unit: 'Months' });
+    expect(state.rows[1].point).toMatchObject({ tenor_number: 5, tenor_time_unit: 'Years' });
   });
 
-  it('applies a pasted two-column block as the new row list (no anchor row created)', () => {
-    const { onRowsChange, onAnchorValueChange } = renderTable();
+  it('applies a pasted two-column block and sets each row mode from the parsed line', () => {
+    const state = renderStateful([]);
     fireEvent.click(screen.getByRole('button', { name: 'Paste table…' }));
     fireEvent.change(screen.getByTestId('paste-table-input'), {
-      target: { value: '6M\t2.0\n10Y 3.4' },
+      target: { value: '6M\t2.0\n2033-01-15 3.4' },
     });
     fireEvent.click(screen.getByText('Apply'));
-    const parsed = (onRowsChange as ReturnType<typeof vi.fn>).mock.calls[0][0] as ValueCurvePoint[];
-    expect(parsed).toHaveLength(2);
-    expect(parsed[0].point).toMatchObject({ tenor_number: 6, tenor_time_unit: 'Months', zero_rate: 0.02 });
-    expect(onAnchorValueChange).not.toHaveBeenCalled();
+    expect(state.rows).toHaveLength(2);
+    expect(state.rows[0].point).toMatchObject({ tenor_number: 6, tenor_time_unit: 'Months', zero_rate: 0.02 });
+    expect(state.rows[1].point).toMatchObject({ date: '2033-01-15' });
+    // Tenor line -> Tenor mode controls; date line -> Date mode control.
+    expect(screen.getByLabelText('Tenor number 1')).toHaveValue(6);
+    expect(screen.getByLabelText('Maturity date 2')).toHaveValue('2033-01-15');
+    expect(screen.getAllByTestId('resolved-date')).toHaveLength(1);
   });
 
   it('a pasted reference-date line feeds the pinned row instead of creating a row', () => {
@@ -163,8 +218,8 @@ describe('ValuePointsTable', () => {
     renderTable({ quantity: 'df', rows, rowErrors: validation.rowErrors });
     const anchor = screen.getByTestId('value-anchor-row');
     expect(anchor).toHaveTextContent('1.0000');
-    expect(anchor).toHaveTextContent('Fixed: a discount curve starts at 1.0 on its reference date.');
-    expect(screen.queryByLabelText('Reference date value')).toBeNull();
+    expect(anchor).toHaveTextContent('Always 1.0');
+    expect(screen.queryByLabelText('Start value at the reference date')).toBeNull();
     expect(screen.getByTestId('value-point-row-error')).toHaveTextContent('(0, 1]');
     // The pinned row has no delete button; the single editable row is row 1.
     expect(screen.getByLabelText('Delete row 1')).toBeInTheDocument();
@@ -175,12 +230,12 @@ describe('ValuePointsTable', () => {
     const { onAnchorValueChange } = renderTable({
       rows: zeroRows(),
       anchorValue: undefined,
-      rowErrors: new Map([[0, 'Enter the value at the reference date (the curve short end).']]),
+      rowErrors: new Map([[0, 'Start value required.']]),
     });
-    const anchorInput = screen.getByLabelText('Reference date value');
-    expect(anchorInput).toHaveAttribute('placeholder', 'short end');
+    const anchorInput = screen.getByLabelText('Start value at the reference date');
+    expect(anchorInput).toHaveAttribute('placeholder', 'start value');
     expect(screen.getAllByTestId('value-point-row-error')[0]).toHaveTextContent(
-      'value at the reference date',
+      'Start value required.',
     );
     fireEvent.change(anchorInput, { target: { value: '1.9' } });
     expect(onAnchorValueChange).toHaveBeenCalledWith(0.019);

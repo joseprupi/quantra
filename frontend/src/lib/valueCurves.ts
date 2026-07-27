@@ -377,7 +377,7 @@ export function validateValuePoints(
         rowErrors.set(
           i,
           i === 0 && quantity !== 'df'
-            ? 'Enter the value at the reference date (the curve short end).'
+            ? 'Start value required.'
             : 'Value required: enter a number or pick a quote.',
         );
         return;

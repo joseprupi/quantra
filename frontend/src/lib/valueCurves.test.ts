@@ -174,9 +174,9 @@ describe('validateValuePoints', () => {
     expect(v.rowErrors.get(2)).toMatch(/Value required/);
   });
 
-  it('prompts for the short-end value on an empty zero / fwd anchor', () => {
+  it('prompts for the start value on an empty zero / fwd anchor', () => {
     const v = validateValuePoints([anchorPoint('zero', REF), zeroPt('1Y', 0.022)], 'zero', REF);
-    expect(v.rowErrors.get(0)).toMatch(/value at the reference date/);
+    expect(v.rowErrors.get(0)).toBe('Start value required.');
   });
 
   it('flags an unset maturity', () => {

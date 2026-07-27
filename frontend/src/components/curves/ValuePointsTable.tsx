@@ -1,19 +1,20 @@
 // Points table for "Interpolate given values" curve construction.
 //
 // Model: a PINNED reference-date header row (the curve anchor: DF fixed at
-// 1.0, zero / fwd an editable short-end value) rendered ABOVE the editable
-// rows. Each editable row has ONE free-text Maturity field accepting a tenor
-// (1Y, 18M, 2W, 30D) or an ISO date (2033-01-15), parsed on blur, with the
-// resolved date always shown next to it. Rows auto-sort by resolved date on
-// add / blur (never mid-keystroke). Values are inline OR an MD quote
-// reference. "Paste table…" normalizes a two-column block into this model.
+// 1.0, zero / fwd an editable start value) rendered ABOVE the editable rows.
+// Each editable row picks its maturity via a small per-row [Tenor | Date]
+// toggle: Tenor mode is a number input + a TimeUnit select (the same control
+// pattern as the instrument editor's Tenor fields); Date mode is a date
+// input. New rows default to Tenor mode. Tenor rows show their resolved date
+// as a grey hint. Rows auto-sort by resolved date on commit (blur / Enter /
+// unit change), never mid-keystroke. Values are inline OR an MD quote
+// reference. "Paste table…" normalizes a two-column block into this model,
+// setting each created row's mode from the parsed line (tenor vs date).
 import { Fragment, useState } from 'react';
-import { ValueCurvePoint } from '../../lib/types';
+import { TIME_UNITS, TimeUnit, ValueCurvePoint } from '../../lib/types';
 import {
   ValueQuantity,
   parsePastedTable,
-  parsePillarToken,
-  pillarLabel,
   pointValue,
   quantitySpec,
   resolvedPillarIso,
@@ -39,9 +40,14 @@ export interface ValuePointsTableProps {
 const inputClass =
   'w-full px-2 py-1.5 bg-white border border-[#d4d4d4] rounded-lg text-sm text-[#0a0a0a] focus:outline-none focus:border-[#8a6a2f] transition-colors';
 
-interface MaturityDraft {
-  text: string;
-  invalid: boolean;
+type MaturityMode = 'tenor' | 'date';
+
+/** UI-only per-row control state: which maturity editor a row shows while it
+ * has no committed maturity, and the last unit picked before a number is
+ * typed. Rows WITH a maturity derive both from the point itself. */
+interface RowCtl {
+  mode: MaturityMode;
+  unit: TimeUnit;
 }
 
 export default function ValuePointsTable({
@@ -59,9 +65,10 @@ export default function ValuePointsTable({
   const [pasteText, setPasteText] = useState('');
   const [pasteErrors, setPasteErrors] = useState<string[]>([]);
   const [pasteNote, setPasteNote] = useState<string | null>(null);
-  // Uncommitted maturity edit strings, keyed by row index. Invalid drafts
-  // stay visible with a per-row error until fixed.
-  const [maturityDrafts, setMaturityDrafts] = useState<Record<number, MaturityDraft>>({});
+  const [rowCtls, setRowCtls] = useState<Record<number, RowCtl>>({});
+
+  const setRowCtl = (index: number, ctl: RowCtl) =>
+    setRowCtls(prev => ({ ...prev, [index]: ctl }));
 
   const updateRow = (index: number, patch: Record<string, unknown>, drop: string[] = []) => {
     const next = rows.map((pt, i) => {
@@ -74,67 +81,54 @@ export default function ValuePointsTable({
     return next;
   };
 
-  /** Sort rows by resolved date and remap in-flight drafts (row objects keep
-   * identity through the sort, so drafts follow their rows). */
-  const sortAndCommit = (next: ValueCurvePoint[], drafts: Record<number, MaturityDraft>) => {
+  /** Sort rows by resolved date and remap per-row control state (row objects
+   * keep identity through the sort, so the state follows its row). */
+  const sortAndCommit = (next: ValueCurvePoint[]) => {
     const sorted = sortValuePoints(next, referenceDate);
-    const remapped: Record<number, MaturityDraft> = {};
-    for (const [key, draft] of Object.entries(drafts)) {
-      const row = next[Number(key)];
-      const ni = sorted.indexOf(row);
-      if (ni >= 0) remapped[ni] = draft;
-    }
-    setMaturityDrafts(remapped);
+    setRowCtls(prev => {
+      const remapped: Record<number, RowCtl> = {};
+      for (const [key, ctl] of Object.entries(prev)) {
+        const row = next[Number(key)];
+        const ni = sorted.indexOf(row);
+        if (ni >= 0) remapped[ni] = ctl;
+      }
+      return remapped;
+    });
     onRowsChange(sorted);
   };
 
-  const commitMaturityDraft = (index: number, raw: string) => {
-    const text = raw.trim();
-    const otherDrafts = { ...maturityDrafts };
-    delete otherDrafts[index];
-    if (text === '') {
-      setMaturityDrafts(otherDrafts);
-      updateRow(index, {}, ['date', 'tenor_number', 'tenor_time_unit']);
-      return;
-    }
-    const parsed = parsePillarToken(text);
-    if (!parsed) {
-      // Keep the raw text visible with a per-row error; the maturity unsets.
-      setMaturityDrafts({ ...otherDrafts, [index]: { text: raw, invalid: true } });
-      updateRow(index, {}, ['date', 'tenor_number', 'tenor_time_unit']);
-      return;
-    }
-    const next = rows.map((pt, i) => {
-      if (i !== index) return pt;
-      const inner: Record<string, unknown> = { ...pt.point };
-      delete inner.date;
-      delete inner.tenor_number;
-      delete inner.tenor_time_unit;
-      if (parsed.kind === 'date') {
-        inner.date = parsed.iso;
-      } else {
-        inner.tenor_number = parsed.n;
-        inner.tenor_time_unit = parsed.unit;
+  /** Switch a row between Tenor and Date mode. A committed tenor converts to
+   * its resolved date; a committed date cannot become a tenor and clears. */
+  const setRowMode = (index: number, mode: MaturityMode, current: MaturityMode, unit: TimeUnit) => {
+    if (mode === current) return;
+    setRowCtl(index, { mode, unit });
+    const pt = rows[index];
+    if (mode === 'date') {
+      if (pt.point.tenor_number !== undefined && pt.point.tenor_number !== null) {
+        const resolved = resolvedPillarIso(pt, referenceDate);
+        updateRow(index, resolved ? { date: resolved } : {}, ['tenor_number', 'tenor_time_unit']);
       }
-      return { ...pt, point: inner } as ValueCurvePoint;
-    });
-    sortAndCommit(next, otherDrafts);
+    } else if (pt.point.date !== undefined) {
+      updateRow(index, {}, ['date']);
+    }
   };
 
   const addRow = () => {
-    // New rows start empty (maturity typed by the user) and sit at the end
-    // until their maturity resolves.
+    // New rows start empty (Tenor mode by default) and sit at the end until
+    // their maturity is committed.
     onRowsChange([...rows, { point_type: spec.pointType, point: {} } as ValueCurvePoint]);
   };
 
   const deleteRow = (index: number) => {
-    const remaining: Record<number, MaturityDraft> = {};
-    for (const [key, draft] of Object.entries(maturityDrafts)) {
-      const i = Number(key);
-      if (i === index) continue;
-      remaining[i > index ? i - 1 : i] = draft;
-    }
-    setMaturityDrafts(remaining);
+    setRowCtls(prev => {
+      const remaining: Record<number, RowCtl> = {};
+      for (const [key, ctl] of Object.entries(prev)) {
+        const i = Number(key);
+        if (i === index) continue;
+        remaining[i > index ? i - 1 : i] = ctl;
+      }
+      return remaining;
+    });
     onRowsChange(rows.filter((_, i) => i !== index));
   };
 
@@ -147,7 +141,7 @@ export default function ValuePointsTable({
     setPasteErrors(errors);
     setPasteNote(anchorNote ?? null);
     if (parsed.length > 0 || pastedAnchor !== undefined) {
-      setMaturityDrafts({});
+      setRowCtls({});
       onRowsChange(parsed);
       if (pastedAnchor !== undefined && quantity !== 'df') {
         onAnchorValueChange(pastedAnchor);
@@ -244,7 +238,7 @@ export default function ValuePointsTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs text-[#737373]">
-            <th className="pb-2 font-medium w-44">Maturity</th>
+            <th className="pb-2 font-medium w-52">Maturity</th>
             <th className="pb-2 font-medium w-36">
               {spec.percent ? 'Value (%)' : 'Discount factor'}
             </th>
@@ -261,7 +255,7 @@ export default function ValuePointsTable({
           >
             <td className="py-2 pr-2 pl-2 align-middle">
               <span className="text-xs font-medium text-[#8a6a2f]">
-                Reference date · {referenceDate}
+                Start · {referenceDate}
               </span>
             </td>
             <td className="py-1.5 pr-2 align-middle">
@@ -272,22 +266,20 @@ export default function ValuePointsTable({
                   type="number"
                   step="0.001"
                   value={valueDisplay(anchorValue)}
-                  placeholder="short end"
+                  placeholder="start value"
                   onChange={e => {
                     const raw = parseFloat(e.target.value);
                     onAnchorValueChange(Number.isNaN(raw) ? undefined : raw / 100);
                   }}
                   className={inputClass}
-                  aria-label="Reference date value"
+                  aria-label="Start value at the reference date"
                 />
               )}
             </td>
             <td colSpan={2} className="py-1.5 pr-2 align-middle">
-              <span className="text-[10px] text-[#a3a3a3]">
-                {quantity === 'df'
-                  ? 'Fixed: a discount curve starts at 1.0 on its reference date.'
-                  : 'The curve value at its start date (the short end).'}
-              </span>
+              {quantity === 'df' && (
+                <span className="text-[10px] text-[#a3a3a3]">Always 1.0</span>
+              )}
             </td>
           </tr>
           {anchorError && (
@@ -311,36 +303,107 @@ export default function ValuePointsTable({
             rows.map((pt, i) => {
               // '' = quote mode selected but no id picked yet (still quote mode).
               const usesQuote = pt.point.quote_id !== undefined;
-              const draft = maturityDrafts[i];
+              const p = pt.point;
+              const ctl = rowCtls[i];
+              const hasTenor = p.tenor_number !== undefined && p.tenor_number !== null;
+              const mode: MaturityMode =
+                p.date !== undefined ? 'date' : hasTenor ? 'tenor' : ctl?.mode ?? 'tenor';
+              const unit: TimeUnit =
+                (hasTenor ? (p.tenor_time_unit as TimeUnit | undefined) : undefined) ??
+                ctl?.unit ??
+                'Years';
               const resolved = resolvedPillarIso(pt, referenceDate);
-              const error =
-                draft?.invalid
-                  ? `Unrecognized maturity "${draft.text.trim()}". Use a tenor like 1Y, 18M, 2W, 30D or a date like 2033-01-15.`
-                  : rowErrors.get(i + 1);
+              const error = rowErrors.get(i + 1);
               return (
                 <Fragment key={i}>
                   <tr className="border-t border-[#f0f0f0]" data-testid="value-point-row">
                     <td className="py-1.5 pr-2 align-top">
-                      <input
-                        type="text"
-                        value={draft?.text ?? pillarLabel(pt)}
-                        placeholder="1Y / 18M / 2033-01-15"
-                        onChange={e =>
-                          setMaturityDrafts(prev => ({
-                            ...prev,
-                            [i]: { text: e.target.value, invalid: false },
-                          }))
-                        }
-                        onBlur={e => commitMaturityDraft(i, e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            commitMaturityDraft(i, (e.target as HTMLInputElement).value);
-                          }
-                        }}
-                        className={inputClass}
-                        aria-label={`Maturity ${i + 1}`}
-                      />
-                      {resolved && !draft?.invalid && (
+                      <div
+                        className="inline-flex rounded-md bg-[#f5f5f5] p-0.5 mb-1"
+                        role="group"
+                        aria-label={`Maturity mode ${i + 1}`}
+                      >
+                        {(['tenor', 'date'] as const).map(m => (
+                          <button
+                            key={m}
+                            type="button"
+                            aria-pressed={mode === m}
+                            onClick={() => setRowMode(i, m, mode, unit)}
+                            className={`px-2 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                              mode === m
+                                ? 'bg-[#8a6a2f] text-white'
+                                : 'text-[#525252] hover:bg-[#e5e5e5]'
+                            }`}
+                          >
+                            {m === 'tenor' ? 'Tenor' : 'Date'}
+                          </button>
+                        ))}
+                      </div>
+                      {mode === 'tenor' ? (
+                        <div className="flex gap-1">
+                          <input
+                            type="number"
+                            min={1}
+                            value={hasTenor ? p.tenor_number : ''}
+                            onChange={e => {
+                              const raw = parseInt(e.target.value, 10);
+                              if (!Number.isFinite(raw) || raw <= 0) {
+                                setRowCtl(i, { mode: 'tenor', unit });
+                                updateRow(i, {}, ['tenor_number', 'tenor_time_unit']);
+                              } else {
+                                updateRow(
+                                  i,
+                                  { tenor_number: raw, tenor_time_unit: unit },
+                                  ['date'],
+                                );
+                              }
+                            }}
+                            onBlur={() => sortAndCommit(rows)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') sortAndCommit(rows);
+                            }}
+                            className={`${inputClass} w-16`}
+                            aria-label={`Tenor number ${i + 1}`}
+                          />
+                          <select
+                            value={unit}
+                            onChange={e => {
+                              const nextUnit = e.target.value as TimeUnit;
+                              setRowCtl(i, { mode: 'tenor', unit: nextUnit });
+                              if (hasTenor) {
+                                sortAndCommit(updateRow(i, { tenor_time_unit: nextUnit }));
+                              }
+                            }}
+                            className={inputClass}
+                            aria-label={`Tenor unit ${i + 1}`}
+                          >
+                            {TIME_UNITS.map(u => (
+                              <option key={u}>{u}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <input
+                          type="date"
+                          value={p.date ?? ''}
+                          onChange={e => {
+                            const value = e.target.value;
+                            if (!value) {
+                              setRowCtl(i, { mode: 'date', unit });
+                              updateRow(i, {}, ['date']);
+                            } else {
+                              updateRow(i, { date: value }, ['tenor_number', 'tenor_time_unit']);
+                            }
+                          }}
+                          onBlur={() => sortAndCommit(rows)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') sortAndCommit(rows);
+                          }}
+                          className={inputClass}
+                          aria-label={`Maturity date ${i + 1}`}
+                        />
+                      )}
+                      {mode === 'tenor' && resolved && (
                         <p className="text-[10px] text-[#a3a3a3] mt-0.5 px-2" data-testid="resolved-date">
                           → {resolved}
                         </p>
