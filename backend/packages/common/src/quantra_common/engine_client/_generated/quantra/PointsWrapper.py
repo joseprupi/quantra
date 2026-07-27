@@ -76,7 +76,7 @@ class PointsWrapperT(object):
     # PointsWrapperT
     def __init__(self):
         self.pointType = 0  # type: int
-        self.point = None  # type: Union[None, DepositHelperT, FRAHelperT, FutureHelperT, SwapHelperT, BondHelperT, OISHelperT, DatedOISHelperT, ZeroRatePointT, TenorBasisSwapHelperT, FxSwapHelperT, CrossCcyBasisHelperT]
+        self.point = None  # type: Union[None, DepositHelperT, FRAHelperT, FutureHelperT, SwapHelperT, BondHelperT, OISHelperT, DatedOISHelperT, ZeroRatePointT, TenorBasisSwapHelperT, FxSwapHelperT, CrossCcyBasisHelperT, DiscountFactorPointT, ForwardRatePointT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -98,6 +98,7 @@ class PointsWrapperT(object):
     # PointsWrapperT
     def _UnPack(self, pointsWrapper):
         from quantra_common.engine_client._generated.quantra.Point import PointCreator
+        from quantra_common.engine_client._generated.quantra.Point import Point
         if pointsWrapper is None:
             return
         self.pointType = pointsWrapper.PointType()

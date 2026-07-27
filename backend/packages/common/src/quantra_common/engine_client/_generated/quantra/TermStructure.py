@@ -37,21 +37,25 @@ class TermStructure(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # TermStructure
     def Interpolator(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
+    # Curve family selector. Present ⇒ selects how the curve is built from its
+    # points (Discount/ZeroRate/FwdRate bootstrap from rate helpers;
+    # InterpolatedZero interpolates explicit zero-rate points). Absent ⇒ the
+    # request is rejected — there is no auto-dispatch by point type.
     # TermStructure
     def BootstrapTrait(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # TermStructure
     def Points(self, j):
@@ -98,19 +102,19 @@ def AddId(builder, id):
     TermStructureAddId(builder, id)
 
 def TermStructureAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(1, dayCounter, 0)
+    builder.PrependInt8Slot(1, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     TermStructureAddDayCounter(builder, dayCounter)
 
 def TermStructureAddInterpolator(builder, interpolator):
-    builder.PrependInt8Slot(2, interpolator, 0)
+    builder.PrependInt8Slot(2, interpolator, None)
 
 def AddInterpolator(builder, interpolator):
     TermStructureAddInterpolator(builder, interpolator)
 
 def TermStructureAddBootstrapTrait(builder, bootstrapTrait):
-    builder.PrependInt8Slot(3, bootstrapTrait, 0)
+    builder.PrependInt8Slot(3, bootstrapTrait, None)
 
 def AddBootstrapTrait(builder, bootstrapTrait):
     TermStructureAddBootstrapTrait(builder, bootstrapTrait)
@@ -149,9 +153,9 @@ class TermStructureT(object):
     # TermStructureT
     def __init__(self):
         self.id = None  # type: str
-        self.dayCounter = 0  # type: int
-        self.interpolator = 0  # type: int
-        self.bootstrapTrait = 0  # type: int
+        self.dayCounter = None  # type: Optional[int]
+        self.interpolator = None  # type: Optional[int]
+        self.bootstrapTrait = None  # type: Optional[int]
         self.points = None  # type: List[PointsWrapperT]
         self.referenceDate = None  # type: str
 

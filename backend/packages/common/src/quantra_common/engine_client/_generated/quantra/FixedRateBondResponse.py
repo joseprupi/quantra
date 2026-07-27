@@ -245,6 +245,7 @@ class FixedRateBondResponseT(object):
     # FixedRateBondResponseT
     def _UnPack(self, fixedRateBondResponse):
         from quantra_common.engine_client._generated.quantra.FlowsWrapper import FlowsWrapperT
+        from quantra_common.engine_client._generated.quantra.Yield import Yield
         if fixedRateBondResponse is None:
             return
         self.npv = fixedRateBondResponse.Npv()

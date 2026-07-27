@@ -8,11 +8,13 @@ class VolPayload(object):
     OptionletVolSpec = 1
     SwaptionVolSpec = 2
     BlackVolSpec = 3
+    YoYOptionletVolSpec = 4
 
 def VolPayloadCreator(unionType, table):
     from quantra_common.engine_client._generated.quantra.BlackVolSpec import BlackVolSpecT
     from quantra_common.engine_client._generated.quantra.OptionletVolSpec import OptionletVolSpecT
     from quantra_common.engine_client._generated.quantra.SwaptionVolSpec import SwaptionVolSpecT
+    from quantra_common.engine_client._generated.quantra.YoYOptionletVolSpec import YoYOptionletVolSpecT
     from flatbuffers.table import Table
     if not isinstance(table, Table):
         return None
@@ -22,4 +24,6 @@ def VolPayloadCreator(unionType, table):
         return SwaptionVolSpecT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == VolPayload.BlackVolSpec:
         return BlackVolSpecT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == VolPayload.YoYOptionletVolSpec:
+        return YoYOptionletVolSpecT.InitFromBuf(table.Bytes, table.Pos)
     return None

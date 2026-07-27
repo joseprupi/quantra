@@ -139,6 +139,7 @@ class PriceZeroCouponInflationSwapRequestT(object):
     def _UnPack(self, priceZeroCouponInflationSwapRequest):
         from quantra_common.engine_client._generated.quantra.PriceZeroCouponInflationSwap import PriceZeroCouponInflationSwapT
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if priceZeroCouponInflationSwapRequest is None:
             return
         if priceZeroCouponInflationSwapRequest.Pricing() is not None:

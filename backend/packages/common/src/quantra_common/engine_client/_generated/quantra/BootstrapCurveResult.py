@@ -218,6 +218,7 @@ class BootstrapCurveResultT(object):
     def _UnPack(self, bootstrapCurveResult):
         from quantra_common.engine_client._generated.quantra.CurveSeries import CurveSeriesT
         from quantra_common.engine_client._generated.quantra.Error import ErrorT
+        from quantra_common.engine_client._generated.quantra.Error import Error
         if bootstrapCurveResult is None:
             return
         self.id = bootstrapCurveResult.Id()

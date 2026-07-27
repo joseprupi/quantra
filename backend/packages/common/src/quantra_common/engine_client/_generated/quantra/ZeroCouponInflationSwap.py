@@ -25,13 +25,14 @@ class ZeroCouponInflationSwap(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # "Payer" / "Receiver" refers to the inflation leg.
+    # "Payer" / "Receiver" refers to the inflation leg. Presence-required: an
+    # omitted type is a 400, never the alphabetical-0 default (Payer).
     # ZeroCouponInflationSwap
     def SwapType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # ZeroCouponInflationSwap
     def Notional(self):
@@ -109,6 +110,10 @@ class ZeroCouponInflationSwap(object):
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
         return 0
 
+    # Must stay false. In the pinned QuantLib this flag does not change the
+    # priced observation dates for a zero-coupon inflation swap, so setting it
+    # true would be a silent no-op; the server rejects true with an error
+    # rather than accept a flag it cannot honour.
     # ZeroCouponInflationSwap
     def AdjustObservationDates(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
@@ -137,7 +142,7 @@ def Start(builder):
     ZeroCouponInflationSwapStart(builder)
 
 def ZeroCouponInflationSwapAddSwapType(builder, swapType):
-    builder.PrependInt8Slot(0, swapType, 0)
+    builder.PrependInt8Slot(0, swapType, None)
 
 def AddSwapType(builder, swapType):
     ZeroCouponInflationSwapAddSwapType(builder, swapType)
@@ -235,7 +240,7 @@ class ZeroCouponInflationSwapT(object):
 
     # ZeroCouponInflationSwapT
     def __init__(self):
-        self.swapType = 0  # type: int
+        self.swapType = None  # type: Optional[int]
         self.notional = 0.0  # type: float
         self.startDate = None  # type: str
         self.maturityDate = None  # type: str

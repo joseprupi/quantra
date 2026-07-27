@@ -124,6 +124,7 @@ class BootstrapCurvesRequestT(object):
     def _UnPack(self, bootstrapCurvesRequest):
         from quantra_common.engine_client._generated.quantra.CurveQuerySpec import CurveQuerySpecT
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if bootstrapCurvesRequest is None:
             return
         if bootstrapCurvesRequest.Pricing() is not None:

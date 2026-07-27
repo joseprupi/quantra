@@ -141,6 +141,7 @@ class SampleVolSurfacesRequestT(object):
     def _UnPack(self, sampleVolSurfacesRequest):
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
         from quantra_common.engine_client._generated.quantra.VolQuerySpec import VolQuerySpecT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if sampleVolSurfacesRequest is None:
             return
         if sampleVolSurfacesRequest.Pricing() is not None:

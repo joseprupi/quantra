@@ -261,6 +261,7 @@ class IndexDefT(object):
     def _UnPack(self, indexDef):
         from quantra_common.engine_client._generated.quantra.Fixing import FixingT
         from quantra_common.engine_client._generated.quantra.Period import PeriodT
+        from quantra_common.engine_client._generated.quantra.IndexType import IndexType
         if indexDef is None:
             return
         self.id = indexDef.Id()

@@ -139,6 +139,7 @@ class PriceYearOnYearInflationSwapRequestT(object):
     def _UnPack(self, priceYearOnYearInflationSwapRequest):
         from quantra_common.engine_client._generated.quantra.PriceYearOnYearInflationSwap import PriceYearOnYearInflationSwapT
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if priceYearOnYearInflationSwapRequest is None:
             return
         if priceYearOnYearInflationSwapRequest.Pricing() is not None:

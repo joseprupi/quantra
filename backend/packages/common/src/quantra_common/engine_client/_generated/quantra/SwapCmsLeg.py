@@ -88,7 +88,7 @@ class SwapCmsLeg(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Payment business-day convention.
     # SwapCmsLeg
@@ -96,7 +96,7 @@ class SwapCmsLeg(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # Coupon gearing multiplier.
     # SwapCmsLeg
@@ -127,21 +127,23 @@ class SwapCmsLeg(object):
             return obj
         return None
 
-    # Optional cap level (v1 unsupported; if set >= 0 request is rejected).
+    # Optional cap strike. Present => every CMS coupon is capped at this rate
+    # (produces CappedFlooredCmsCoupons). Absent => uncapped.
     # SwapCmsLeg
     def Cap(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return -1.0
+        return None
 
-    # Optional floor level (v1 unsupported; if set >= 0 request is rejected).
+    # Optional floor strike. Present => every CMS coupon is floored at this rate.
+    # Absent => unfloored. If both cap and floor are present, cap must be >= floor.
     # SwapCmsLeg
     def Floor(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return -1.0
+        return None
 
 def SwapCmsLegStart(builder):
     builder.StartObject(13)
@@ -186,13 +188,13 @@ def AddFixingDays(builder, fixingDays):
     SwapCmsLegAddFixingDays(builder, fixingDays)
 
 def SwapCmsLegAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(6, dayCounter, 0)
+    builder.PrependInt8Slot(6, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     SwapCmsLegAddDayCounter(builder, dayCounter)
 
 def SwapCmsLegAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(7, paymentConvention, 0)
+    builder.PrependInt8Slot(7, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     SwapCmsLegAddPaymentConvention(builder, paymentConvention)
@@ -216,13 +218,13 @@ def AddPricer(builder, pricer):
     SwapCmsLegAddPricer(builder, pricer)
 
 def SwapCmsLegAddCap(builder, cap):
-    builder.PrependFloat64Slot(11, cap, -1.0)
+    builder.PrependFloat64Slot(11, cap, None)
 
 def AddCap(builder, cap):
     SwapCmsLegAddCap(builder, cap)
 
 def SwapCmsLegAddFloor(builder, floor):
-    builder.PrependFloat64Slot(12, floor, -1.0)
+    builder.PrependFloat64Slot(12, floor, None)
 
 def AddFloor(builder, floor):
     SwapCmsLegAddFloor(builder, floor)
@@ -248,13 +250,13 @@ class SwapCmsLegT(object):
         self.swapTenor = None  # type: Optional[PeriodT]
         self.swaptionVolId = None  # type: str
         self.fixingDays = -1  # type: int
-        self.dayCounter = 0  # type: int
-        self.paymentConvention = 0  # type: int
+        self.dayCounter = None  # type: Optional[int]
+        self.paymentConvention = None  # type: Optional[int]
         self.gear = 1.0  # type: float
         self.spread = 0.0  # type: float
         self.pricer = None  # type: Optional[CmsPricerSpecT]
-        self.cap = -1.0  # type: float
-        self.floor = -1.0  # type: float
+        self.cap = None  # type: Optional[float]
+        self.floor = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -278,6 +280,7 @@ class SwapCmsLegT(object):
         from quantra_common.engine_client._generated.quantra.CmsPricerSpec import CmsPricerSpecT
         from quantra_common.engine_client._generated.quantra.Period import PeriodT
         from quantra_common.engine_client._generated.quantra.Schedule import ScheduleT
+        from quantra_common.engine_client._generated.quantra.Schedule import Schedule
         if swapCmsLeg is None:
             return
         if swapCmsLeg.Schedule() is not None:

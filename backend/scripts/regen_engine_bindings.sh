@@ -112,6 +112,123 @@ for py in base.rglob("*.py"):
 print(f"   rewrote {count} files")
 PY
 
+echo "==> Injecting missing object-API cross-module imports"
+# Upstream flatc's python object API references sibling ``<Name>T`` classes
+# (``XT.InitFromObj`` in ``_UnPack``, ``XT.InitFromBuf`` in union
+# ``*Creator`` functions) WITHOUT importing them — the codegen assumes a
+# flat single-module layout. Inject a deferred ``from <pkg>.<Name> import
+# <Name>T`` at the top of each function body that references one (deferred,
+# so recursive schema cycles cannot deadlock module import). Idempotent:
+# functions that already import the name are left untouched.
+TARGET_DIR="${TARGET_DIR}" NEW_PKG_PREFIX="${NEW_PKG_PREFIX}" python3 <<'PY'
+import os
+import re
+from pathlib import Path
+
+base = Path(os.environ["TARGET_DIR"])
+new_pkg = os.environ["NEW_PKG_PREFIX"]
+sibling_stems = {p.stem for p in base.glob("*.py") if p.stem != "__init__"}
+touched = 0
+
+for py in sorted(base.glob("*.py")):
+    lines = py.read_text().splitlines(keepends=True)
+    # Locate function defs and their body extents by indentation.
+    defs = []  # (def_line_idx, body_indent)
+    for i, line in enumerate(lines):
+        m = re.match(r"^(\s*)def \w+\(", line)
+        if m:
+            defs.append((i, m.group(1) + "    "))
+    if not defs:
+        continue
+    out = []
+    changed = False
+    for d, (start, indent) in enumerate(defs):
+        end = defs[d + 1][0] if d + 1 < len(defs) else len(lines)
+        body = lines[start + 1 : end]
+        body_text = "".join(body)
+        t_refs = sorted(
+            {
+                name
+                for name in re.findall(r"\b(\w+)T\.(?:InitFromObj|InitFromBuf)\(", body_text)
+                if name in sibling_stems and name != py.stem
+            }
+        )
+        creator_refs = sorted(
+            {
+                name
+                for name in re.findall(r"\b(\w+)Creator\(", body_text)
+                if name in sibling_stems and name != py.stem
+            }
+        )
+        # Reader-class constructor references (``obj = SwapLegFlow()``):
+        # upstream flatc only emits the deferred import in the FIRST accessor
+        # that references a sibling reader; later accessors in the same file
+        # reference the bare name with no import in their own scope.
+        reader_refs = sorted(
+            {
+                name
+                for name in re.findall(r"\b([A-Z]\w*)\(\)", body_text)
+                if name in sibling_stems and name != py.stem
+            }
+        )
+        imports = [
+            f"{indent}from {new_pkg}.{n} import {n}T\n"
+            for n in t_refs
+            if f"import {n}T" not in body_text
+        ] + [
+            f"{indent}from {new_pkg}.{n} import {n}Creator\n"
+            for n in creator_refs
+            if f"import {n}Creator" not in body_text
+        ] + [
+            f"{indent}from {new_pkg}.{n} import {n}\n"
+            for n in reader_refs
+            if not re.search(rf"import {n}\b(?!T)", body_text)
+        ]
+        if imports:
+            changed = True
+            out.append((start + 1, imports))
+    if changed:
+        for insert_at, imports in reversed(out):
+            lines[insert_at:insert_at] = imports
+        py.write_text("".join(lines))
+        touched += 1
+print(f"   injected deferred imports into {touched} files")
+PY
+
+echo "==> Redirecting slot-shifted tables through wire_compat"
+# Engine 0.4.0 inserted ``notionals`` MID-TABLE into four tables, shifting
+# their FlatBuffers slot ids — a binary wire break vs engine 0.2.0 (see
+# quantra_common/engine_client/wire_compat.py). Redirect every OTHER
+# generated module's deferred import of those four ``<Name>T`` classes to the
+# wire_compat dispatchers so decode follows the same layout the request was
+# packed with. The four defining modules themselves stay canonical (they are
+# what wire_compat wraps).
+TARGET_DIR="${TARGET_DIR}" NEW_PKG_PREFIX="${NEW_PKG_PREFIX}" python3 <<'PY'
+import os
+import re
+from pathlib import Path
+
+base = Path(os.environ["TARGET_DIR"])
+new_pkg = re.escape(os.environ["NEW_PKG_PREFIX"])
+shifted = ("SwapFixedLeg", "SwapFloatingLeg", "FixedRateBond", "FloatingRateBond")
+count = 0
+for py in sorted(base.glob("*.py")):
+    if py.stem in shifted:
+        continue
+    src = py.read_text()
+    out = src
+    for name in shifted:
+        out = re.sub(
+            rf"from {new_pkg}\.{name} import {name}T\b",
+            f"from quantra_common.engine_client.wire_compat import {name}T",
+            out,
+        )
+    if out != src:
+        py.write_text(out)
+        count += 1
+print(f"   redirected shifted-table imports in {count} files")
+PY
+
 echo "==> Smoke-importing the bindings (uv run python)"
 cd "$(dirname "$0")/.."
 uv run python -c "

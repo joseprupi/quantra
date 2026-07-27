@@ -104,12 +104,9 @@ class CreditCurveSpec(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         return o == 0
 
-    # OR: use flat hazard rate. O61: presence-based to match the engine 0.2.0
-    # schema (``flat_hazard_rate:double = null``). Present (incl. a genuine 0)
-    # -> flat-hazard curve at that rate; absent WITH quotes -> bootstrap from
-    # the par-spread/upfront quotes. Returns ``None`` when absent so the
-    # bootstrap path can omit it (a forced present 0 would otherwise pin a flat
-    # ZERO-hazard curve and silently ignore the quotes).
+    # OR: use flat hazard rate. Optional; presence-driven. Present -> use it;
+    # absent with quotes -> bootstrap from quotes; absent with no quotes is an
+    # error (no invented default hazard rate).
     # CreditCurveSpec
     def FlatHazardRate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
@@ -178,7 +175,7 @@ def StartQuotesVector(builder, numElems):
     return CreditCurveSpecStartQuotesVector(builder, numElems)
 
 def CreditCurveSpecAddFlatHazardRate(builder, flatHazardRate):
-    builder.PrependFloat64Slot(8, flatHazardRate, 0.0)
+    builder.PrependFloat64Slot(8, flatHazardRate, None)
 
 def AddFlatHazardRate(builder, flatHazardRate):
     CreditCurveSpecAddFlatHazardRate(builder, flatHazardRate)
@@ -206,7 +203,7 @@ class CreditCurveSpecT(object):
         self.curveInterpolator = 4  # type: int
         self.helperConventions = None  # type: Optional[CdsHelperConventionsT]
         self.quotes = None  # type: List[CdsQuoteT]
-        self.flatHazardRate = None  # type: Optional[float]  # O61: presence-based (0.2.0 optional)
+        self.flatHazardRate = None  # type: Optional[float]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -278,7 +275,6 @@ class CreditCurveSpecT(object):
             CreditCurveSpecAddHelperConventions(builder, helperConventions)
         if self.quotes is not None:
             CreditCurveSpecAddQuotes(builder, quotes)
-        if self.flatHazardRate is not None:  # O61: omit when absent (0.2.0 optional)
-            CreditCurveSpecAddFlatHazardRate(builder, self.flatHazardRate)
+        CreditCurveSpecAddFlatHazardRate(builder, self.flatHazardRate)
         creditCurveSpec = CreditCurveSpecEnd(builder)
         return creditCurveSpec

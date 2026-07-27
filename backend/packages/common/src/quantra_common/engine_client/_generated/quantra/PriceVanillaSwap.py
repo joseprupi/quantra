@@ -115,6 +115,7 @@ class PriceVanillaSwapT(object):
     # PriceVanillaSwapT
     def _UnPack(self, priceVanillaSwap):
         from quantra_common.engine_client._generated.quantra.VanillaSwap import VanillaSwapT
+        from quantra_common.engine_client._generated.quantra.VanillaSwap import VanillaSwap
         if priceVanillaSwap is None:
             return
         if priceVanillaSwap.VanillaSwap() is not None:

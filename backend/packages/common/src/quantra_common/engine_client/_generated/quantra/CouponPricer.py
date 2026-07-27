@@ -99,6 +99,7 @@ class CouponPricerT(object):
     # CouponPricerT
     def _UnPack(self, couponPricer):
         from quantra_common.engine_client._generated.quantra.BlackIborCouponPricer import BlackIborCouponPricerT
+        from quantra_common.engine_client._generated.quantra.BlackIborCouponPricer import BlackIborCouponPricer
         if couponPricer is None:
             return
         self.id = couponPricer.Id()

@@ -551,6 +551,8 @@ class VolSurfaceSampleT(object):
     def _UnPack(self, volSurfaceSample):
         from quantra_common.engine_client._generated.quantra.Error import ErrorT
         from quantra_common.engine_client._generated.quantra.Period import PeriodT
+        from quantra_common.engine_client._generated.quantra.Error import Error
+        from quantra_common.engine_client._generated.quantra.ExpiryKind import ExpiryKind
         if volSurfaceSample is None:
             return
         self.volId = volSurfaceSample.VolId()

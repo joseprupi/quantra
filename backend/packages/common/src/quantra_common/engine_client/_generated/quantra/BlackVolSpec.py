@@ -105,6 +105,7 @@ class BlackVolSpec(object):
     # Surface vols as QuoteMatrix2D with dims (n_expiries x n_strikes), row-major by expiry then strike.
     # BlackVolSpec
     def SurfaceVols(self):
+        from quantra_common.engine_client._generated.quantra.QuoteMatrix2D import QuoteMatrix2D
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
@@ -117,6 +118,7 @@ class BlackVolSpec(object):
     # Used only when base.shape=SurfaceFromPrices.
     # BlackVolSpec
     def SurfacePrices(self):
+        from quantra_common.engine_client._generated.quantra.QuoteMatrix2D import QuoteMatrix2D
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)

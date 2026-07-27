@@ -100,6 +100,21 @@ def _deposit_point(
     return {"point_type": "DepositHelper", "point": point}
 
 
+@pytest.fixture(autouse=True)
+def _canonical_engine_wire(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the canonical (0.5) wire layout for request-content assertions.
+
+    The default ``ENGINE_WIRE_COMPAT=0.2`` packs the four slot-shifted tables
+    (legs / bonds) in the legacy engine-0.2.0 layout (see
+    ``quantra_common.engine_client.wire_compat``), which the canonical raw
+    readers used below would misread. The legacy layout itself is byte-pinned
+    by the golden-hex tests (which re-pin ``0.2`` explicitly) and by
+    ``test_wire_compat.py``.
+    """
+
+    monkeypatch.setenv("ENGINE_WIRE_COMPAT", "0.5")
+
+
 def _resolved_curve(
     curve_id: uuid.UUID,
     *,
@@ -707,7 +722,9 @@ _SWAP_IR_GOLDEN_HEX = (
 )
 
 
-def test_build_request_bytes_unchanged_pre_post_16c() -> None:
+def test_build_request_bytes_unchanged_pre_post_16c(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The EUR-6M fixture produces stable engine bytes (now with include_flows).
 
     The role-split (curves consumed by role) + the resolved-index path are
@@ -717,6 +734,11 @@ def test_build_request_bytes_unchanged_pre_post_16c() -> None:
     golden bytes were re-captured when ``build_swap_ir_request`` began setting
     ``include_flows = True`` (the only intended drift vs. the pre-flows golden).
     """
+
+    # The golden bytes are the LEGACY (engine-0.2.0) wire — the layout the
+    # compose engine pin ships. Pin it explicitly so the autouse canonical
+    # fixture above does not flip it.
+    monkeypatch.setenv("ENGINE_WIRE_COMPAT", "0.2")
 
     discount_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
     forwarding_id = uuid.UUID("22222222-2222-2222-2222-222222222222")

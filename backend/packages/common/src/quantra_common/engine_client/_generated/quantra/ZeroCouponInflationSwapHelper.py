@@ -56,10 +56,10 @@ class ZeroCouponInflationSwapHelper(object):
     # Relative helper maturity from InflationCurveBaseSpec.reference_date.
     # ZeroCouponInflationSwapHelper
     def Tenor(self):
+        from quantra_common.engine_client._generated.quantra.Period import Period
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra_common.engine_client._generated.quantra.Period import Period
             obj = Period()
             obj.Init(self._tab.Bytes, x)
             return obj

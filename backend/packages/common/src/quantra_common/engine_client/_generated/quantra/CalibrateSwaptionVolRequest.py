@@ -141,6 +141,7 @@ class CalibrateSwaptionVolRequestT(object):
     # CalibrateSwaptionVolRequestT
     def _UnPack(self, calibrateSwaptionVolRequest):
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if calibrateSwaptionVolRequest is None:
             return
         if calibrateSwaptionVolRequest.Pricing() is not None:

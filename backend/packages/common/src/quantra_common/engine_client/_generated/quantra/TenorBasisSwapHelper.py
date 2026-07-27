@@ -25,12 +25,13 @@ class TenorBasisSwapHelper(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
+    # Basis spread. One of spread or quote_id must be provided.
     # TenorBasisSwapHelper
     def Spread(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # TenorBasisSwapHelper
     def Tenor(self):
@@ -58,6 +59,7 @@ class TenorBasisSwapHelper(object):
     # Long tenor index (e.g., "EUR_6M").
     # TenorBasisSwapHelper
     def IndexLong(self):
+        from quantra_common.engine_client._generated.quantra.IndexRef import IndexRef
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
@@ -71,7 +73,7 @@ class TenorBasisSwapHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # TenorBasisSwapHelper
     def Deps(self):
@@ -98,7 +100,7 @@ def Start(builder):
     TenorBasisSwapHelperStart(builder)
 
 def TenorBasisSwapHelperAddSpread(builder, spread):
-    builder.PrependFloat64Slot(0, spread, 0.0)
+    builder.PrependFloat64Slot(0, spread, None)
 
 def AddSpread(builder, spread):
     TenorBasisSwapHelperAddSpread(builder, spread)
@@ -122,7 +124,7 @@ def AddIndexLong(builder, indexLong):
     TenorBasisSwapHelperAddIndexLong(builder, indexLong)
 
 def TenorBasisSwapHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(4, calendar, 0)
+    builder.PrependInt8Slot(4, calendar, None)
 
 def AddCalendar(builder, calendar):
     TenorBasisSwapHelperAddCalendar(builder, calendar)
@@ -154,11 +156,11 @@ class TenorBasisSwapHelperT(object):
 
     # TenorBasisSwapHelperT
     def __init__(self):
-        self.spread = 0.0  # type: float
+        self.spread = None  # type: Optional[float]
         self.tenor = None  # type: Optional[PeriodT]
         self.indexShort = None  # type: Optional[IndexRefT]
         self.indexLong = None  # type: Optional[IndexRefT]
-        self.calendar = 0  # type: int
+        self.calendar = None  # type: Optional[int]
         self.deps = None  # type: Optional[HelperDependenciesT]
         self.quoteId = None  # type: str
 

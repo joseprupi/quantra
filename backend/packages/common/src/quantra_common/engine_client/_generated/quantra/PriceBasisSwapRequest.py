@@ -138,6 +138,7 @@ class PriceBasisSwapRequestT(object):
     def _UnPack(self, priceBasisSwapRequest):
         from quantra_common.engine_client._generated.quantra.PriceBasisSwap import PriceBasisSwapT
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if priceBasisSwapRequest is None:
             return
         if priceBasisSwapRequest.Pricing() is not None:

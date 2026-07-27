@@ -124,6 +124,7 @@ class BootstrapInflationCurvesRequestT(object):
     def _UnPack(self, bootstrapInflationCurvesRequest):
         from quantra_common.engine_client._generated.quantra.InflationCurveQuerySpec import InflationCurveQuerySpecT
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if bootstrapInflationCurvesRequest is None:
             return
         if bootstrapInflationCurvesRequest.Pricing() is not None:

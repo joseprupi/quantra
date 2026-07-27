@@ -121,6 +121,7 @@ class CalibrateSwaptionModelRequestT(object):
     def _UnPack(self, calibrateSwaptionModelRequest):
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
         from quantra_common.engine_client._generated.quantra.SwaptionHwCalibrationSpec import SwaptionHwCalibrationSpecT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if calibrateSwaptionModelRequest is None:
             return
         if calibrateSwaptionModelRequest.Pricing() is not None:

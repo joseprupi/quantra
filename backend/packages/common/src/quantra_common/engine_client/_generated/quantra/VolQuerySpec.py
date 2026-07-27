@@ -54,10 +54,10 @@ class VolQuerySpec(object):
     # Required for swaption, ignored for optionlet.
     # VolQuerySpec
     def TenorGrid(self):
+        from quantra_common.engine_client._generated.quantra.DateGridSpec import DateGridSpec
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra_common.engine_client._generated.quantra.DateGridSpec import DateGridSpec
             obj = DateGridSpec()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -287,6 +287,8 @@ class VolQuerySpecT(object):
         from quantra_common.engine_client._generated.quantra.DateGridSpec import DateGridSpecT
         from quantra_common.engine_client._generated.quantra.QueryOptions import QueryOptionsT
         from quantra_common.engine_client._generated.quantra.StrikeGrid import StrikeGridT
+        from quantra_common.engine_client._generated.quantra.StrikeGrid import StrikeGrid
+        from quantra_common.engine_client._generated.quantra.TenorGrid import TenorGrid
         if volQuerySpec is None:
             return
         self.volId = volQuerySpec.VolId()

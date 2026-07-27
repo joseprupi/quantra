@@ -25,13 +25,16 @@ class YearOnYearInflationSwap(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # "Payer" / "Receiver" refers to the YoY inflation leg.
+    # "Payer" pays the fixed leg and receives the YoY inflation leg;
+    # "Receiver" is the reverse (receives fixed, pays YoY inflation).
+    # Presence-required: an omitted type is a 400, never the alphabetical-0
+    # default (Payer).
     # YearOnYearInflationSwap
     def SwapType(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # YearOnYearInflationSwap
     def Notional(self):
@@ -67,6 +70,7 @@ class YearOnYearInflationSwap(object):
 
     # YearOnYearInflationSwap
     def YoySchedule(self):
+        from quantra_common.engine_client._generated.quantra.Schedule import Schedule
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
@@ -136,7 +140,7 @@ def Start(builder):
     YearOnYearInflationSwapStart(builder)
 
 def YearOnYearInflationSwapAddSwapType(builder, swapType):
-    builder.PrependInt8Slot(0, swapType, 0)
+    builder.PrependInt8Slot(0, swapType, None)
 
 def AddSwapType(builder, swapType):
     YearOnYearInflationSwapAddSwapType(builder, swapType)
@@ -228,7 +232,7 @@ class YearOnYearInflationSwapT(object):
 
     # YearOnYearInflationSwapT
     def __init__(self):
-        self.swapType = 0  # type: int
+        self.swapType = None  # type: Optional[int]
         self.notional = 0.0  # type: float
         self.fixedSchedule = None  # type: Optional[ScheduleT]
         self.fixedRate = 0.0  # type: float

@@ -98,6 +98,7 @@ class InflationPointWrapperT(object):
     # InflationPointWrapperT
     def _UnPack(self, inflationPointWrapper):
         from quantra_common.engine_client._generated.quantra.InflationPoint import InflationPointCreator
+        from quantra_common.engine_client._generated.quantra.Point import Point
         if inflationPointWrapper is None:
             return
         self.pointType = inflationPointWrapper.PointType()

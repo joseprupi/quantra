@@ -261,6 +261,7 @@ class OisFloatingLegT(object):
     def _UnPack(self, oisFloatingLeg):
         from quantra_common.engine_client._generated.quantra.IndexRef import IndexRefT
         from quantra_common.engine_client._generated.quantra.Schedule import ScheduleT
+        from quantra_common.engine_client._generated.quantra.Schedule import Schedule
         if oisFloatingLeg is None:
             return
         if oisFloatingLeg.Schedule() is not None:

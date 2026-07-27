@@ -218,6 +218,7 @@ class BootstrapInflationCurveResultT(object):
     def _UnPack(self, bootstrapInflationCurveResult):
         from quantra_common.engine_client._generated.quantra.Error import ErrorT
         from quantra_common.engine_client._generated.quantra.InflationCurveSeries import InflationCurveSeriesT
+        from quantra_common.engine_client._generated.quantra.Error import Error
         if bootstrapInflationCurveResult is None:
             return
         self.id = bootstrapInflationCurveResult.Id()

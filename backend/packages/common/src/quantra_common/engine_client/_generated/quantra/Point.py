@@ -16,13 +16,17 @@ class Point(object):
     TenorBasisSwapHelper = 9
     FxSwapHelper = 10
     CrossCcyBasisHelper = 11
+    DiscountFactorPoint = 12
+    ForwardRatePoint = 13
 
 def PointCreator(unionType, table):
     from quantra_common.engine_client._generated.quantra.BondHelper import BondHelperT
     from quantra_common.engine_client._generated.quantra.CrossCcyBasisHelper import CrossCcyBasisHelperT
     from quantra_common.engine_client._generated.quantra.DatedOISHelper import DatedOISHelperT
     from quantra_common.engine_client._generated.quantra.DepositHelper import DepositHelperT
+    from quantra_common.engine_client._generated.quantra.DiscountFactorPoint import DiscountFactorPointT
     from quantra_common.engine_client._generated.quantra.FRAHelper import FRAHelperT
+    from quantra_common.engine_client._generated.quantra.ForwardRatePoint import ForwardRatePointT
     from quantra_common.engine_client._generated.quantra.FutureHelper import FutureHelperT
     from quantra_common.engine_client._generated.quantra.FxSwapHelper import FxSwapHelperT
     from quantra_common.engine_client._generated.quantra.OISHelper import OISHelperT
@@ -54,4 +58,8 @@ def PointCreator(unionType, table):
         return FxSwapHelperT.InitFromBuf(table.Bytes, table.Pos)
     if unionType == Point.CrossCcyBasisHelper:
         return CrossCcyBasisHelperT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == Point.DiscountFactorPoint:
+        return DiscountFactorPointT.InitFromBuf(table.Bytes, table.Pos)
+    if unionType == Point.ForwardRatePoint:
+        return ForwardRatePointT.InitFromBuf(table.Bytes, table.Pos)
     return None

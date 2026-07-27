@@ -75,6 +75,7 @@ class SwaptionSabrCalibrateSpec(object):
 
     # SwaptionSabrCalibrateSpec
     def Tenors(self, j):
+        from quantra_common.engine_client._generated.quantra.Period import Period
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Vector(o)
@@ -152,6 +153,7 @@ class SwaptionSabrCalibrateSpec(object):
     # Reserved. Must be empty/absent in v1; otherwise parse-time rejection.
     # SwaptionSabrCalibrateSpec
     def Weights(self):
+        from quantra_common.engine_client._generated.quantra.QuoteTensor3D import QuoteTensor3D
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)

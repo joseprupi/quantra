@@ -118,6 +118,7 @@ class QuoteSpecT(object):
 
     # QuoteSpecT
     def _UnPack(self, quoteSpec):
+        from quantra_common.engine_client._generated.quantra.QuoteType import QuoteType
         if quoteSpec is None:
             return
         self.id = quoteSpec.Id()

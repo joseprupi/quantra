@@ -40,6 +40,7 @@ class HelperDependencies(object):
     # Exogenous projection/forwarding curve. Supported by TenorBasisSwapHelper, FxSwapHelper, CrossCcyBasisHelper.
     # HelperDependencies
     def ProjectionCurve(self):
+        from quantra_common.engine_client._generated.quantra.CurveRef import CurveRef
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
@@ -51,6 +52,7 @@ class HelperDependencies(object):
     # Second projection curve for basis/XCCY helpers.
     # HelperDependencies
     def ProjectionCurve2(self):
+        from quantra_common.engine_client._generated.quantra.CurveRef import CurveRef
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)

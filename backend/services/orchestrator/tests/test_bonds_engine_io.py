@@ -134,6 +134,21 @@ def _deposit_point(
     return {"point_type": "DepositHelper", "point": point}
 
 
+@pytest.fixture(autouse=True)
+def _canonical_engine_wire(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the canonical (0.5) wire layout for request-content assertions.
+
+    The default ``ENGINE_WIRE_COMPAT=0.2`` packs the four slot-shifted tables
+    (legs / bonds) in the legacy engine-0.2.0 layout (see
+    ``quantra_common.engine_client.wire_compat``), which the canonical raw
+    readers used below would misread. The legacy layout itself is byte-pinned
+    by the golden-hex tests (which re-pin ``0.2`` explicitly) and by
+    ``test_wire_compat.py``.
+    """
+
+    monkeypatch.setenv("ENGINE_WIRE_COMPAT", "0.5")
+
+
 def _resolved_curve(
     curve_id: uuid.UUID,
     *,

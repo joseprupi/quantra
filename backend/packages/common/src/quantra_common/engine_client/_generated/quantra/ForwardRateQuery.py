@@ -197,6 +197,7 @@ class ForwardRateQueryT(object):
     # ForwardRateQueryT
     def _UnPack(self, forwardRateQuery):
         from quantra_common.engine_client._generated.quantra.Period import PeriodT
+        from quantra_common.engine_client._generated.quantra.ForwardType import ForwardType
         if forwardRateQuery is None:
             return
         self.useCurveDayCounter = forwardRateQuery.UseCurveDayCounter()

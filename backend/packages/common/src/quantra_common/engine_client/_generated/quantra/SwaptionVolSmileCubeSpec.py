@@ -71,6 +71,7 @@ class SwaptionVolSmileCubeSpec(object):
 
     # SwaptionVolSmileCubeSpec
     def Tenors(self, j):
+        from quantra_common.engine_client._generated.quantra.Period import Period
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Vector(o)

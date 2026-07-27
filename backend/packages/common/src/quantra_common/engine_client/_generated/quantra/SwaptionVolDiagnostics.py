@@ -9,7 +9,7 @@ np = import_numpy()
 # Diagnostics block describing one swaption vol surface. Emitted opt-in by
 # /sample-vol-surfaces and /price-swaption when include_diagnostics=true, and
 # reused as the response body for the standalone /calibrate-swaption-vol
-# endpoint (Step 9).
+# endpoint.
 class SwaptionVolDiagnostics(object):
     __slots__ = ['_tab']
 
@@ -72,6 +72,7 @@ class SwaptionVolDiagnostics(object):
 
     # SwaptionVolDiagnostics
     def Tenors(self, j):
+        from quantra_common.engine_client._generated.quantra.Period import Period
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(10))
         if o != 0:
             x = self._tab.Vector(o)

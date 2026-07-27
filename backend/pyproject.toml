@@ -61,6 +61,9 @@ extend-exclude = [
     # and managed by `scripts/regen_engine_bindings.sh`. We don't
     # lint generated code; the regen script is the audit trail.
     "packages/common/src/quantra_common/engine_client/_generated",
+    # Vendored legacy engine-0.2.0 bindings for the four slot-shifted
+    # tables (see wire_compat.py) — same generated-code posture.
+    "packages/common/src/quantra_common/engine_client/_legacy_v020",
 ]
 
 [tool.ruff.lint]
@@ -161,6 +164,7 @@ exclude = [
     # have no annotations and bypass strict-mode runtime invariants
     # we expect of first-party code; mypy treats them as opaque.
     "^packages/common/src/quantra_common/engine_client/_generated/",
+    "^packages/common/src/quantra_common/engine_client/_legacy_v020/",
 ]
 
 # openpyxl does not ship type stubs and the third-party `types-openpyxl`
@@ -184,6 +188,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "quantra_common.engine_client._generated.*",
+    "quantra_common.engine_client._legacy_v020.*",
     "flatbuffers",
 ]
 follow_imports = "skip"

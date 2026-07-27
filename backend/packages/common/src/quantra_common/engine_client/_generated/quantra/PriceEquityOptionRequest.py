@@ -124,6 +124,7 @@ class PriceEquityOptionRequestT(object):
     def _UnPack(self, priceEquityOptionRequest):
         from quantra_common.engine_client._generated.quantra.PriceEquityOption import PriceEquityOptionT
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if priceEquityOptionRequest is None:
             return
         if priceEquityOptionRequest.Pricing() is not None:

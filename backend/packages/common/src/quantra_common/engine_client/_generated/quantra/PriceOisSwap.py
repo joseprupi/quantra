@@ -113,6 +113,7 @@ class PriceOisSwapT(object):
     # PriceOisSwapT
     def _UnPack(self, priceOisSwap):
         from quantra_common.engine_client._generated.quantra.OisSwap import OisSwapT
+        from quantra_common.engine_client._generated.quantra.OisSwap import OisSwap
         if priceOisSwap is None:
             return
         if priceOisSwap.OisSwap() is not None:

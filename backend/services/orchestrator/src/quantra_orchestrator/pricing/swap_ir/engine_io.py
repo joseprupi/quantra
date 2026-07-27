@@ -67,12 +67,9 @@ from quantra_common.engine_client._generated.quantra.PriceVanillaSwapResponse im
     PriceVanillaSwapResponse,
 )
 from quantra_common.engine_client._generated.quantra.Schedule import ScheduleT
-from quantra_common.engine_client._generated.quantra.SwapFixedLeg import SwapFixedLegT
-from quantra_common.engine_client._generated.quantra.SwapFloatingLeg import (
-    SwapFloatingLegT,
-)
 from quantra_common.engine_client._generated.quantra.SwapLegFlow import SwapLegFlow
 from quantra_common.engine_client._generated.quantra.VanillaSwap import VanillaSwapT
+from quantra_common.engine_client.wire_compat import SwapFixedLegT, SwapFloatingLegT
 from quantra_orchestrator.engine.errors import EngineMissingFixingError
 from quantra_orchestrator.pricing._fb_helpers import build_index_ref
 from quantra_orchestrator.pricing._translator import (

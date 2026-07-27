@@ -30,7 +30,7 @@ class CDS(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # CDS
     def Notional(self):
@@ -39,13 +39,14 @@ class CDS(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # Running coupon in decimal (0.01 = 100bps).
+    # Running coupon in decimal (0.01 = 100bps). Required; presence-driven
+    # (a genuine 0 is a valid zero-coupon CDS, an absent value is rejected).
     # CDS
     def RunningCoupon(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # CDS
     def Schedule(self):
@@ -58,11 +59,9 @@ class CDS(object):
             return obj
         return None
 
-    # Upfront payment. O61: presence-based to match the engine 0.2.0 schema
-    # (``upfront:double = null``). Absent selects the plain no-upfront
-    # CreditDefaultSwap constructor; a present value (incl. a genuine 0)
-    # selects the upfront-bearing constructor. Returns ``None`` when absent so
-    # ``ScheduleT``-style conditional packing can omit it.
+    # Upfront payment. Optional: presence selects the upfront-bearing
+    # CreditDefaultSwap constructor (a genuine 0 upfront is representable);
+    # absent selects the plain no-upfront constructor.
     # CDS
     def Upfront(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
@@ -75,14 +74,14 @@ class CDS(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # CDS
     def BusinessDayConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # CDS
     def SettlesAccrual(self):
@@ -147,7 +146,7 @@ def Start(builder):
     CDSStart(builder)
 
 def CDSAddSide(builder, side):
-    builder.PrependInt8Slot(0, side, 0)
+    builder.PrependInt8Slot(0, side, None)
 
 def AddSide(builder, side):
     CDSAddSide(builder, side)
@@ -159,7 +158,7 @@ def AddNotional(builder, notional):
     CDSAddNotional(builder, notional)
 
 def CDSAddRunningCoupon(builder, runningCoupon):
-    builder.PrependFloat64Slot(2, runningCoupon, 0.0)
+    builder.PrependFloat64Slot(2, runningCoupon, None)
 
 def AddRunningCoupon(builder, runningCoupon):
     CDSAddRunningCoupon(builder, runningCoupon)
@@ -171,19 +170,19 @@ def AddSchedule(builder, schedule):
     CDSAddSchedule(builder, schedule)
 
 def CDSAddUpfront(builder, upfront):
-    builder.PrependFloat64Slot(4, upfront, 0.0)
+    builder.PrependFloat64Slot(4, upfront, None)
 
 def AddUpfront(builder, upfront):
     CDSAddUpfront(builder, upfront)
 
 def CDSAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(5, dayCounter, 0)
+    builder.PrependInt8Slot(5, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     CDSAddDayCounter(builder, dayCounter)
 
 def CDSAddBusinessDayConvention(builder, businessDayConvention):
-    builder.PrependInt8Slot(6, businessDayConvention, 0)
+    builder.PrependInt8Slot(6, businessDayConvention, None)
 
 def AddBusinessDayConvention(builder, businessDayConvention):
     CDSAddBusinessDayConvention(builder, businessDayConvention)
@@ -251,13 +250,13 @@ class CDST(object):
 
     # CDST
     def __init__(self):
-        self.side = 0  # type: int
+        self.side = None  # type: Optional[int]
         self.notional = 0.0  # type: float
-        self.runningCoupon = 0.0  # type: float
+        self.runningCoupon = None  # type: Optional[float]
         self.schedule = None  # type: Optional[ScheduleT]
-        self.upfront = None  # type: Optional[float]  # O61: presence-based (0.2.0 optional)
-        self.dayCounter = 0  # type: int
-        self.businessDayConvention = 0  # type: int
+        self.upfront = None  # type: Optional[float]
+        self.dayCounter = None  # type: Optional[int]
+        self.businessDayConvention = None  # type: Optional[int]
         self.settlesAccrual = True  # type: bool
         self.paysAtDefaultTime = True  # type: bool
         self.rebatesAccrual = True  # type: bool
@@ -287,6 +286,7 @@ class CDST(object):
     # CDST
     def _UnPack(self, cds):
         from quantra_common.engine_client._generated.quantra.Schedule import ScheduleT
+        from quantra_common.engine_client._generated.quantra.Schedule import Schedule
         if cds is None:
             return
         self.side = cds.Side()
@@ -322,8 +322,7 @@ class CDST(object):
         CDSAddRunningCoupon(builder, self.runningCoupon)
         if self.schedule is not None:
             CDSAddSchedule(builder, schedule)
-        if self.upfront is not None:  # O61: omit when absent (0.2.0 optional)
-            CDSAddUpfront(builder, self.upfront)
+        CDSAddUpfront(builder, self.upfront)
         CDSAddDayCounter(builder, self.dayCounter)
         CDSAddBusinessDayConvention(builder, self.businessDayConvention)
         CDSAddSettlesAccrual(builder, self.settlesAccrual)

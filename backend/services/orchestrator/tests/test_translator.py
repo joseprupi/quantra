@@ -298,7 +298,9 @@ def test_bond_helper_substitutes_into_price_field() -> None:
     helper = pricing.rates.curves[0].points[0].point
     assert pricing.rates.curves[0].points[0].pointType == Point.BondHelper
     assert helper.price == pytest.approx(99.5)
-    assert helper.rate == pytest.approx(0.0)  # untouched
+    # Untouched: the regenerated presence-based bindings initialise unset
+    # scalars to ``None`` (absent on the wire) rather than 0.0.
+    assert helper.rate is None
 
 
 def test_future_helper_substitutes_into_futures_price_field() -> None:

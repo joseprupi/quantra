@@ -72,12 +72,6 @@ from quantra_common.engine_client._generated.quantra.enums.DateGenerationRule im
 )
 from quantra_common.engine_client._generated.quantra.enums.DayCounter import DayCounter
 from quantra_common.engine_client._generated.quantra.enums.Frequency import Frequency
-from quantra_common.engine_client._generated.quantra.FixedRateBond import (
-    FixedRateBondT,
-)
-from quantra_common.engine_client._generated.quantra.FloatingRateBond import (
-    FloatingRateBondT,
-)
 from quantra_common.engine_client._generated.quantra.PriceFixedRateBond import (
     PriceFixedRateBondT,
 )
@@ -98,6 +92,7 @@ from quantra_common.engine_client._generated.quantra.PriceFloatingRateBondRespon
 )
 from quantra_common.engine_client._generated.quantra.Pricing import PricingT
 from quantra_common.engine_client._generated.quantra.Schedule import ScheduleT
+from quantra_common.engine_client.wire_compat import FixedRateBondT, FloatingRateBondT
 from quantra_orchestrator.pricing._fb_helpers import (
     CANONICAL_COUPON_PRICER_ID,
     build_canonical_yield,

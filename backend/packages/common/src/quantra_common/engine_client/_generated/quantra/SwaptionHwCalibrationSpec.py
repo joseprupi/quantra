@@ -86,6 +86,7 @@ class SwaptionHwCalibrationSpec(object):
     # Optional tenor grid override. If omitted, server falls back to ATM matrix tenors.
     # SwaptionHwCalibrationSpec
     def Tenors(self, j):
+        from quantra_common.engine_client._generated.quantra.Period import Period
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Vector(o)

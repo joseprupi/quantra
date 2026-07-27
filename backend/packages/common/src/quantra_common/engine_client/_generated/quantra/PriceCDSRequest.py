@@ -124,6 +124,7 @@ class PriceCDSRequestT(object):
     def _UnPack(self, priceCdsrequest):
         from quantra_common.engine_client._generated.quantra.PriceCDS import PriceCDST
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if priceCdsrequest is None:
             return
         if priceCdsrequest.Pricing() is not None:

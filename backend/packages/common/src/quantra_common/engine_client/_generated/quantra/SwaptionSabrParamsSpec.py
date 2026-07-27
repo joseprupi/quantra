@@ -63,6 +63,7 @@ class SwaptionSabrParamsSpec(object):
 
     # SwaptionSabrParamsSpec
     def Tenors(self, j):
+        from quantra_common.engine_client._generated.quantra.Period import Period
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
         if o != 0:
             x = self._tab.Vector(o)
@@ -98,6 +99,7 @@ class SwaptionSabrParamsSpec(object):
 
     # SwaptionSabrParamsSpec
     def Beta(self):
+        from quantra_common.engine_client._generated.quantra.QuoteMatrix2D import QuoteMatrix2D
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(12))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
@@ -108,6 +110,7 @@ class SwaptionSabrParamsSpec(object):
 
     # SwaptionSabrParamsSpec
     def Rho(self):
+        from quantra_common.engine_client._generated.quantra.QuoteMatrix2D import QuoteMatrix2D
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(14))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
@@ -118,6 +121,7 @@ class SwaptionSabrParamsSpec(object):
 
     # SwaptionSabrParamsSpec
     def Nu(self):
+        from quantra_common.engine_client._generated.quantra.QuoteMatrix2D import QuoteMatrix2D
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)

@@ -98,6 +98,7 @@ class FlowsWrapperT(object):
     # FlowsWrapperT
     def _UnPack(self, flowsWrapper):
         from quantra_common.engine_client._generated.quantra.Flow import FlowCreator
+        from quantra_common.engine_client._generated.quantra.Flow import Flow
         if flowsWrapper is None:
             return
         self.flowType = flowsWrapper.FlowType()

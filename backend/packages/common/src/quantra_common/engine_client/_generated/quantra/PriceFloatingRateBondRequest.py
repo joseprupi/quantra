@@ -124,6 +124,7 @@ class PriceFloatingRateBondRequestT(object):
     def _UnPack(self, priceFloatingRateBondRequest):
         from quantra_common.engine_client._generated.quantra.PriceFloatingRateBond import PriceFloatingRateBondT
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if priceFloatingRateBondRequest is None:
             return
         if priceFloatingRateBondRequest.Pricing() is not None:

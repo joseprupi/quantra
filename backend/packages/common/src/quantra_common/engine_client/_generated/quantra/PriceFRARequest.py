@@ -124,6 +124,7 @@ class PriceFRARequestT(object):
     def _UnPack(self, priceFrarequest):
         from quantra_common.engine_client._generated.quantra.PriceFRA import PriceFRAT
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if priceFrarequest is None:
             return
         if priceFrarequest.Pricing() is not None:

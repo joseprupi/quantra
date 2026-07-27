@@ -124,6 +124,7 @@ class PriceCapFloorRequestT(object):
     def _UnPack(self, priceCapFloorRequest):
         from quantra_common.engine_client._generated.quantra.PriceCapFloor import PriceCapFloorT
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if priceCapFloorRequest is None:
             return
         if priceCapFloorRequest.Pricing() is not None:

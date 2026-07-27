@@ -160,6 +160,7 @@ class PriceCapFloorT(object):
     # PriceCapFloorT
     def _UnPack(self, priceCapFloor):
         from quantra_common.engine_client._generated.quantra.CapFloor import CapFloorT
+        from quantra_common.engine_client._generated.quantra.CapFloor import CapFloor
         if priceCapFloor is None:
             return
         if priceCapFloor.CapFloor() is not None:

@@ -124,6 +124,7 @@ class PriceFixedRateBondRequestT(object):
     def _UnPack(self, priceFixedRateBondRequest):
         from quantra_common.engine_client._generated.quantra.PriceFixedRateBond import PriceFixedRateBondT
         from quantra_common.engine_client._generated.quantra.Pricing import PricingT
+        from quantra_common.engine_client._generated.quantra.Pricing import Pricing
         if priceFixedRateBondRequest is None:
             return
         if priceFixedRateBondRequest.Pricing() is not None:

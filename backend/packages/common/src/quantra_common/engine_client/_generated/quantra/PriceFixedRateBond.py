@@ -116,8 +116,10 @@ class PriceFixedRateBondT(object):
 
     # PriceFixedRateBondT
     def _UnPack(self, priceFixedRateBond):
-        from quantra_common.engine_client._generated.quantra.FixedRateBond import FixedRateBondT
+        from quantra_common.engine_client.wire_compat import FixedRateBondT
         from quantra_common.engine_client._generated.quantra.Yield import YieldT
+        from quantra_common.engine_client._generated.quantra.FixedRateBond import FixedRateBond
+        from quantra_common.engine_client._generated.quantra.Yield import Yield
         if priceFixedRateBond is None:
             return
         if priceFixedRateBond.FixedRateBond() is not None:
