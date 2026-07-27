@@ -12,6 +12,21 @@ Versions 0.2.x and earlier predate this monorepo — they are the
 pre-open-source release history of the portal, kept for reference. 0.3.0 is
 the first release cut from the monorepo.
 
+## [0.4.0] - 2026-07-27
+
+Platform release **v0.4.0**, cut against pricing engine 0.5.0.
+
+### Added
+- **Value-based curve construction.** The Curve Builder can build curves from
+  given values instead of instruments: zero rates, discount factors, or
+  forward rates, with inline values or market-data quote references resolved
+  at the As-Of date, paste-a-table entry, and per-row validation.
+
+### Fixed
+- Product pages previously dropped the interpolator and bootstrap trait on
+  inline curves, so non-default traits were silently mistranslated; the full
+  curve specification now reaches the backend.
+
 ## [0.3.0] - 2026-07-20
 
 First release cut from the open-source monorepo

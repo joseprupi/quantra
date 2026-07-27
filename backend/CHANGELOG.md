@@ -9,6 +9,27 @@ Backend and portal are released together at the same platform `vX.Y.Z` tag.
 Versions **0.2.x and earlier are historical release tags from before this
 monorepo was assembled**; 0.3.0 is the first release cut from the monorepo.
 
+## [0.4.0] - 2026-07-27
+
+Platform release pinned to the OSS pricing engine **0.5.0**.
+
+### Added
+- **Value-based yield curves.** Curves can now be built from given values
+  instead of instruments: zero rates, discount factors, or forward rates
+  (QuantLib `InterpolatedZeroCurve` / `InterpolatedDiscountCurve` /
+  `InterpolatedForwardCurve`). Values can be entered inline or reference
+  market-data quotes, resolved at the As-Of date.
+
+### Changed
+- **Pricing engine updated to quantra-server 0.5.0.** The 0.5.0 wire contract
+  makes required fields explicit, and the bootstrap trait is now a validated
+  curve-family selector. FlatBuffers bindings regenerated from the 0.5.0
+  schema; all products verified byte-identical NPVs across the engine upgrade.
+
+### Fixed
+- CDS response decode could crash when the engine omits `fair_spread`.
+- Duplicate curve ids in assembled requests are now deduplicated.
+
 ## [0.3.0] - 2026-07-20
 
 First release cut from the open-source monorepo
