@@ -511,6 +511,9 @@ def _build_one_floating_bond(
     schedule.convention = BusinessDayConvention.ModifiedFollowing
     schedule.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
     schedule.dateGenerationRule = DateGenerationRule.Forward
+    # Presence-required since engine 0.5.0 (#118); False == the engine-0.2.0
+    # default this schedule always priced with.
+    schedule.endOfMonth = False
 
     bond = FloatingRateBondT()
     bond.settlementDays = settlement_days

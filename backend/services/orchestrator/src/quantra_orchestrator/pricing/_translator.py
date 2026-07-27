@@ -1480,6 +1480,10 @@ def _build_bond(inner: Mapping[str, Any]) -> BondHelperT:
     sched.dateGenerationRule = _enum(
         DateGenerationRule, schedule.get("date_generation_rule"), DateGenerationRule.Forward
     )
+    # Presence-required since engine 0.5.0 (#118); False == the engine-0.2.0
+    # default (the field was never emitted before, so the engine always read
+    # False). An explicit user value is honored like every other schedule field.
+    sched.endOfMonth = bool(schedule.get("end_of_month", False))
 
     h = BondHelperT()
     h.schedule = sched
@@ -3478,6 +3482,27 @@ def _build_inflation_market_data(
     return inflation
 
 
+def _dedup_curves(curves: Sequence[ResolvedCurveLike]) -> list[ResolvedCurveLike]:
+    """Drop repeated resolved-curve ids, first-wins.
+
+    Engine 0.5.0 (#119) REJECTS duplicate ids in ``rates.curves``; engines
+    <= 0.2.0 silently kept the first. The same entity can legitimately land
+    twice in ``resolved.curves`` (e.g. one curve serving both the discount
+    and dividend roles, or a curve set repeating a ref) — first-wins
+    reproduces the old engines' semantics exactly.
+    """
+
+    seen: set[str] = set()
+    out: list[ResolvedCurveLike] = []
+    for curve in curves:
+        curve_id = resolved_curve_id(curve)
+        if curve_id in seen:
+            continue
+        seen.add(curve_id)
+        out.append(curve)
+    return out
+
+
 def build_pricing_from_resolved(
     resolved: ResolvedMarketData,
     *,
@@ -3551,7 +3576,7 @@ def build_pricing_from_resolved(
             default_reference_date=resolved.as_of,
             missing_quotes=missing_quotes,
         )
-        for curve in resolved.curves
+        for curve in _dedup_curves(resolved.curves)
     ]
     if include_coupon_pricer:
         rates.couponPricers = [build_canonical_coupon_pricer()]

@@ -8,18 +8,24 @@ for those four tables mutually incompatible between engine 0.2.0 (the pinned
 release) and engine master/0.5.0: bytes packed with one layout are silently
 misread by the other (e.g. ``SwapFixedLeg.rate`` lands in the slot the other
 side reads as ``notionals`` → the rate decodes as absent → a fixed leg priced
-at 0%). Every other table in the schema is layout-stable — verified by an
-exhaustive slot-id diff of all 177 shared tables at regen time.
+at 0%). Engine 0.5.0 (#119) additionally REMOVED
+``SwapLegFlow.has_cms_swap_rate`` mid-table on the RESPONSE side, shifting
+``cms_swap_rate``/``spread``/``rate`` from slots 11/12/13 to 10/11/12 — a
+0.2.0 engine's flow bytes decoded with canonical bindings would silently
+report the coupon's CMS fixing as its spread and its spread as its rate.
+Every other table in the schema is layout-stable — verified by an exhaustive
+three-way slot-id diff of all 177 v0.2.0 tables (v0.2.0 / f2360cd / v0.5.0)
+at regen time.
 
 This module is the single seam that picks the layout:
 
 * ``ENGINE_WIRE_COMPAT=0.2`` (the DEFAULT — matches the compose engine pin
-  ``quantra-server:0.2.0``): the four tables pack/unpack with the legacy
+  ``quantra-server:0.2.0``): the five tables pack/unpack with the legacy
   0.2.0 slot layout vendored under ``_legacy_v020/``.
-* ``ENGINE_WIRE_COMPAT=0.5``: the four tables use the canonical regenerated
-  master bindings unchanged.
+* ``ENGINE_WIRE_COMPAT=0.5``: the five tables use the canonical regenerated
+  v0.5.0 bindings unchanged.
 
-Everything outside these four tables always uses the canonical bindings.
+Everything outside these five tables always uses the canonical bindings.
 
 The seam is DELETABLE: when the bundle's engine pin moves to the released
 0.5.0, flip the default (or drop the env var), delete ``_legacy_v020/`` and
@@ -54,6 +60,9 @@ from quantra_common.engine_client._generated.quantra import (
 )
 from quantra_common.engine_client._generated.quantra import (
     SwapFloatingLeg as _canon_float_leg,
+)
+from quantra_common.engine_client._generated.quantra import (
+    SwapLegFlow as _canon_leg_flow,
 )
 
 ENGINE_WIRE_COMPAT_ENV = "ENGINE_WIRE_COMPAT"
@@ -91,6 +100,22 @@ _LEGACY_SCALAR_DEFAULTS: dict[str, dict[str, Any]] = {
         "inArrears": False,
         "spread": 0.0,
         "redemption": 0.0,
+    },
+    # Response-side (decode is the real consumer; Pack kept coherent for
+    # completeness). ``hasCmsSwapRate`` exists only on the legacy layout —
+    # the coercion loop materialises it on the canonical-shaped instance
+    # before the legacy Pack reads it.
+    "SwapLegFlow": {
+        "amount": 0.0,
+        "accrualYearFraction": 0.0,
+        "gearing": 1.0,
+        "discount": 0.0,
+        "presentValue": 0.0,
+        "indexFixing": 0.0,
+        "hasCmsSwapRate": False,
+        "cmsSwapRate": 0.0,
+        "spread": 0.0,
+        "rate": 0.0,
     },
 }
 
@@ -178,6 +203,22 @@ FixedRateBondT = _make_compat("FixedRateBond", _canon_fixed_bond, _legacy_v020.f
 FloatingRateBondT = _make_compat(
     "FloatingRateBond", _canon_float_bond, _legacy_v020.floating_rate_bond
 )
+SwapLegFlowT = _make_compat("SwapLegFlow", _canon_leg_flow, _legacy_v020.swap_leg_flow)
+
+
+def SwapLegFlow() -> Any:  # noqa: ANN401 -- FB reader factory, generated call shape
+    """Layout-dispatching READER for the slot-shifted ``SwapLegFlow`` table.
+
+    Response modules instantiate the flow reader directly
+    (``obj = SwapLegFlow(); obj.Init(...)``) in their vector accessors, so the
+    decode path needs a mode-aware reader, not just a mode-aware ``*T`` class.
+    The regen script redirects those reader imports here.
+    """
+
+    if _use_legacy():
+        return _legacy_v020.swap_leg_flow.SwapLegFlow()
+    return _canon_leg_flow.SwapLegFlow()
+
 
 __all__ = [
     "ENGINE_WIRE_COMPAT_ENV",
@@ -185,5 +226,7 @@ __all__ = [
     "FloatingRateBondT",
     "SwapFixedLegT",
     "SwapFloatingLegT",
+    "SwapLegFlow",
+    "SwapLegFlowT",
     "engine_wire_target",
 ]

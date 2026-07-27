@@ -83,7 +83,7 @@ class BasisSwapResponse(object):
             x = self._tab.Vector(o)
             x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
             x = self._tab.Indirect(x)
-            from quantra_common.engine_client._generated.quantra.SwapLegFlow import SwapLegFlow
+            from quantra_common.engine_client.wire_compat import SwapLegFlow
             obj = SwapLegFlow()
             obj.Init(self._tab.Bytes, x)
             return obj
@@ -103,7 +103,7 @@ class BasisSwapResponse(object):
 
     # BasisSwapResponse
     def Leg2Flows(self, j):
-        from quantra_common.engine_client._generated.quantra.SwapLegFlow import SwapLegFlow
+        from quantra_common.engine_client.wire_compat import SwapLegFlow
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             x = self._tab.Vector(o)
@@ -242,7 +242,7 @@ class BasisSwapResponseT(object):
 
     # BasisSwapResponseT
     def _UnPack(self, basisSwapResponse):
-        from quantra_common.engine_client._generated.quantra.SwapLegFlow import SwapLegFlowT
+        from quantra_common.engine_client.wire_compat import SwapLegFlowT
         if basisSwapResponse is None:
             return
         self.npv = basisSwapResponse.Npv()

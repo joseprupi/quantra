@@ -395,6 +395,15 @@ def _decode_one_flow(flow: SwapLegFlow) -> SwapFlow:
     never raises.
     """
 
+    # Engine 0.5.0 (#119) dropped ``has_cms_swap_rate`` — presence of
+    # ``cms_swap_rate`` alone carries the flag and the accessor returns
+    # ``None`` when absent. The legacy 0.2.0 layout (reachable via the
+    # ``ENGINE_WIRE_COMPAT=0.2`` reader dispatch) still has the explicit
+    # boolean and a default-0.0 ``CmsSwapRate``.
+    legacy_has_cms = getattr(flow, "HasCmsSwapRate", None)
+    cms_raw = flow.CmsSwapRate()
+    has_cms = bool(legacy_has_cms()) if legacy_has_cms is not None else cms_raw is not None
+
     return SwapFlow(
         payment_date=_decode_str(flow.PaymentDate()),
         accrual_start_date=_decode_str(flow.AccrualStartDate()),
@@ -406,8 +415,8 @@ def _decode_one_flow(flow: SwapLegFlow) -> SwapFlow:
         present_value=float(flow.PresentValue()),
         fixing_date=_decode_str(flow.FixingDate()),
         index_fixing=float(flow.IndexFixing()),
-        has_cms_swap_rate=bool(flow.HasCmsSwapRate()),
-        cms_swap_rate=float(flow.CmsSwapRate()),
+        has_cms_swap_rate=has_cms,
+        cms_swap_rate=float(cms_raw) if cms_raw is not None else 0.0,
         spread=float(flow.Spread()),
         rate=float(flow.Rate()),
     )
@@ -487,6 +496,9 @@ def _build_one_swap(
     fixed_schedule.convention = BusinessDayConvention.ModifiedFollowing
     fixed_schedule.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
     fixed_schedule.dateGenerationRule = DateGenerationRule.Forward
+    # Presence-required since engine 0.5.0 (#118); False == the engine-0.2.0
+    # default this schedule always priced with.
+    fixed_schedule.endOfMonth = False
 
     fixed_leg = SwapFixedLegT()
     fixed_leg.notional = notional
@@ -503,6 +515,7 @@ def _build_one_swap(
     float_schedule.convention = BusinessDayConvention.ModifiedFollowing
     float_schedule.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
     float_schedule.dateGenerationRule = DateGenerationRule.Forward
+    float_schedule.endOfMonth = False
 
     float_leg = SwapFloatingLegT()
     float_leg.notional = notional

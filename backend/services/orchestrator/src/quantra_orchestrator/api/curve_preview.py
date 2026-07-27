@@ -36,7 +36,7 @@ The ZCIIS-vs-YYIIS kind is read off the inflation curve spec's ``kind`` field.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
@@ -93,6 +93,7 @@ from quantra_orchestrator.pricing._translator import (
     _build_known_ibor_index,
     _build_known_overnight_index,
     _collect_helper_index_ids,
+    resolved_curve_id,
     translate_curve,
     translate_inflation_curve,
     translate_inflation_index,
@@ -194,6 +195,25 @@ def _decode(value: object) -> object:
     return value.decode() if isinstance(value, (bytes, bytearray)) else value
 
 
+def _dedup_resolved_curves(curves: Iterable[ResolvedCurve]) -> list[ResolvedCurve]:
+    """Drop repeated curve ids, first-wins.
+
+    Engine 0.5.0 (#119) rejects duplicate ids in ``rates.curves``; engines
+    <= 0.2.0 silently kept the first. A preview payload repeating a curve
+    (e.g. the same discount curve listed twice) keeps the old semantics.
+    """
+
+    seen: set[str] = set()
+    out: list[ResolvedCurve] = []
+    for curve in curves:
+        curve_id = resolved_curve_id(curve)
+        if curve_id in seen:
+            continue
+        seen.add(curve_id)
+        out.append(curve)
+    return out
+
+
 def _build_preview_indices(curves: list[ResolvedCurve]) -> list[Any]:
     """Register every index the curve helpers reference (mirrors the pricing translator).
 
@@ -266,11 +286,11 @@ async def preview_curves(
     if pricing_in.get("inflation_curves"):
         return await _preview_inflation_curves(payload, pricing_in, as_of, md_client, engine_client)
 
-    curves = [
+    curves = _dedup_resolved_curves(
         _as_resolved_curve(raw, i)
         for i, raw in enumerate(pricing_in.get("curves") or [])
         if isinstance(raw, dict)
-    ]
+    )
     if not curves:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -514,11 +534,11 @@ async def _preview_inflation_curves(
     # one, but a YYIIS curve (and a ZCIIS whose helpers discount past the front
     # node) needs the nominal term structure. They are resolved through
     # the same MD walker as the inflation helpers.
-    nominal_curves = [
+    nominal_curves = _dedup_resolved_curves(
         _as_resolved_curve(raw, i)
         for i, raw in enumerate(pricing_in.get("curves") or [])
         if isinstance(raw, dict)
-    ]
+    )
     inflation_curves = [_as_resolved_inflation_curve(raw, i) for i, raw in enumerate(raw_inflation)]
     swap_kind = _swap_kind_of(raw_inflation[0])
     resolved_index = _as_resolved_inflation_index(raw_indices[0])

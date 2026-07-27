@@ -33,13 +33,15 @@ class YearOnYearInflationSwapHelper(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-    # Inline quote value used when quote_id is empty.
+    # Inline quote value used when quote_id is empty. Presence-required on the
+    # inline path (a bare double would default to a silent zero quote); may be
+    # negative, only a missing or non-finite value is rejected.
     # YearOnYearInflationSwapHelper
     def QuoteValue(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return 0.0
+        return None
 
     # YearOnYearInflationSwapHelper
     def SwapObservationLag(self):
@@ -82,28 +84,28 @@ class YearOnYearInflationSwapHelper(object):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(16))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 32
+        return None
 
     # YearOnYearInflationSwapHelper
     def PaymentConvention(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(18))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 2
+        return None
 
     # YearOnYearInflationSwapHelper
     def DayCounter(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(20))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 1
+        return None
 
     # YearOnYearInflationSwapHelper
     def ObservationInterpolation(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return 0
+        return None
 
     # QuantLib YoY helper requires a nominal term structure id.
     # YearOnYearInflationSwapHelper
@@ -126,7 +128,7 @@ def AddQuoteId(builder, quoteId):
     YearOnYearInflationSwapHelperAddQuoteId(builder, quoteId)
 
 def YearOnYearInflationSwapHelperAddQuoteValue(builder, quoteValue):
-    builder.PrependFloat64Slot(1, quoteValue, 0.0)
+    builder.PrependFloat64Slot(1, quoteValue, None)
 
 def AddQuoteValue(builder, quoteValue):
     YearOnYearInflationSwapHelperAddQuoteValue(builder, quoteValue)
@@ -156,25 +158,25 @@ def AddEndDate(builder, endDate):
     YearOnYearInflationSwapHelperAddEndDate(builder, endDate)
 
 def YearOnYearInflationSwapHelperAddCalendar(builder, calendar):
-    builder.PrependInt8Slot(6, calendar, 32)
+    builder.PrependInt8Slot(6, calendar, None)
 
 def AddCalendar(builder, calendar):
     YearOnYearInflationSwapHelperAddCalendar(builder, calendar)
 
 def YearOnYearInflationSwapHelperAddPaymentConvention(builder, paymentConvention):
-    builder.PrependInt8Slot(7, paymentConvention, 2)
+    builder.PrependInt8Slot(7, paymentConvention, None)
 
 def AddPaymentConvention(builder, paymentConvention):
     YearOnYearInflationSwapHelperAddPaymentConvention(builder, paymentConvention)
 
 def YearOnYearInflationSwapHelperAddDayCounter(builder, dayCounter):
-    builder.PrependInt8Slot(8, dayCounter, 1)
+    builder.PrependInt8Slot(8, dayCounter, None)
 
 def AddDayCounter(builder, dayCounter):
     YearOnYearInflationSwapHelperAddDayCounter(builder, dayCounter)
 
 def YearOnYearInflationSwapHelperAddObservationInterpolation(builder, observationInterpolation):
-    builder.PrependInt8Slot(9, observationInterpolation, 0)
+    builder.PrependInt8Slot(9, observationInterpolation, None)
 
 def AddObservationInterpolation(builder, observationInterpolation):
     YearOnYearInflationSwapHelperAddObservationInterpolation(builder, observationInterpolation)
@@ -201,15 +203,15 @@ class YearOnYearInflationSwapHelperT(object):
     # YearOnYearInflationSwapHelperT
     def __init__(self):
         self.quoteId = None  # type: str
-        self.quoteValue = 0.0  # type: float
+        self.quoteValue = None  # type: Optional[float]
         self.swapObservationLag = None  # type: Optional[PeriodT]
         self.tenor = None  # type: Optional[PeriodT]
         self.startDate = None  # type: str
         self.endDate = None  # type: str
-        self.calendar = 32  # type: int
-        self.paymentConvention = 2  # type: int
-        self.dayCounter = 1  # type: int
-        self.observationInterpolation = 0  # type: int
+        self.calendar = None  # type: Optional[int]
+        self.paymentConvention = None  # type: Optional[int]
+        self.dayCounter = None  # type: Optional[int]
+        self.observationInterpolation = None  # type: Optional[int]
         self.nominalCurveId = None  # type: str
 
     @classmethod

@@ -299,10 +299,14 @@ def decode_cds_response(
             )
             raise ValueError(msg)
         default_leg_npv = float(cds_response.DefaultLegNpv())
+        # ``CDSValues.fair_spread`` is presence-optional (absent when QuantLib
+        # cannot express a fair spread, e.g. a zero-running-coupon CDS) — the
+        # accessor returns ``None`` for an absent field; keep it None-safe.
+        fair_spread_raw = cds_response.FairSpread()
         results.append(
             CdsResult(
                 npv=float(cds_response.Npv()),
-                fair_spread=float(cds_response.FairSpread()),
+                fair_spread=float(fair_spread_raw) if fair_spread_raw is not None else None,
                 fair_upfront=float(cds_response.FairUpfront()),
                 protection_leg_npv=default_leg_npv,
                 premium_leg_npv=float(cds_response.PremiumLegNpv()),

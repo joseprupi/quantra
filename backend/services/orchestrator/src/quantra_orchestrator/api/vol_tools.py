@@ -69,6 +69,9 @@ from quantra_common.engine_client._generated.quantra.enums.BusinessDayConvention
     BusinessDayConvention,
 )
 from quantra_common.engine_client._generated.quantra.enums.Calendar import Calendar
+from quantra_common.engine_client._generated.quantra.enums.DateGenerationRule import (
+    DateGenerationRule,
+)
 from quantra_common.engine_client._generated.quantra.enums.DayCounter import DayCounter
 from quantra_common.engine_client._generated.quantra.enums.Frequency import Frequency
 from quantra_common.engine_client._generated.quantra.enums.SwaptionStrikeKind import (
@@ -494,6 +497,19 @@ def _build_swap_index(raw: dict[str, Any]) -> SwapIndexDefT:
         fixed_raw.get("business_day_convention"),
         BusinessDayConvention.ModifiedFollowing,
     )
+    # Presence-required since engine 0.5.0 (#118); the defaults are the
+    # engine-0.2.0 schema defaults these legs always priced with.
+    fixed_leg.fixedTermBdc = _enum_val(
+        BusinessDayConvention,
+        fixed_raw.get("termination_date_convention"),
+        BusinessDayConvention.ModifiedFollowing,
+    )
+    fixed_leg.fixedDateRule = _enum_val(
+        DateGenerationRule,
+        fixed_raw.get("date_generation_rule"),
+        DateGenerationRule.Forward,
+    )
+    fixed_leg.fixedEom = bool(fixed_raw.get("end_of_month", False))
 
     float_leg = SwapIndexFloatLegSpecT()
     float_tenor = PeriodT()
@@ -505,6 +521,23 @@ def _build_swap_index(raw: dict[str, Any]) -> SwapIndexDefT:
     float_leg.floatCalendar = _enum_val(
         Calendar, float_raw.get("calendar") or raw.get("calendar"), Calendar.TARGET
     )
+    # Presence-required since engine 0.5.0 (#118); engine-0.2.0 schema defaults.
+    float_leg.floatBdc = _enum_val(
+        BusinessDayConvention,
+        float_raw.get("business_day_convention"),
+        BusinessDayConvention.ModifiedFollowing,
+    )
+    float_leg.floatTermBdc = _enum_val(
+        BusinessDayConvention,
+        float_raw.get("termination_date_convention"),
+        BusinessDayConvention.ModifiedFollowing,
+    )
+    float_leg.floatDateRule = _enum_val(
+        DateGenerationRule,
+        float_raw.get("date_generation_rule"),
+        DateGenerationRule.Forward,
+    )
+    float_leg.floatEom = bool(float_raw.get("end_of_month", False))
 
     spec = SwapIndexDefT()
     spec.id = str(raw.get("id") or DEFAULT_SWAP_INDEX_ID)
@@ -516,6 +549,8 @@ def _build_swap_index(raw: dict[str, Any]) -> SwapIndexDefT:
         raw.get("business_day_convention"),
         BusinessDayConvention.ModifiedFollowing,
     )
+    # Presence-required since engine 0.5.0 (#118); False == engine-0.2.0 default.
+    spec.endOfMonth = bool(raw.get("end_of_month", False))
     spec.fixedLeg = fixed_leg
     spec.floatIndexId = str(raw.get("float_index_id") or "forwarding_index")
     spec.floatLeg = float_leg

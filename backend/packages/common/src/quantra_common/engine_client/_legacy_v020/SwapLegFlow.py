@@ -99,17 +99,25 @@ class SwapLegFlow(object):
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
-    # CMS swap-rate fixing for a CMS coupon. Absent for non-CMS coupons.
+    # True when cms_swap_rate is populated for a CMS coupon.
     # SwapLegFlow
-    def CmsSwapRate(self):
+    def HasCmsSwapRate(self):
         o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
         if o != 0:
+            return bool(self._tab.Get(flatbuffers.number_types.BoolFlags, o + self._tab.Pos))
+        return False
+
+    # CMS swap-rate fixing when has_cms_swap_rate is true.
+    # SwapLegFlow
+    def CmsSwapRate(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
-        return None
+        return 0.0
 
     # SwapLegFlow
     def Spread(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(26))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
@@ -117,13 +125,13 @@ class SwapLegFlow(object):
     # Coupon rate: fixed-leg rate or effective floating coupon rate.
     # SwapLegFlow
     def Rate(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(28))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(30))
         if o != 0:
             return self._tab.Get(flatbuffers.number_types.Float64Flags, o + self._tab.Pos)
         return 0.0
 
 def SwapLegFlowStart(builder):
-    builder.StartObject(13)
+    builder.StartObject(14)
 
 def Start(builder):
     SwapLegFlowStart(builder)
@@ -188,20 +196,26 @@ def SwapLegFlowAddIndexFixing(builder, indexFixing):
 def AddIndexFixing(builder, indexFixing):
     SwapLegFlowAddIndexFixing(builder, indexFixing)
 
+def SwapLegFlowAddHasCmsSwapRate(builder, hasCmsSwapRate):
+    builder.PrependBoolSlot(10, hasCmsSwapRate, 0)
+
+def AddHasCmsSwapRate(builder, hasCmsSwapRate):
+    SwapLegFlowAddHasCmsSwapRate(builder, hasCmsSwapRate)
+
 def SwapLegFlowAddCmsSwapRate(builder, cmsSwapRate):
-    builder.PrependFloat64Slot(10, cmsSwapRate, None)
+    builder.PrependFloat64Slot(11, cmsSwapRate, 0.0)
 
 def AddCmsSwapRate(builder, cmsSwapRate):
     SwapLegFlowAddCmsSwapRate(builder, cmsSwapRate)
 
 def SwapLegFlowAddSpread(builder, spread):
-    builder.PrependFloat64Slot(11, spread, 0.0)
+    builder.PrependFloat64Slot(12, spread, 0.0)
 
 def AddSpread(builder, spread):
     SwapLegFlowAddSpread(builder, spread)
 
 def SwapLegFlowAddRate(builder, rate):
-    builder.PrependFloat64Slot(12, rate, 0.0)
+    builder.PrependFloat64Slot(13, rate, 0.0)
 
 def AddRate(builder, rate):
     SwapLegFlowAddRate(builder, rate)
@@ -227,7 +241,8 @@ class SwapLegFlowT(object):
         self.presentValue = 0.0  # type: float
         self.fixingDate = None  # type: str
         self.indexFixing = 0.0  # type: float
-        self.cmsSwapRate = None  # type: Optional[float]
+        self.hasCmsSwapRate = False  # type: bool
+        self.cmsSwapRate = 0.0  # type: float
         self.spread = 0.0  # type: float
         self.rate = 0.0  # type: float
 
@@ -262,6 +277,7 @@ class SwapLegFlowT(object):
         self.presentValue = swapLegFlow.PresentValue()
         self.fixingDate = swapLegFlow.FixingDate()
         self.indexFixing = swapLegFlow.IndexFixing()
+        self.hasCmsSwapRate = swapLegFlow.HasCmsSwapRate()
         self.cmsSwapRate = swapLegFlow.CmsSwapRate()
         self.spread = swapLegFlow.Spread()
         self.rate = swapLegFlow.Rate()
@@ -291,6 +307,7 @@ class SwapLegFlowT(object):
         if self.fixingDate is not None:
             SwapLegFlowAddFixingDate(builder, fixingDate)
         SwapLegFlowAddIndexFixing(builder, self.indexFixing)
+        SwapLegFlowAddHasCmsSwapRate(builder, self.hasCmsSwapRate)
         SwapLegFlowAddCmsSwapRate(builder, self.cmsSwapRate)
         SwapLegFlowAddSpread(builder, self.spread)
         SwapLegFlowAddRate(builder, self.rate)

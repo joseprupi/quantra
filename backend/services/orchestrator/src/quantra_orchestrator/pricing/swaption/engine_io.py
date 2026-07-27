@@ -364,6 +364,9 @@ def _build_swap_schedule(
     sched.convention = BusinessDayConvention.ModifiedFollowing
     sched.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
     sched.dateGenerationRule = DateGenerationRule.Forward
+    # Presence-required since engine 0.5.0 (#118); False == the engine-0.2.0
+    # default this schedule always priced with.
+    sched.endOfMonth = False
     return sched
 
 
