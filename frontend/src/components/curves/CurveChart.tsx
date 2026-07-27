@@ -1,14 +1,17 @@
 // Curve visualization component using SVG
 // Shows both input points and bootstrapped curve from API
 import { useMemo } from 'react';
-import { CurvePoint } from '../../lib/types';
+import { AnyCurvePoint, isValueCurvePoint } from '../../lib/types';
+import { pillarDate, pillarLabel, pointValue } from '../../lib/valueCurves';
 import { BootstrapCurveResult } from '../../lib/quantra-types';
 
 interface CurveChartProps {
-  points: CurvePoint[];
+  points: AnyCurvePoint[];
   bootstrapResult?: BootstrapCurveResult | null;
   height?: number;
   showMeasure?: 'ZERO' | 'FWD' | 'DF';
+  /** Curve reference date — anchors tenor pillars of VALUE points. */
+  referenceDate?: string;
 }
 
 interface PlotPoint {
@@ -18,8 +21,21 @@ interface PlotPoint {
   type: string;
 }
 
+// The value-point family a chart measure displays: only markers whose
+// quantity MATCHES the selected measure are meaningful (a DF marker on a
+// zero-rate axis would just distort the scale).
+const MEASURE_VALUE_POINT: Record<'ZERO' | 'FWD' | 'DF', string> = {
+  ZERO: 'ZeroRatePoint',
+  FWD: 'ForwardRatePoint',
+  DF: 'DiscountFactorPoint',
+};
+
 // Convert curve input points to plottable data
-function getInputPoints(points: CurvePoint[]): PlotPoint[] {
+function getInputPoints(
+  points: AnyCurvePoint[],
+  showMeasure: 'ZERO' | 'FWD' | 'DF',
+  referenceDate?: string,
+): PlotPoint[] {
   const result: PlotPoint[] = [];
   for (const p of points) {
     // A malformed / foreign-shaped point (e.g. a curve written through the
@@ -29,7 +45,20 @@ function getInputPoints(points: CurvePoint[]): PlotPoint[] {
       let tenorLabel: string;
       let rate: number;
 
-      if (p.point_type === 'DepositHelper') {
+      if (isValueCurvePoint(p)) {
+        // Value points: plot the given values only on the matching measure
+        // (raw for DFs, percent for zero / forward rates). Quote-referenced
+        // rows have no client-side value — the preview grid shows them.
+        if (p.point_type !== MEASURE_VALUE_POINT[showMeasure]) continue;
+        const value = pointValue(p);
+        if (value === undefined) continue;
+        const ref = referenceDate ? new Date(`${referenceDate}T00:00:00Z`) : new Date();
+        const pillar = pillarDate(p, referenceDate || new Date().toISOString().slice(0, 10));
+        if (!pillar) continue;
+        tenor = (pillar.getTime() - ref.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        tenorLabel = pillarLabel(p);
+        rate = showMeasure === 'DF' ? value : value * 100;
+      } else if (p.point_type === 'DepositHelper') {
         const { tenor_number, tenor_time_unit } = p.point;
         tenorLabel = `${tenor_number}${tenor_time_unit[0]}`;
         tenor = convertToYears(tenor_number, tenor_time_unit);
@@ -122,13 +151,18 @@ function convertToYears(value: number, unit: string): number {
   }
 }
 
-export default function CurveChart({ 
-  points, 
-  bootstrapResult, 
+export default function CurveChart({
+  points,
+  bootstrapResult,
   height = 300,
-  showMeasure = 'ZERO'
+  showMeasure = 'ZERO',
+  referenceDate,
 }: CurveChartProps) {
-  const inputPoints = useMemo(() => getInputPoints(points), [points]);
+  const inputPoints = useMemo(
+    () => getInputPoints(points, showMeasure, referenceDate),
+    [points, showMeasure, referenceDate],
+  );
+  const hasValuePoints = useMemo(() => points.some(isValueCurvePoint), [points]);
   
   const bootstrappedCurve = useMemo(() => {
     if (!bootstrapResult || bootstrapResult.error) return [];
@@ -193,6 +227,10 @@ export default function CurveChart({
       case 'FRAHelper': return '#16a34a';
       case 'FutureHelper': return '#9333ea';
       case 'BondHelper': return '#ea580c';
+      case 'ZeroRatePoint':
+      case 'DiscountFactorPoint':
+      case 'ForwardRatePoint':
+        return '#8a6a2f';
       default: return '#737373';
     }
   };
@@ -216,26 +254,35 @@ export default function CurveChart({
               <span className="text-[#737373]">{measureLabels[showMeasure]}</span>
             </span>
           )}
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#8a6a2f]"></span>
-            <span className="text-[#737373]">Deposit</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#2563eb]"></span>
-            <span className="text-[#737373]">Swap</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#16a34a]"></span>
-            <span className="text-[#737373]">FRA</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#9333ea]"></span>
-            <span className="text-[#737373]">Future</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ea580c]"></span>
-            <span className="text-[#737373]">Bond</span>
-          </div>
+          {hasValuePoints ? (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#8a6a2f]"></span>
+              <span className="text-[#737373]">Given values</span>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#8a6a2f]"></span>
+                <span className="text-[#737373]">Deposit</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#2563eb]"></span>
+                <span className="text-[#737373]">Swap</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#16a34a]"></span>
+                <span className="text-[#737373]">FRA</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#9333ea]"></span>
+                <span className="text-[#737373]">Future</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#ea580c]"></span>
+                <span className="text-[#737373]">Bond</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
       
@@ -294,7 +341,11 @@ export default function CurveChart({
               stroke="white"
               strokeWidth={2}
             />
-            <title>{`${point.label}: ${point.y.toFixed(3)}%`}</title>
+            <title>
+              {point.type === 'DiscountFactorPoint'
+                ? `${point.label}: ${point.y.toFixed(4)}`
+                : `${point.label}: ${point.y.toFixed(3)}%`}
+            </title>
           </g>
         ))}
         

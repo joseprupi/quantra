@@ -5,7 +5,7 @@ import CurveSetSelector from '../../components/products/CurveSetSelector';
 import PricingTraceLink from '../../components/products/PricingTraceLink';
 import { collectIndexRefIds, Curve, IndexDef } from '../../lib/types';
 import { priceEquityOption } from '../../lib/api/equityOptionPricingService';
-import { normalizeCurveForApi, normalizeIndexDefForApi } from '../../lib/api-normalizers';
+import { curveBodyForApi, normalizeCurveForApi, normalizeIndexDefForApi } from '../../lib/api-normalizers';
 import { useAsOfDate } from '../../hooks/useAsOfDate';
 import { getVolSurfaces, VolSurfaceSpec } from '../../lib/storage/volSurfaces';
 import { useAuth } from '../../hooks/useAuth';
@@ -247,7 +247,7 @@ export default function EquityOptions() {
     if (curve.currency) out.currency = curve.currency;
     if (curve.day_counter) out.day_counter = curve.day_counter;
     if (curve.reference_date || asOfDate) out.reference_date = curve.reference_date || asOfDate;
-    out.body = { role };
+    out.body = curveBodyForApi(curve, role);
     return out;
   };
 

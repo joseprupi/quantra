@@ -15,7 +15,7 @@ import {
   type BondFloatingAppGraph,
 } from '../../lib/api/bondSaveGraph';
 import type { components } from '../../lib/api/_generated/orchestrator';
-import { normalizeCurveForApi } from '../../lib/api-normalizers';
+import { curveBodyForApi, normalizeCurveForApi } from '../../lib/api-normalizers';
 import { floatingBondStore, SavedFloatingRateBond, generateId } from '../../lib/storage/bonds';
 import { indexStore, storedToRateIndexDef } from '../../lib/storage/indices';
 import { useAsOfDate } from '../../hooks/useAsOfDate';
@@ -299,7 +299,7 @@ export default function FloatingRateBondPricer() {
     if (curve.currency) out.currency = curve.currency;
     if (curve.day_counter) out.day_counter = curve.day_counter;
     if (curve.reference_date || asOfDate) out.reference_date = curve.reference_date || asOfDate;
-    out.body = { role };
+    out.body = curveBodyForApi(curve, role);
     return out;
   };
 

@@ -34,7 +34,7 @@ import {
 import type { components } from '../../lib/api/_generated/orchestrator';
 import PricingErrorCard from '../../components/products/PricingErrorCard';
 import PricingTraceLink from '../../components/products/PricingTraceLink';
-import { normalizeCurveForApi, normalizeIndexDefForApi } from '../../lib/api-normalizers';
+import { curveBodyForApi, normalizeCurveForApi, normalizeIndexDefForApi } from '../../lib/api-normalizers';
 import { buildInflationCurveSpec, buildInflationIndexSpec } from '../../lib/inflation-curves';
 import { deriveInflationSwapName, getInflationSwapEntryById, saveInflationSwap, type InflationSwapRequest } from '../../lib/storage/inflationSwaps';
 import { buildSourceRefs } from '../../lib/storage/sourceRefs';
@@ -498,7 +498,7 @@ export default function InflationSwap() {
     if (curve.currency) out.currency = curve.currency;
     if (curve.day_counter) out.day_counter = curve.day_counter;
     if (curve.reference_date || asOfDate) out.reference_date = curve.reference_date || asOfDate;
-    out.body = { role };
+    out.body = curveBodyForApi(curve, role);
     return out;
   };
 

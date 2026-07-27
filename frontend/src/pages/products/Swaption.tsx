@@ -5,7 +5,7 @@ import CurveSetSelector from '../../components/products/CurveSetSelector';
 import PricingErrorCard from '../../components/products/PricingErrorCard';
 import PricingTraceLink from '../../components/products/PricingTraceLink';
 import IndexPicker from '../../components/curves/IndexPicker';
-import { Curve, CurvePoint, IndexDef, IndexRef, DAY_COUNTERS, CALENDARS, BUSINESS_DAY_CONVENTIONS, collectIndexRefIds } from '../../lib/types';
+import { AnyCurvePoint, Curve, IndexDef, IndexRef, DAY_COUNTERS, CALENDARS, BUSINESS_DAY_CONVENTIONS, collectIndexRefIds } from '../../lib/types';
 import type { PricingErrorInfo } from '../../lib/quantra-types';
 import { priceSwaption } from '../../lib/api/swaptionPricingService';
 import {
@@ -16,7 +16,7 @@ import {
   type CurveGraphInput,
 } from '../../lib/api/swaptionSaveGraph';
 import type { components } from '../../lib/api/_generated/orchestrator';
-import { normalizeCurveForApi, normalizeIndexDefForApi } from '../../lib/api-normalizers';
+import { curveBodyForApi, normalizeCurveForApi, normalizeIndexDefForApi } from '../../lib/api-normalizers';
 import { useAsOfDate } from '../../hooks/useAsOfDate';
 import { indexStore, storedToRateIndexDef } from '../../lib/storage/indices';
 import { getQuoteBook, getResolutionMode, resolveQuoteValue } from '../../lib/storage/quoteBook';
@@ -122,12 +122,12 @@ async function resolveIndexDefs(ids: string[]): Promise<IndexDef[]> {
   return result;
 }
 
-function collectIndexIdsFromCurves(curves: Array<{ points?: CurvePoint[] }>): string[] {
+function collectIndexIdsFromCurves(curves: Array<{ points?: AnyCurvePoint[] }>): string[] {
   const allPoints = curves.flatMap(c => c.points || []);
   return collectIndexRefIds(allPoints);
 }
 
-function collectQuoteIdsFromCurves(curves: Array<{ points?: CurvePoint[] }>): string[] {
+function collectQuoteIdsFromCurves(curves: Array<{ points?: AnyCurvePoint[] }>): string[] {
   const allPoints = curves.flatMap(c => c.points || []);
   return Array.from(new Set(allPoints.map(p => (p as any)?.point?.quote_id).filter(Boolean)));
 }
@@ -932,7 +932,7 @@ export default function Swaption() {
     if (curve.currency) out.currency = curve.currency;
     if (curve.day_counter) out.day_counter = curve.day_counter;
     if (curve.reference_date || asOfDate) out.reference_date = curve.reference_date || asOfDate;
-    out.body = { role };
+    out.body = curveBodyForApi(curve, role);
     return out;
   };
 

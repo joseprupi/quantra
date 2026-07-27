@@ -96,6 +96,7 @@ vi.mock('../../lib/storage/creditCurves', () => ({
 
 vi.mock('../../lib/api-normalizers', () => ({
   normalizeCdsQuoteForApi: vi.fn().mockImplementation((q: unknown) => q),
+  curveBodyForApi: vi.fn().mockImplementation(() => ({})),
   normalizeCurveForApi: vi.fn().mockImplementation((c: unknown) => c),
   normalizeIndexDefForApi: vi.fn().mockImplementation((d: unknown) => d),
 }));

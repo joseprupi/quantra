@@ -14,7 +14,7 @@ import {
   type BondFixedAppGraph,
 } from '../../lib/api/bondSaveGraph';
 import type { components } from '../../lib/api/_generated/orchestrator';
-import { normalizeCurveForApi } from '../../lib/api-normalizers';
+import { curveBodyForApi, normalizeCurveForApi } from '../../lib/api-normalizers';
 import { fixedBondStore, SavedFixedRateBond, generateId } from '../../lib/storage/bonds';
 import { useAsOfDate } from '../../hooks/useAsOfDate';
 import { indexStore, storedToRateIndexDef } from '../../lib/storage/indices';
@@ -295,8 +295,8 @@ export default function FixedRateBondPricer() {
   // Map a portal-shaped curve onto the orchestrator's inline CurveRef
   // (which forbids extra fields). Only the fields CurveRef accepts
   // (name/currency/day_counter/reference_date/points/body) appear here;
-  // interpolator + bootstrap_trait are dropped (not part of the wire
-  // contract). Points pass through normalizeCurvePointForApi so legacy
+  // interpolator + bootstrap_trait ride inside ``body`` (curveBodyForApi —
+  // the backend reads them from body.*). Points pass through normalizeCurvePointForApi so legacy
   // ``tenor_number``/``tenor_time_unit`` becomes ``tenor: {n, unit}``;
   // ``quote_id``s are forwarded unresolved.
   const toThinACurve = (curve: Curve, role: 'discount' = 'discount'): any => {
@@ -313,7 +313,7 @@ export default function FixedRateBondPricer() {
     if (curve.currency) out.currency = curve.currency;
     if (curve.day_counter) out.day_counter = curve.day_counter;
     if (curve.reference_date || asOfDate) out.reference_date = curve.reference_date || asOfDate;
-    out.body = { role };
+    out.body = curveBodyForApi(curve, role);
     return out;
   };
 

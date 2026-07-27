@@ -144,6 +144,68 @@ export async function fillYieldCurveForm(page: Page, opts: CurveOpts) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Value-based curves ("Interpolate given values" construction)
+// ---------------------------------------------------------------------------
+
+export interface ValueCurveOpts {
+  name: string
+  currency?: string
+  referenceDate?: string
+  /** Visible Quantity button label ('Zero rates' default). */
+  quantity?: 'Zero rates' | 'Discount factors' | 'Forward rates'
+  /** Two-column paste block applied through "Paste table…". */
+  pasteTable?: string
+}
+
+/**
+ * Fill the curve editor in "Interpolate given values" mode on
+ * /yield-curves/new. Does NOT save — callers preview and/or save explicitly.
+ */
+export async function fillValueCurveForm(page: Page, opts: ValueCurveOpts) {
+  await gotoReady(page, '/yield-curves/new')
+  await fieldFor(page, 'Curve Name *').fill(opts.name)
+  if (opts.currency) await fieldFor(page, 'Currency').selectOption(opts.currency)
+  if (opts.referenceDate) await fieldFor(page, 'Reference Date').fill(opts.referenceDate)
+  await page.getByRole('button', { name: 'Interpolate given values' }).click()
+  if (opts.quantity && opts.quantity !== 'Zero rates') {
+    await page.getByRole('button', { name: opts.quantity, exact: true }).click()
+  }
+  if (opts.pasteTable) {
+    await page.getByRole('button', { name: 'Paste table…' }).click()
+    await page.getByTestId('paste-table-input').fill(opts.pasteTable)
+    await page.getByRole('button', { name: 'Apply', exact: true }).click()
+  }
+}
+
+/**
+ * Click Preview on the values-mode curve editor and wait for the
+ * curve-preview exchange; returns status + body + the REQUEST body.
+ */
+export async function valueCurvePreview(
+  page: Page,
+): Promise<{ status: number; body: Record<string, unknown>; requestBody: Record<string, unknown> }> {
+  const respPromise = page.waitForResponse(
+    (r) => r.url().includes('/v1/curve-preview') && r.request().method() === 'POST',
+    { timeout: 60_000 },
+  )
+  await page.getByRole('button', { name: 'Preview', exact: true }).click()
+  const resp = await respPromise
+  let body: Record<string, unknown> = {}
+  try {
+    body = (await resp.json()) as Record<string, unknown>
+  } catch {
+    /* keep {} */
+  }
+  let requestBody: Record<string, unknown> = {}
+  try {
+    requestBody = resp.request().postDataJSON() as Record<string, unknown>
+  } catch {
+    /* keep {} */
+  }
+  return { status: resp.status(), body, requestBody }
+}
+
 /** Save the curve currently in the editor; lands back on the curve list. */
 export async function saveCurve(page: Page, expectedName: string, listPath = '/yield-curves') {
   await page.getByRole('button', { name: 'Save', exact: true }).click()
@@ -164,7 +226,8 @@ export async function bootstrapPreview(page: Page): Promise<Record<string, unkno
     (r) => r.url().includes('/v1/curve-preview') && r.request().method() === 'POST',
     { timeout: 60_000 },
   )
-  await page.getByRole('button', { name: 'Bootstrap' }).click()
+  // exact: the Construction toggle also carries a "Bootstrap …" label.
+  await page.getByRole('button', { name: 'Bootstrap', exact: true }).click()
   const resp = await respPromise
   let body: Record<string, unknown> = {}
   try {

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import CurveSetSelector from '../../components/products/CurveSetSelector';
 import IndexPicker from '../../components/curves/IndexPicker';
-import { Curve, CurvePoint, Frequency, IndexDef, IndexRef, DAY_COUNTERS, CALENDARS, BUSINESS_DAY_CONVENTIONS, FREQUENCIES, collectIndexRefIds } from '../../lib/types';
+import { AnyCurvePoint, Curve, Frequency, IndexDef, IndexRef, DAY_COUNTERS, CALENDARS, BUSINESS_DAY_CONVENTIONS, FREQUENCIES, collectIndexRefIds } from '../../lib/types';
 import { frequencyFromIndexDef } from '../../lib/frequencyFromTenor';
 import type { PricingErrorInfo } from '../../lib/quantra-types';
 import { priceIrSwap } from '../../lib/api/irSwapPricingService';
@@ -17,7 +17,7 @@ import {
 } from '../../lib/api/irSwapSaveGraph';
 import PricingErrorCard from '../../components/products/PricingErrorCard';
 import PricingTraceLink from '../../components/products/PricingTraceLink';
-import { normalizeCurveForApi, normalizeIndexDefForApi } from '../../lib/api-normalizers';
+import { curveBodyForApi, normalizeCurveForApi, normalizeIndexDefForApi } from '../../lib/api-normalizers';
 import { useAsOfDate } from '../../hooks/useAsOfDate';
 import { buildPricingQuoteSnapshotWithBackend } from '../../lib/marketDataBackend';
 import { indexStore, storedToRateIndexDef } from '../../lib/storage/indices';
@@ -198,7 +198,7 @@ function isLikelyOvernightIndex(spec: any): boolean {
   return Boolean(spec?.overnight_name);
 }
 
-function collectIndexIdsFromCurves(curves: Array<{ points?: CurvePoint[] }>): string[] {
+function collectIndexIdsFromCurves(curves: Array<{ points?: AnyCurvePoint[] }>): string[] {
   const allPoints = curves.flatMap(c => c.points || []);
   return collectIndexRefIds(allPoints);
 }
@@ -728,7 +728,9 @@ export default function IrSwap() {
   // CurveRef. Strict ``extra="forbid"``: only the fields
   // CurveRef accepts (id/name/currency/day_counter/helper_kind/
   // reference_date/points/body) may appear. Interpolator + bootstrap
-  // trait are not part of the wire contract and are dropped here.
+  // trait ride inside ``body`` (curveBodyForApi) — the backend reads them
+  // from ``body.*`` and silently defaults to LogLinear/Discount otherwise,
+  // which breaks value-based (Interpolated*) curves.
   // Points pass through normalizeCurvePointForApi so legacy
   // ``tenor_number``/``tenor_time_unit`` becomes the canonical
   // ``tenor: {n, unit}`` shape the backend reads; quote IDs are forwarded
@@ -742,7 +744,8 @@ export default function IrSwap() {
     if (curve.currency) out.currency = curve.currency;
     if (curve.day_counter) out.day_counter = curve.day_counter;
     if (curve.reference_date) out.reference_date = curve.reference_date;
-    if (role) out.body = { role };
+    const body = curveBodyForApi(curve, role);
+    if (Object.keys(body).length > 0) out.body = body;
     return out;
   };
 

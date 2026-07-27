@@ -92,6 +92,7 @@ vi.mock('../../lib/storage/volSurfaces', () => ({
 }));
 
 vi.mock('../../lib/api-normalizers', () => ({
+  curveBodyForApi: vi.fn().mockImplementation(() => ({})),
   normalizeCurveForApi: vi.fn().mockImplementation((c: unknown) => c),
   normalizeIndexDefForApi: vi.fn().mockImplementation((d: unknown) => d),
 }));

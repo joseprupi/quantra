@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import CurveSetSelector from '../../components/products/CurveSetSelector';
-import { BUSINESS_DAY_CONVENTIONS, CALENDARS, collectIndexRefIds, Curve, CurvePoint, DATE_GENERATION_RULES, DAY_COUNTERS, FREQUENCIES, IndexDef, TIME_UNITS, TimeUnit } from '../../lib/types';
+import { AnyCurvePoint, BUSINESS_DAY_CONVENTIONS, CALENDARS, collectIndexRefIds, Curve, DATE_GENERATION_RULES, DAY_COUNTERS, FREQUENCIES, IndexDef, TIME_UNITS, TimeUnit } from '../../lib/types';
 import type { PricingErrorInfo } from '../../lib/quantra-types';
 import { priceCds } from '../../lib/api/cdsPricingService';
 import {
@@ -15,7 +15,7 @@ import {
 import type { components } from '../../lib/api/_generated/orchestrator';
 import PricingErrorCard from '../../components/products/PricingErrorCard';
 import PricingTraceLink from '../../components/products/PricingTraceLink';
-import { normalizeCdsQuoteForApi, normalizeCurveForApi, normalizeIndexDefForApi } from '../../lib/api-normalizers';
+import { curveBodyForApi, normalizeCdsQuoteForApi, normalizeCurveForApi, normalizeIndexDefForApi } from '../../lib/api-normalizers';
 import { useAsOfDate } from '../../hooks/useAsOfDate';
 import { getQuoteBook } from '../../lib/storage/quoteBook';
 import { buildPricingQuoteSnapshotWithBackend } from '../../lib/marketDataBackend';
@@ -85,7 +85,7 @@ async function resolveIndexDefs(ids: string[]): Promise<IndexDef[]> {
   return result;
 }
 
-function collectIndexIdsFromCurves(curves: Array<{ points?: CurvePoint[] }>): string[] {
+function collectIndexIdsFromCurves(curves: Array<{ points?: AnyCurvePoint[] }>): string[] {
   const allPoints = curves.flatMap(c => c.points || []);
   return collectIndexRefIds(allPoints);
 }
@@ -271,7 +271,7 @@ export default function Cds() {
     if (curve.currency) out.currency = curve.currency;
     if (curve.day_counter) out.day_counter = curve.day_counter;
     if (curve.reference_date) out.reference_date = curve.reference_date;
-    out.body = { role };
+    out.body = curveBodyForApi(curve, role);
     return out;
   };
 

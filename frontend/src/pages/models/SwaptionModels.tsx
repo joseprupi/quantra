@@ -3,7 +3,7 @@ import Header from '../../components/Header';
 import CurveSetSelector from '../../components/products/CurveSetSelector';
 import IndexPicker from '../../components/curves/IndexPicker';
 import { useAsOfDate } from '../../hooks/useAsOfDate';
-import { Curve, CurvePoint, IndexDef, IndexRef, Period, collectIndexRefIds } from '../../lib/types';
+import { AnyCurvePoint, Curve, IndexDef, IndexRef, Period, collectIndexRefIds } from '../../lib/types';
 import { normalizeCurveForApi, normalizeIndexDefForApi } from '../../lib/api-normalizers';
 import { orchestratorPost } from '../../lib/api/orchestrator';
 import type { CalibrateSwaptionModelResult } from '../../lib/quantra-types';
@@ -25,12 +25,12 @@ import {
 import { DuplicateIcon, ExportIcon, ImportIcon, listStyles, NewIcon, TrashButton } from '../../components/lists/listStyles';
 import { formStyles } from '../../components/ui/formStyles';
 
-function collectIndexIdsFromCurves(curves: Array<{ points?: CurvePoint[] }>): string[] {
+function collectIndexIdsFromCurves(curves: Array<{ points?: AnyCurvePoint[] }>): string[] {
   const allPoints = curves.flatMap((c) => c.points || []);
   return collectIndexRefIds(allPoints);
 }
 
-function collectQuoteIdsFromCurves(curves: Array<{ points?: CurvePoint[] }>): string[] {
+function collectQuoteIdsFromCurves(curves: Array<{ points?: AnyCurvePoint[] }>): string[] {
   const ids = new Set<string>();
   for (const curve of curves) {
     for (const point of curve.points || []) {
@@ -58,7 +58,7 @@ function periodLikeToYears(value: any): number {
   return NaN;
 }
 
-function estimateCurveMaxYears(curves: Array<{ points?: CurvePoint[] }>): number {
+function estimateCurveMaxYears(curves: Array<{ points?: AnyCurvePoint[] }>): number {
   let maxYears = 0;
   for (const curve of curves) {
     for (const wrapper of curve.points || []) {

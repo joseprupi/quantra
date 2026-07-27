@@ -36,6 +36,8 @@ export type Calendar =
 
 export type TimeUnit = 'Days' | 'Hours' | 'Microseconds' | 'Milliseconds' | 'Minutes' | 'Months' | 'Seconds' | 'Weeks' | 'Years';
 
+export type Compounding = 'Compounded' | 'Continuous' | 'Simple' | 'SimpleThenCompounded';
+
 export type Frequency =
   | 'Annual' | 'Bimonthly' | 'Biweekly' | 'Daily'
   | 'EveryFourthMonth' | 'EveryFourthWeek' | 'Monthly'
@@ -254,6 +256,69 @@ export type CurvePoint = DepositHelper | SwapHelper | FRAHelper | FutureHelper |
 export type PointType = CurvePoint['point_type'];
 
 // ============================================================================
+// Value-based curve points (engine 0.5.0 Interpolated* families)
+// ============================================================================
+// A value curve carries explicit numbers (zero rates / discount factors /
+// forward rates) at pillars instead of bootstrappable instruments. The pillar
+// is EITHER an explicit ISO `date` or a tenor from the curve reference date
+// (stored flat as `tenor_number`/`tenor_time_unit`, normalized to the nested
+// wire `tenor` by `normalizeCurvePointForApi`, same as helper points).
+// Exactly one of the inline value | `quote_id` per point (backend 422
+// `ambiguous_value_source` / `missing_value_source` otherwise).
+
+interface ValuePointBase {
+  /** Explicit pillar date (ISO). Wins over the tenor when both are set. */
+  date?: string;
+  tenor_number?: number;
+  tenor_time_unit?: TimeUnit;
+  /** MD catalog reference — resolved server-side, never sent to the engine. */
+  quote_id?: string;
+}
+
+export interface ZeroRatePoint {
+  point_type: 'ZeroRatePoint';
+  point: ValuePointBase & {
+    /** Decimal zero rate (0.025 = 2.5%). */
+    zero_rate?: number;
+    /** One quoting convention for the WHOLE curve (backend enforces uniformity). */
+    compounding?: Compounding;
+    frequency?: Frequency;
+  };
+}
+
+export interface DiscountFactorPoint {
+  point_type: 'DiscountFactorPoint';
+  point: ValuePointBase & {
+    /** Raw discount factor in (0, 1]; the first pillar must be 1.0 at the reference date. */
+    discount_factor?: number;
+  };
+}
+
+export interface ForwardRatePoint {
+  point_type: 'ForwardRatePoint';
+  point: ValuePointBase & {
+    /** Decimal instantaneous forward rate. */
+    forward_rate?: number;
+  };
+}
+
+export type ValueCurvePoint = ZeroRatePoint | DiscountFactorPoint | ForwardRatePoint;
+export type ValuePointType = ValueCurvePoint['point_type'];
+
+/** Any point a curve row may carry: a rate helper OR a value point. */
+export type AnyCurvePoint = CurvePoint | ValueCurvePoint;
+
+export const VALUE_POINT_TYPES: ValuePointType[] = [
+  'ZeroRatePoint',
+  'DiscountFactorPoint',
+  'ForwardRatePoint',
+];
+
+export function isValueCurvePoint(point: AnyCurvePoint): point is ValueCurvePoint {
+  return (VALUE_POINT_TYPES as string[]).includes(point.point_type);
+}
+
+// ============================================================================
 // Curve Definition
 // ============================================================================
 
@@ -267,7 +332,7 @@ export interface Curve {
   interpolator: Interpolator;
   bootstrap_trait: BootstrapTrait;
   reference_date: string;
-  points: CurvePoint[];
+  points: AnyCurvePoint[];
   discount_curve_id?: string;
   inflation_curve?: InflationCurveConfig;
   createdAt: string;
@@ -505,6 +570,23 @@ export const BOOTSTRAP_TRAITS: BootstrapTrait[] = [
   'Discount', 'ZeroRate', 'FwdRate', 'InterpolatedDiscount', 'InterpolatedZero', 'InterpolatedFwd',
 ];
 
+/** Traits available in "Bootstrap from instruments" mode (the Interpolated*
+ * entries were dead there — they belong to the values construction mode). */
+export const HELPER_BOOTSTRAP_TRAITS: BootstrapTrait[] = ['Discount', 'ZeroRate', 'FwdRate'];
+
+/** Traits that mean "Interpolate given values" (value-based construction). */
+export const VALUE_BOOTSTRAP_TRAITS: BootstrapTrait[] = [
+  'InterpolatedZero', 'InterpolatedDiscount', 'InterpolatedFwd',
+];
+
+export function isValueBootstrapTrait(trait: string | undefined): boolean {
+  return !!trait && (VALUE_BOOTSTRAP_TRAITS as string[]).includes(trait);
+}
+
+export const COMPOUNDINGS: Compounding[] = [
+  'Continuous', 'Simple', 'Compounded', 'SimpleThenCompounded',
+];
+
 export const BUSINESS_DAY_CONVENTIONS: BusinessDayConvention[] = [
   'Following', 'ModifiedFollowing', 'Preceding', 'Unadjusted',
   'HalfMonthModifiedFollowing', 'ModifiedPreceding', 'Nearest',
@@ -545,16 +627,16 @@ export const CURVE_ROLES: { value: CurveRole; label: string; description: string
 // Helpers
 // ============================================================================
 
-export function getPointRate(point: CurvePoint, quotes: QuoteSpec[]): number | null {
+export function getPointRate(point: AnyCurvePoint, quotes: QuoteSpec[]): number | null {
   const p = point.point as any;
   if (p.quote_id) {
     const q = quotes.find(q => q.id === p.quote_id);
     return q ? q.value : null;
   }
-  return p.rate ?? p.price ?? null;
+  return p.rate ?? p.price ?? p.zero_rate ?? p.discount_factor ?? p.forward_rate ?? null;
 }
 
-export function getPointTenorLabel(point: CurvePoint): string {
+export function getPointTenorLabel(point: AnyCurvePoint): string {
   const p = point.point as any;
   switch (point.point_type) {
     case 'DepositHelper': return `${p.tenor_number}${(p.tenor_time_unit || '')[0] || ''}`;
@@ -564,12 +646,16 @@ export function getPointTenorLabel(point: CurvePoint): string {
     case 'BondHelper': return 'Bond';
     case 'OISHelper': return `${p.tenor_number}${(p.tenor_time_unit || '')[0] || ''} OIS`;
     case 'DatedOISHelper': return `Dated OIS`;
+    case 'ZeroRatePoint':
+    case 'DiscountFactorPoint':
+    case 'ForwardRatePoint':
+      return p.date || `${p.tenor_number ?? '?'}${(p.tenor_time_unit || '')[0] || ''}`;
     default: return '?';
   }
 }
 
 /** Get the index ref id from a curve point (SwapHelper→float_index, OIS→overnight_index) */
-export function getPointIndexRefId(point: CurvePoint): string | undefined {
+export function getPointIndexRefId(point: AnyCurvePoint): string | undefined {
   const p = point.point as any;
   // SwapHelper uses float_index
   if (p.float_index?.id) return p.float_index.id;
@@ -579,7 +665,7 @@ export function getPointIndexRefId(point: CurvePoint): string | undefined {
 }
 
 /** Collect all unique index_ref IDs from a list of curve points */
-export function collectIndexRefIds(points: CurvePoint[]): string[] {
+export function collectIndexRefIds(points: AnyCurvePoint[]): string[] {
   const ids = new Set<string>();
   for (const pt of points) {
     const id = getPointIndexRefId(pt);

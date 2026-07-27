@@ -1,5 +1,5 @@
 // Curve Builder page - create, edit, and bootstrap yield curves
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Header from '../../components/Header';
 import CurveChart from '../../components/curves/CurveChart';
@@ -13,21 +13,42 @@ import BackLink from '../../components/ui/BackLink';
 import PageHeader from '../../components/ui/PageHeader';
 import { entityUi, getBackLabel } from '../../components/ui/entityUi';
 import { formStyles } from '../../components/ui/formStyles';
+import ValuePointsTable from '../../components/curves/ValuePointsTable';
 import {
+  AnyCurvePoint,
+  Compounding,
   Curve,
   CurvePoint,
   CurveRole,
+  Frequency,
   IndexDef,
+  ValueCurvePoint,
   DAY_COUNTERS,
   INTERPOLATORS,
-  BOOTSTRAP_TRAITS,
+  HELPER_BOOTSTRAP_TRAITS,
+  COMPOUNDINGS,
+  FREQUENCIES,
   CURRENCIES,
   CALENDARS,
   BUSINESS_DAY_CONVENTIONS,
   TIME_UNITS,
   CURVE_ROLES,
   collectIndexRefIds,
+  isValueBootstrapTrait,
+  isValueCurvePoint,
 } from '../../lib/types';
+import {
+  ValueQuantity,
+  VALUE_QUANTITIES,
+  convertValuePoints,
+  mapServerErrorToRows,
+  pinnedDfPoint,
+  pointValue,
+  quantityForTrait,
+  quantitySpec,
+  stampZeroConventions,
+  validateValuePoints,
+} from '../../lib/valueCurves';
 import {
   saveCurve,
   getCurveById,
@@ -53,7 +74,7 @@ function curveListPathForRole(role: CurveRole) {
   return role === 'inflation' ? '/inflation-curves' : '/yield-curves';
 }
 
-async function resolveIndexDefsFromCurve(points: CurvePoint[]): Promise<IndexDef[]> {
+async function resolveIndexDefsFromCurve(points: AnyCurvePoint[]): Promise<IndexDef[]> {
   const ids = collectIndexRefIds(points || []);
   if (ids.length === 0) return [];
 
@@ -102,8 +123,21 @@ export default function CurveBuilder() {
   );
   const [availableDiscountCurves, setAvailableDiscountCurves] = useState<Curve[]>([]);
   
-  // Curve points
+  // Curve points (bootstrap construction: rate helpers)
   const [points, setPoints] = useState<CurvePoint[]>([]);
+
+  // Values construction ("Interpolate given values", engine Interpolated*)
+  const [construction, setConstruction] = useState<'bootstrap' | 'values'>('bootstrap');
+  const [valueQuantity, setValueQuantity] = useState<ValueQuantity>('zero');
+  const [valuePoints, setValuePoints] = useState<ValueCurvePoint[]>([]);
+  const [pillarStyle, setPillarStyle] = useState<'tenor' | 'date'>('tenor');
+  const [zeroCompounding, setZeroCompounding] = useState<Compounding>('Continuous');
+  const [zeroFrequency, setZeroFrequency] = useState<Frequency>('Annual');
+  const [serverRowErrors, setServerRowErrors] = useState<Map<number, string>>(new Map());
+  const isValuesMode = construction === 'values' && role !== 'inflation';
+  const valueSpec = quantitySpec(valueQuantity);
+  /** The trait actually persisted / sent: quantity-derived in values mode. */
+  const activeTrait = isValuesMode ? valueSpec.trait : bootstrapTrait;
   
   // Grid options
   const [gridType, setGridType] = useState<GridType>('tenor');
@@ -171,10 +205,45 @@ export default function CurveBuilder() {
         setDiscountCurveId(curve.discount_curve_id || '');
         setDayCounter(curve.day_counter);
         setInterpolator(curve.interpolator);
-        setBootstrapTrait(curve.bootstrap_trait);
         setInflationCurve(curve.inflation_curve || cloneDefaultInflationCurve(curve.currency));
         setReferenceDate(curve.reference_date);
-        setPoints(curve.points);
+
+        // Split the stored points into the two construction families. A
+        // value curve (Interpolated* trait and/or value points) opens in
+        // "Interpolate given values"; anything else opens in bootstrap mode.
+        // (Legacy rows could carry an Interpolated* trait over HELPER points —
+        // that combination was dead; it opens as a Discount bootstrap curve.)
+        const storedValuePoints = (curve.points || []).filter(isValueCurvePoint);
+        const storedHelperPoints = (curve.points || []).filter(
+          (p): p is CurvePoint => !isValueCurvePoint(p),
+        );
+        const storedQuantity = quantityForTrait(curve.bootstrap_trait);
+        if (storedValuePoints.length > 0 || (storedQuantity && storedHelperPoints.length === 0)) {
+          const quantity: ValueQuantity =
+            storedQuantity?.quantity ??
+            (storedValuePoints[0]?.point_type === 'DiscountFactorPoint'
+              ? 'df'
+              : storedValuePoints[0]?.point_type === 'ForwardRatePoint'
+                ? 'fwd'
+                : 'zero');
+          setConstruction('values');
+          setValueQuantity(quantity);
+          setValuePoints(storedValuePoints);
+          setPillarStyle(storedValuePoints.some(p => p.point.date && !p.point.tenor_number) &&
+            !storedValuePoints.some(p => p.point.tenor_number !== undefined) ? 'date' : 'tenor');
+          const firstZero = storedValuePoints.find(p => p.point_type === 'ZeroRatePoint');
+          if (firstZero?.point_type === 'ZeroRatePoint') {
+            if (firstZero.point.compounding) setZeroCompounding(firstZero.point.compounding);
+            if (firstZero.point.frequency) setZeroFrequency(firstZero.point.frequency);
+          }
+          setBootstrapTrait('Discount');
+        } else {
+          setConstruction('bootstrap');
+          setBootstrapTrait(
+            isValueBootstrapTrait(curve.bootstrap_trait) ? 'Discount' : curve.bootstrap_trait,
+          );
+          setPoints(storedHelperPoints);
+        }
       } else {
         setError('Curve not found');
       }
@@ -211,7 +280,63 @@ export default function CurveBuilder() {
   // Clear bootstrap result when points change
   useEffect(() => {
     setBootstrapResult(null);
-  }, [points, inflationCurve, dayCounter, interpolator, bootstrapTrait, referenceDate, role]);
+  }, [points, valuePoints, construction, valueQuantity, zeroCompounding, zeroFrequency, inflationCurve, dayCounter, interpolator, bootstrapTrait, referenceDate, role]);
+
+  // Server-mapped row errors are for the LAST preview attempt only.
+  useEffect(() => {
+    setServerRowErrors(new Map());
+  }, [valuePoints, valueQuantity, referenceDate]);
+
+  // DF curves start at 1.0 ON the reference date — keep the pinned first row
+  // in sync when the reference date moves.
+  useEffect(() => {
+    if (construction !== 'values' || valueQuantity !== 'df') return;
+    setValuePoints(prev => {
+      if (prev.length === 0) return prev;
+      const first = prev[0];
+      const pinnedShape =
+        !first.point.quote_id && pointValue(first) === 1.0 && !!first.point.date;
+      if (pinnedShape && first.point.date !== referenceDate) {
+        return [pinnedDfPoint(referenceDate), ...prev.slice(1)];
+      }
+      return prev;
+    });
+  }, [construction, valueQuantity, referenceDate]);
+
+  /** Points as persisted / sent in values mode: zero conventions stamped on. */
+  const effectiveValuePoints = useMemo(() => {
+    if (valueQuantity === 'zero') {
+      return stampZeroConventions(valuePoints, zeroCompounding, zeroFrequency);
+    }
+    return valuePoints;
+  }, [valuePoints, valueQuantity, zeroCompounding, zeroFrequency]);
+
+  // Client-side validation mirrors the backend's 422 rules; merged with any
+  // rows the last server 422 mapped onto.
+  const valueValidation = useMemo(
+    () => validateValuePoints(effectiveValuePoints, valueQuantity, referenceDate),
+    [effectiveValuePoints, valueQuantity, referenceDate],
+  );
+  const valueRowErrors = useMemo(() => {
+    const merged = new Map(valueValidation.rowErrors);
+    serverRowErrors.forEach((msg, i) => {
+      if (!merged.has(i)) merged.set(i, msg);
+    });
+    return merged;
+  }, [valueValidation, serverRowErrors]);
+
+  const handleQuantityChange = (next: ValueQuantity) => {
+    if (next === valueQuantity) return;
+    setValuePoints(prev => convertValuePoints(prev, valueQuantity, next, referenceDate));
+    setValueQuantity(next);
+  };
+
+  const handleConstructionChange = (next: 'bootstrap' | 'values') => {
+    setConstruction(next);
+    if (next === 'values' && valueQuantity === 'df' && valuePoints.length === 0) {
+      setValuePoints([pinnedDfPoint(referenceDate)]);
+    }
+  };
 
   useEffect(() => {
     setShowPointEditor(false);
@@ -343,6 +468,15 @@ export default function CurveBuilder() {
         setError('Add at least one inflation helper to bootstrap');
         return;
       }
+    } else if (isValuesMode) {
+      if (valuePoints.length === 0) {
+        setError('Add at least one point to preview');
+        return;
+      }
+      if (!valueValidation.ok) {
+        setError('Fix the highlighted rows before previewing.');
+        return;
+      }
     } else if (points.length === 0) {
       setError('Add at least one curve point to bootstrap');
       return;
@@ -450,9 +584,10 @@ export default function CurveBuilder() {
         return;
       }
 
-      const resolvedIndices = await resolveIndexDefsFromCurve(points);
-      const referencedIds = collectIndexRefIds(points);
-      if (referencedIds.length > 0 && resolvedIndices.length === 0) {
+      const activePoints: AnyCurvePoint[] = isValuesMode ? effectiveValuePoints : points;
+      const resolvedIndices = isValuesMode ? [] : await resolveIndexDefsFromCurve(activePoints);
+      const referencedIds = collectIndexRefIds(activePoints);
+      if (referencedIds.length > 0 && resolvedIndices.length === 0 && !isValuesMode) {
         setError('This curve references indices that are not available. Add them in Market Data -> Indices.');
         setBootstrapping(false);
         return;
@@ -464,11 +599,11 @@ export default function CurveBuilder() {
         id: curveId,
         day_counter: dayCounter,
         interpolator: interpolator,
-        bootstrap_trait: bootstrapTrait,
+        bootstrap_trait: activeTrait,
         reference_date: referenceDate,
-        points: points,
+        points: activePoints,
       } as any);
-      
+
       const request = {
         pricing: {
           as_of_date: referenceDate,
@@ -480,7 +615,7 @@ export default function CurveBuilder() {
           ...buildQuery(),
         }],
       };
-      
+
       const result = await orchestratorPost<{ results: BootstrapCurveResult[] }>(
         '/v1/curve-preview',
         request,
@@ -495,9 +630,19 @@ export default function CurveBuilder() {
         }
       } else {
         // Error envelope: quote misses / translation problems arrive as
-        // actionable 422 details from the orchestrator.
+        // actionable 422 details from the orchestrator. In values mode, map
+        // them onto table rows (unresolved quote ids, per-point rules).
         setError(result.ok ? 'Bootstrap returned no results' : result.envelope.error);
         setLastRequest(null);
+        if (!result.ok && isValuesMode) {
+          setServerRowErrors(
+            mapServerErrorToRows(
+              result.envelope.error,
+              result.envelope.details,
+              effectiveValuePoints,
+            ),
+          );
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Bootstrap failed');
@@ -562,14 +707,21 @@ export default function CurveBuilder() {
       return;
     }
     
-    if (isInflationCurve ? inflationCurve.points.length === 0 : points.length === 0) {
-      setError(isInflationCurve ? 'Please add at least one inflation helper' : 'Please add at least one curve point');
+    const activePoints: AnyCurvePoint[] = isValuesMode ? effectiveValuePoints : points;
+    if (isInflationCurve ? inflationCurve.points.length === 0 : activePoints.length === 0) {
+      setError(
+        isInflationCurve
+          ? 'Please add at least one inflation helper'
+          : isValuesMode
+            ? 'Please add at least one point'
+            : 'Please add at least one curve point',
+      );
       return;
     }
-    
+
     setSaving(true);
     setError(null);
-    
+
     try {
       const curve: Curve = {
         id: id || generateId(),
@@ -580,9 +732,9 @@ export default function CurveBuilder() {
         discount_curve_id: discountCurveId || undefined,
         day_counter: dayCounter as Curve['day_counter'],
         interpolator: interpolator as Curve['interpolator'],
-        bootstrap_trait: bootstrapTrait as Curve['bootstrap_trait'],
+        bootstrap_trait: activeTrait as Curve['bootstrap_trait'],
         reference_date: referenceDate,
-        points: isInflationCurve ? [] : points,
+        points: isInflationCurve ? [] : activePoints,
         inflation_curve: isInflationCurve
           ? {
               ...inflationCurve,
@@ -603,11 +755,12 @@ export default function CurveBuilder() {
   };
   
   const handleExport = () => {
-    if (isInflationCurve ? inflationCurve.points.length === 0 : points.length === 0) {
+    const activePoints: AnyCurvePoint[] = isValuesMode ? effectiveValuePoints : points;
+    if (isInflationCurve ? inflationCurve.points.length === 0 : activePoints.length === 0) {
       setError(isInflationCurve ? 'Add inflation helpers before exporting' : 'Add points before exporting');
       return;
     }
-    
+
     const curve: Curve = {
       id: id || generateId(),
       name: name.trim() || 'Untitled Curve',
@@ -617,9 +770,9 @@ export default function CurveBuilder() {
       discount_curve_id: discountCurveId || undefined,
       day_counter: dayCounter as Curve['day_counter'],
       interpolator: interpolator as Curve['interpolator'],
-      bootstrap_trait: bootstrapTrait as Curve['bootstrap_trait'],
+      bootstrap_trait: activeTrait as Curve['bootstrap_trait'],
       reference_date: referenceDate,
-      points: isInflationCurve ? [] : points,
+      points: isInflationCurve ? [] : activePoints,
       inflation_curve: isInflationCurve
         ? {
             ...inflationCurve,
@@ -761,26 +914,136 @@ export default function CurveBuilder() {
                 
                 {!isInflationCurve && (
                   <>
+                    <div className="sm:col-span-2">
+                      <label className={labelClass}>Construction</label>
+                      <div className="flex gap-2">
+                        {([
+                          { value: 'bootstrap', label: 'Bootstrap from instruments' },
+                          { value: 'values', label: 'Interpolate given values' },
+                        ] as { value: 'bootstrap' | 'values'; label: string }[]).map(({ value, label }) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => handleConstructionChange(value)}
+                            className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                              construction === value
+                                ? 'bg-[#0a0a0a] text-white'
+                                : 'bg-[#f5f5f5] text-[#525252] hover:bg-[#e5e5e5]'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-[#a3a3a3] mt-1">
+                        {construction === 'bootstrap'
+                          ? 'Bootstrap the curve from market instruments (deposits, swaps, OIS, ...)'
+                          : 'Interpolate the curve directly from given zero rates, discount factors or forward rates'}
+                      </p>
+                    </div>
+
                     <div>
                       <label className={labelClass}>Day Counter</label>
                       <select value={dayCounter} onChange={e => setDayCounter(e.target.value)} className={inputClass}>
                         {DAY_COUNTERS.map(dc => <option key={dc} value={dc}>{dc}</option>)}
                       </select>
                     </div>
-                    
+
                     <div>
                       <label className={labelClass}>Interpolation</label>
                       <select value={interpolator} onChange={e => setInterpolator(e.target.value)} className={inputClass}>
                         {INTERPOLATORS.map(i => <option key={i} value={i}>{i}</option>)}
                       </select>
                     </div>
-                    
-                    <div className="sm:col-span-2">
-                      <label className={labelClass}>Bootstrap Trait</label>
-                      <select value={bootstrapTrait} onChange={e => setBootstrapTrait(e.target.value)} className={inputClass}>
-                        {BOOTSTRAP_TRAITS.map(bt => <option key={bt} value={bt}>{bt}</option>)}
-                      </select>
-                    </div>
+
+                    {construction === 'bootstrap' ? (
+                      <div className="sm:col-span-2">
+                        <label className={labelClass}>Bootstrap Trait</label>
+                        <select value={bootstrapTrait} onChange={e => setBootstrapTrait(e.target.value)} className={inputClass}>
+                          {HELPER_BOOTSTRAP_TRAITS.map(bt => <option key={bt} value={bt}>{bt}</option>)}
+                        </select>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="sm:col-span-2">
+                          <label className={labelClass}>Quantity</label>
+                          <div className="flex gap-2">
+                            {VALUE_QUANTITIES.map(q => (
+                              <button
+                                key={q.quantity}
+                                type="button"
+                                onClick={() => handleQuantityChange(q.quantity)}
+                                className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                                  valueQuantity === q.quantity
+                                    ? 'bg-[#8a6a2f] text-white'
+                                    : 'bg-[#f5f5f5] text-[#525252] hover:bg-[#e5e5e5]'
+                                }`}
+                              >
+                                {q.label}
+                              </button>
+                            ))}
+                          </div>
+                          {valueSpec.requiresEngine && (
+                            <p className="text-[10px] text-amber-600 mt-1">
+                              {valueSpec.label} curves require pricing engine {valueSpec.requiresEngine} — on
+                              older engines the preview / pricing request is rejected.
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={labelClass}>Pillar Style</label>
+                          <div className="flex gap-2">
+                            {([
+                              { value: 'tenor', label: 'Tenor' },
+                              { value: 'date', label: 'Date' },
+                            ] as { value: 'tenor' | 'date'; label: string }[]).map(({ value, label }) => (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() => setPillarStyle(value)}
+                                className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                                  pillarStyle === value
+                                    ? 'bg-[#0a0a0a] text-white'
+                                    : 'bg-[#f5f5f5] text-[#525252] hover:bg-[#e5e5e5]'
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-[10px] text-[#a3a3a3] mt-1">New rows use this pillar entry style.</p>
+                        </div>
+
+                        {valueQuantity === 'zero' && (
+                          <>
+                            <div>
+                              <label className={labelClass}>Compounding</label>
+                              <select
+                                value={zeroCompounding}
+                                onChange={e => setZeroCompounding(e.target.value as Compounding)}
+                                className={inputClass}
+                              >
+                                {COMPOUNDINGS.map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelClass}>Frequency</label>
+                              <select
+                                value={zeroFrequency}
+                                onChange={e => setZeroFrequency(e.target.value as Frequency)}
+                                className={inputClass}
+                              >
+                                {FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}
+                              </select>
+                              <p className="text-[10px] text-[#a3a3a3] mt-1">
+                                One quoting convention for the whole curve.
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -840,6 +1103,25 @@ export default function CurveBuilder() {
                   )}
                 </div>
               </>
+            ) : isValuesMode ? (
+              <div className="bg-white border border-[#e5e5e5] rounded-xl p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-semibold text-[#0a0a0a]">
+                    Curve Values ({valuePoints.length})
+                  </h2>
+                  <span className="text-[11px] text-[#a3a3a3]">
+                    {valueSpec.percent ? 'values in percent' : 'raw discount factors'}
+                  </span>
+                </div>
+                <ValuePointsTable
+                  quantity={valueQuantity}
+                  points={valuePoints}
+                  onChange={setValuePoints}
+                  referenceDate={referenceDate}
+                  pillarStyle={pillarStyle}
+                  rowErrors={valueRowErrors}
+                />
+              </div>
             ) : (
               <div className="bg-white border border-[#e5e5e5] rounded-xl p-5">
                 <div className="flex items-center justify-between mb-4">
@@ -859,7 +1141,7 @@ export default function CurveBuilder() {
                     Add Instrument
                   </button>
                 </div>
-                
+
                 {showPointEditor ? (
                   <CurvePointEditor
                     point={editingPointIndex !== null ? points[editingPointIndex] : undefined}
@@ -941,20 +1223,20 @@ export default function CurveBuilder() {
                   )}
                   <button
                     onClick={handleBootstrap}
-                    disabled={bootstrapping || (isInflationCurve ? inflationCurve.points.length === 0 : points.length === 0)}
+                    disabled={bootstrapping || (isInflationCurve ? inflationCurve.points.length === 0 : isValuesMode ? valuePoints.length === 0 : points.length === 0)}
                     className="px-3 py-1 text-xs font-medium text-white bg-[#0a0a0a] rounded hover:bg-[#262626] disabled:opacity-50 transition-colors flex items-center gap-1"
                   >
                     {bootstrapping ? (
                       <>
                         <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-                        Bootstrapping...
+                        {isValuesMode ? 'Previewing...' : 'Bootstrapping...'}
                       </>
                     ) : (
                       <>
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                        Bootstrap
+                        {isValuesMode ? 'Preview' : 'Bootstrap'}
                       </>
                     )}
                   </button>
@@ -968,11 +1250,12 @@ export default function CurveBuilder() {
                   showMeasure={showInflationMeasure}
                 />
               ) : (
-                <CurveChart 
-                  points={points} 
+                <CurveChart
+                  points={isValuesMode ? effectiveValuePoints : points}
                   bootstrapResult={bootstrapResult}
                   height={320}
                   showMeasure={showMeasure}
+                  referenceDate={referenceDate}
                 />
               )}
             </div>
@@ -1182,6 +1465,46 @@ export default function CurveBuilder() {
                           <div className="flex justify-between">
                             <span className="text-[#737373]">Highest Quote</span>
                             <span className="font-mono">{(Math.max(...rates) * 100).toFixed(3)}%</span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </>
+                ) : isValuesMode ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-[#737373]">Construction</span>
+                      <span className="font-medium">Given values</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#737373]">Quantity</span>
+                      <span className="font-medium">{valueSpec.label}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#737373]">Points</span>
+                      <span className="font-medium">{valuePoints.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#737373]">Quote references</span>
+                      <span className="font-medium">{valuePoints.filter(p => !!p.point.quote_id).length}</span>
+                    </div>
+                    {(() => {
+                      const values = valuePoints
+                        .map(pointValue)
+                        .filter((v): v is number => v !== undefined && !Number.isNaN(v));
+                      if (values.length === 0) return null;
+                      const fmt = (v: number) =>
+                        valueSpec.percent ? `${(v * 100).toFixed(3)}%` : v.toFixed(4);
+                      return (
+                        <>
+                          <hr className="border-[#e5e5e5] my-2" />
+                          <div className="flex justify-between">
+                            <span className="text-[#737373]">Lowest Value</span>
+                            <span className="font-mono">{fmt(Math.min(...values))}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-[#737373]">Highest Value</span>
+                            <span className="font-mono">{fmt(Math.max(...values))}</span>
                           </div>
                         </>
                       );

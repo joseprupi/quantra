@@ -149,6 +149,26 @@ export function normalizeCurveForApi(curve: any): any {
   };
 }
 
+/**
+ * The `body` of an inline wire CurveRef (thin-A product pricing). The
+ * backend's curve translator reads `body.interpolator` and
+ * `body.bootstrap_trait` — NOT top-level fields — and silently defaults to
+ * LogLinear / Discount when absent. Dropping them was harmless for the
+ * seeded Discount/LogLinear curves but wrong for ZeroRate/FwdRate helper
+ * curves and fatal for Interpolated* value curves (typed 422
+ * `point_family_mismatch`). Every product page's `toThinACurve` builds its
+ * `body` here so the construction fields always ride along.
+ */
+export function curveBodyForApi(curve: any, role?: string): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  if (role) body.role = role;
+  if (curve && typeof curve === 'object') {
+    if (curve.interpolator) body.interpolator = curve.interpolator;
+    if (curve.bootstrap_trait) body.bootstrap_trait = curve.bootstrap_trait;
+  }
+  return body;
+}
+
 export function normalizeCdsQuoteForApi(quote: any): any {
   if (!quote || typeof quote !== 'object') return quote;
   const out = { ...quote };
