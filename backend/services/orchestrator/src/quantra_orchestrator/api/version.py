@@ -34,10 +34,11 @@ ORCHESTRATOR_VERSION = "0.4.0"
 
 # HARDCODED STOPGAP (backlog F3): the pricing engine does not yet expose its
 # version over its gRPC surface. Until it does, we report this constant and
-# flag ``source="hardcoded"`` so consumers can tell it is a placeholder. When
-# F3 lands, replace this constant + the ``hardcoded`` source with a real gRPC
+# flag ``source="hardcoded"`` so consumers can tell it is a placeholder. Keep
+# it in sync with the engine image pinned in the compose files. When F3
+# lands, replace this constant + the ``hardcoded`` source with a real gRPC
 # meta call. Do NOT derive this from the image tag.
-ENGINE_VERSION = "0.2.0"
+ENGINE_VERSION = "0.5.0"
 
 router = APIRouter(prefix="/v1", tags=["meta"])
 
