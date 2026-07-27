@@ -102,10 +102,12 @@ in the inflation section below.
 
 from __future__ import annotations
 
+from calendar import monthrange
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from enum import StrEnum
+from math import isfinite
 from typing import Any, Final, Protocol
 from uuid import UUID
 
@@ -128,6 +130,9 @@ from quantra_common.engine_client._generated.quantra.DatedOISHelper import (
     DatedOISHelperT,
 )
 from quantra_common.engine_client._generated.quantra.DepositHelper import DepositHelperT
+from quantra_common.engine_client._generated.quantra.DiscountFactorPoint import (
+    DiscountFactorPointT,
+)
 from quantra_common.engine_client._generated.quantra.enums.BootstrapTrait import (
     BootstrapTrait,
 )
@@ -140,6 +145,9 @@ from quantra_common.engine_client._generated.quantra.enums.CdsHelperModel import
 )
 from quantra_common.engine_client._generated.quantra.enums.CdsQuoteType import (
     CdsQuoteType,
+)
+from quantra_common.engine_client._generated.quantra.enums.Compounding import (
+    Compounding,
 )
 from quantra_common.engine_client._generated.quantra.enums.CPIInterpolationType import (
     CPIInterpolationType,
@@ -172,6 +180,9 @@ from quantra_common.engine_client._generated.quantra.EquityUnderlyingSpec import
     EquityUnderlyingSpecT,
 )
 from quantra_common.engine_client._generated.quantra.Fixing import FixingT
+from quantra_common.engine_client._generated.quantra.ForwardRatePoint import (
+    ForwardRatePointT,
+)
 from quantra_common.engine_client._generated.quantra.FRAHelper import FRAHelperT
 from quantra_common.engine_client._generated.quantra.FutureHelper import FutureHelperT
 from quantra_common.engine_client._generated.quantra.IndexDef import IndexDefT
@@ -245,6 +256,7 @@ from quantra_common.engine_client._generated.quantra.YearOnYearInflationSwapHelp
 from quantra_common.engine_client._generated.quantra.ZeroCouponInflationSwapHelper import (
     ZeroCouponInflationSwapHelperT,
 )
+from quantra_common.engine_client._generated.quantra.ZeroRatePoint import ZeroRatePointT
 from quantra_orchestrator.pricing._fb_helpers import (
     DEFAULT_CDS_MODEL_ID,
     DEFAULT_EQUITY_MODEL_ID,
@@ -1632,6 +1644,406 @@ def _translate_point(
     return spec.union, point_t
 
 
+# ---------------------------------------------------------------------------
+# Value-based curve points (engine 0.5.0 direct-data curves)
+# ---------------------------------------------------------------------------
+# ``bootstrap_trait`` ``InterpolatedZero`` / ``InterpolatedDiscount`` /
+# ``InterpolatedFwd`` curves carry explicit VALUE points (``ZeroRatePoint`` /
+# ``DiscountFactorPoint`` / ``ForwardRatePoint``) instead of rate helpers: the
+# engine interpolates the values directly (QuantLib ``InterpolatedZeroCurve``
+# / ``InterpolatedDiscountCurve`` / ``InterpolatedForwardCurve``) with no
+# bootstrap. The app-level point shape mirrors the wire PLUS an optional
+# ``quote_id`` (exactly one of inline value | ``quote_id`` per point); the
+# quote is resolved through the SAME MD walker as helper quotes and the
+# resolved number is emitted inline — the engine never sees a quote id
+# (invariant #8).
+#
+# Validation mirrors the engine's rules pre-flight (typed 422s instead of an
+# engine 400/masked QuantLib error): trait/point family coherence (no
+# auto-dispatch, no mixing), a date or a positive tenor per point, finite
+# values, uniform compounding/frequency across zero points, discount factors
+# in (0, 1] with the first point exactly 1.0 at the curve reference date, and
+# strictly-increasing unique pillars (computed on the unadjusted tenor date —
+# the engine applies the calendar/BDC adjustment; the pre-flight ordering
+# check uses the raw pillar spacing, which real curves clear by weeks).
+# Value curves reference no indices, so index registration skips them
+# (they carry no entry in ``_HELPER_INDEX_REF_FIELDS``).
+
+
+@dataclass(frozen=True)
+class _ValuePointSpec:
+    """One value-point family: FB union tag + required trait + value field."""
+
+    kind: str
+    union: int
+    trait: int
+    value_keys: tuple[str, ...]
+    fb_attr: str
+    build: Callable[[Mapping[str, Any]], object]
+
+
+def _value_point_conventions(inner: Mapping[str, Any], point_t: object) -> None:
+    """Apply the calendar / BDC shared by all three value-point kinds."""
+
+    point_t.calendar = _enum(Calendar, inner.get("calendar"), Calendar.TARGET)  # type: ignore[attr-defined]
+    point_t.businessDayConvention = _enum(  # type: ignore[attr-defined]
+        BusinessDayConvention,
+        inner.get("business_day_convention"),
+        BusinessDayConvention.ModifiedFollowing,
+    )
+
+
+def _build_zero_rate_point(inner: Mapping[str, Any]) -> ZeroRatePointT:
+    p = ZeroRatePointT()
+    _value_point_conventions(inner, p)
+    p.compounding = _enum(Compounding, inner.get("compounding"), Compounding.Continuous)
+    p.frequency = _enum(Frequency, inner.get("frequency"), Frequency.Annual)
+    return p
+
+
+def _build_discount_factor_point(inner: Mapping[str, Any]) -> DiscountFactorPointT:
+    p = DiscountFactorPointT()
+    _value_point_conventions(inner, p)
+    return p
+
+
+def _build_forward_rate_point(inner: Mapping[str, Any]) -> ForwardRatePointT:
+    p = ForwardRatePointT()
+    _value_point_conventions(inner, p)
+    return p
+
+
+_VALUE_POINT_SPECS: Final[dict[str, _ValuePointSpec]] = {
+    "ZeroRatePoint": _ValuePointSpec(
+        kind="ZeroRatePoint",
+        union=Point.ZeroRatePoint,
+        trait=BootstrapTrait.InterpolatedZero,
+        value_keys=("zero_rate", "zeroRate"),
+        fb_attr="zeroRate",
+        build=_build_zero_rate_point,
+    ),
+    "DiscountFactorPoint": _ValuePointSpec(
+        kind="DiscountFactorPoint",
+        union=Point.DiscountFactorPoint,
+        trait=BootstrapTrait.InterpolatedDiscount,
+        value_keys=("discount_factor", "discountFactor"),
+        fb_attr="discountFactor",
+        build=_build_discount_factor_point,
+    ),
+    "ForwardRatePoint": _ValuePointSpec(
+        kind="ForwardRatePoint",
+        union=Point.ForwardRatePoint,
+        trait=BootstrapTrait.InterpolatedFwd,
+        value_keys=("forward_rate", "forwardRate"),
+        fb_attr="forwardRate",
+        build=_build_forward_rate_point,
+    ),
+}
+
+_VALUE_SPEC_BY_TRAIT: Final[dict[int, _ValuePointSpec]] = {
+    spec.trait: spec for spec in _VALUE_POINT_SPECS.values()
+}
+
+_TRAIT_NAMES: Final[dict[int, str]] = {
+    getattr(BootstrapTrait, name): name for name in dir(BootstrapTrait) if not name.startswith("_")
+}
+
+
+def _value_curve_error(
+    reason: str, *, curve: str, point_index: int | None, rule: str, **extra: object
+) -> CurveTranslationError:
+    detail: dict[str, Any] = {"curve": curve, "rule": rule, **extra}
+    if point_index is not None:
+        detail["point_index"] = point_index
+    return CurveTranslationError(reason, details=[detail])
+
+
+def _value_point_pillar(
+    inner: Mapping[str, Any],
+    *,
+    kind: str,
+    curve_id: str,
+    point_index: int,
+    reference_date: date,
+) -> tuple[date, str | None, PeriodT | None]:
+    """Resolve one value point's pillar: explicit ISO date, or ref + tenor.
+
+    Mirrors the engine's precedence (``date`` wins; else a positive ``tenor``
+    is required). Returns ``(pillar, explicit_date, period)`` — exactly one of
+    ``explicit_date`` / ``period`` is non-``None`` and is what the caller puts
+    on the wire. The tenor pillar is the UNADJUSTED anchor used only for the
+    pre-flight ordering/uniqueness check — the engine applies the point's
+    calendar/BDC adjustment when it builds the curve.
+    """
+
+    raw_date = inner.get("date")
+    if isinstance(raw_date, str) and raw_date:
+        try:
+            return date.fromisoformat(raw_date[:10]), raw_date[:10], None
+        except ValueError:
+            raise _value_curve_error(
+                f"{kind} point {point_index} of curve {curve_id} has an invalid "
+                f"``date`` {raw_date!r} (expected YYYY-MM-DD).",
+                curve=curve_id,
+                point_index=point_index,
+                rule="invalid_date",
+            ) from None
+    try:
+        period = _require_tenor(inner, kind)
+    except CurveTranslationError as exc:
+        raise _value_curve_error(
+            f"{kind} point {point_index} of curve {curve_id} requires a "
+            "``date`` or a positive ``tenor``.",
+            curve=curve_id,
+            point_index=point_index,
+            rule="missing_pillar",
+        ) from exc
+    n = int(period.n or 0)
+    if n <= 0:
+        raise _value_curve_error(
+            f"{kind} point {point_index} of curve {curve_id} requires a "
+            "``date`` or a positive ``tenor``.",
+            curve=curve_id,
+            point_index=point_index,
+            rule="missing_pillar",
+        )
+    unit = int(period.unit or 0)
+    if unit == TimeUnit.Days:
+        return reference_date + timedelta(days=n), None, period
+    if unit == TimeUnit.Weeks:
+        return reference_date + timedelta(weeks=n), None, period
+    if unit in (TimeUnit.Months, TimeUnit.Years):
+        months = n * 12 if unit == TimeUnit.Years else n
+        total = reference_date.month - 1 + months
+        year = reference_date.year + total // 12
+        month = total % 12 + 1
+        day = min(reference_date.day, monthrange(year, month)[1])
+        return date(year, month, day), None, period
+    raise _value_curve_error(
+        f"{kind} point {point_index} of curve {curve_id} has an unsupported "
+        "tenor unit (use Days / Weeks / Months / Years).",
+        curve=curve_id,
+        point_index=point_index,
+        rule="unsupported_tenor_unit",
+    )
+
+
+def _value_point_value(
+    spec: _ValuePointSpec,
+    inner: Mapping[str, Any],
+    quote_map: Mapping[str, float],
+    missing_quotes: list[str],
+    *,
+    curve_id: str,
+    point_index: int,
+) -> float | None:
+    """Resolve one value point's number: exactly one of inline value | quote.
+
+    Returns ``None`` when the point references a quote the MD walker could not
+    resolve — the id is appended to ``missing_quotes`` and the caller's
+    existing batched quote-resolution 422 fires (family-level numeric checks
+    skip the point).
+    """
+
+    quote_id = _first_str(inner, _QUOTE_KEYS)
+    raw_value = None
+    for key in spec.value_keys:
+        candidate = inner.get(key)
+        if candidate is not None:
+            raw_value = candidate
+            break
+    if quote_id is not None and raw_value is not None:
+        raise _value_curve_error(
+            f"{spec.kind} point {point_index} of curve {curve_id} carries BOTH "
+            f"an inline ``{spec.value_keys[0]}`` and a ``quote_id`` — exactly "
+            "one value source is allowed per point.",
+            curve=curve_id,
+            point_index=point_index,
+            rule="ambiguous_value_source",
+            quote_id=quote_id,
+        )
+    if quote_id is not None:
+        if quote_id in quote_map:
+            return float(quote_map[quote_id])
+        missing_quotes.append(quote_id)
+        return None
+    if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
+        raise _value_curve_error(
+            f"{spec.kind} point {point_index} of curve {curve_id} has neither "
+            f"a numeric ``{spec.value_keys[0]}`` nor a ``quote_id``.",
+            curve=curve_id,
+            point_index=point_index,
+            rule="missing_value_source",
+        )
+    value = float(raw_value)
+    if not isfinite(value):
+        raise _value_curve_error(
+            f"{spec.kind} point {point_index} of curve {curve_id}: "
+            f"``{spec.value_keys[0]}`` must be finite.",
+            curve=curve_id,
+            point_index=point_index,
+            rule="non_finite_value",
+        )
+    return value
+
+
+def _validate_discount_factor(
+    value: float, *, curve_id: str, point_index: int, reference_iso: str, explicit_date: str | None
+) -> None:
+    """Mirror the engine's DF rules: (0, 1]; first point exactly 1.0 at ref."""
+
+    if value <= 0.0 or value > 1.0:
+        raise _value_curve_error(
+            f"DiscountFactorPoint {point_index} of curve {curve_id}: "
+            f"``discount_factor`` must be in (0, 1], got {value!r}.",
+            curve=curve_id,
+            point_index=point_index,
+            rule="discount_factor_out_of_range",
+        )
+    if point_index == 0:
+        if value != 1.0:
+            raise _value_curve_error(
+                f"DiscountFactorPoint 0 of curve {curve_id}: the first "
+                "(reference-date) point must carry a ``discount_factor`` of "
+                f"exactly 1.0, got {value!r}.",
+                curve=curve_id,
+                point_index=0,
+                rule="first_discount_factor_not_one",
+            )
+        if explicit_date != reference_iso:
+            raise _value_curve_error(
+                f"DiscountFactorPoint 0 of curve {curve_id} must sit AT the "
+                f"curve reference date ({reference_iso}): give it "
+                f'``date: "{reference_iso}"`` (got {explicit_date!r}).',
+                curve=curve_id,
+                point_index=0,
+                rule="first_discount_point_not_at_reference",
+            )
+
+
+def _check_zero_convention(
+    point_t: object,
+    zero_convention: tuple[int, int] | None,
+    *,
+    curve_id: str,
+    point_index: int,
+) -> tuple[int, int]:
+    """Enforce ONE compounding/frequency convention across the zero points."""
+
+    convention = (int(point_t.compounding), int(point_t.frequency))  # type: ignore[attr-defined]
+    if zero_convention is not None and convention != zero_convention:
+        raise _value_curve_error(
+            f"ZeroRatePoint {point_index} of curve {curve_id}: ``compounding`` "
+            "and ``frequency`` must be identical across all points (a single "
+            "interpolated zero curve carries ONE quoting convention).",
+            curve=curve_id,
+            point_index=point_index,
+            rule="mixed_zero_conventions",
+        )
+    return convention
+
+
+def _translate_value_curve_points(
+    curve: ResolvedCurveLike,
+    ts: TermStructureT,
+    spec: _ValuePointSpec,
+    quote_map: Mapping[str, float],
+    missing_quotes: list[str],
+) -> list[PointsWrapperT]:
+    """Translate + validate a value curve's points (family already selected)."""
+
+    curve_id = str(ts.id)
+    reference_iso = str(ts.referenceDate)
+    reference = date.fromisoformat(reference_iso)
+    trait_name = _TRAIT_NAMES.get(spec.trait, str(spec.trait))
+
+    if not curve.points:
+        raise _value_curve_error(
+            f"Curve {curve_id}: bootstrap_trait {trait_name} requires at least one {spec.kind}.",
+            curve=curve_id,
+            point_index=None,
+            rule="empty_points",
+        )
+
+    wrappers: list[PointsWrapperT] = []
+    pillars: list[date] = []
+    zero_convention: tuple[int, int] | None = None
+    for index, raw in enumerate(curve.points):
+        if not isinstance(raw, Mapping):
+            raise CurveTranslationError(
+                f"Curve {curve_id} point {index} is not an object.",
+                details=[{"curve": curve_id, "point_index": index}],
+            )
+        kind, inner = _split_point(raw)
+        if kind != spec.kind:
+            raise _value_curve_error(
+                f"Curve {curve_id}: bootstrap_trait {trait_name} builds from "
+                f"{spec.kind}s but point {index} is a {kind!r} — value curves "
+                "cannot mix point families.",
+                curve=curve_id,
+                point_index=index,
+                rule="point_family_mismatch",
+                expected_kind=spec.kind,
+                actual_kind=kind,
+            )
+        point_t = spec.build(inner)
+
+        pillar, explicit_date, period = _value_point_pillar(
+            inner,
+            kind=spec.kind,
+            curve_id=curve_id,
+            point_index=index,
+            reference_date=reference,
+        )
+        if explicit_date is not None:
+            point_t.date = explicit_date  # type: ignore[attr-defined]
+        else:
+            point_t.tenor = period  # type: ignore[attr-defined]
+        pillars.append(pillar)
+
+        value = _value_point_value(
+            spec,
+            inner,
+            quote_map,
+            missing_quotes,
+            curve_id=curve_id,
+            point_index=index,
+        )
+        if value is not None:
+            setattr(point_t, spec.fb_attr, value)
+            if spec.kind == "DiscountFactorPoint":
+                _validate_discount_factor(
+                    value,
+                    curve_id=curve_id,
+                    point_index=index,
+                    reference_iso=reference_iso,
+                    explicit_date=explicit_date,
+                )
+
+        if spec.kind == "ZeroRatePoint":
+            zero_convention = _check_zero_convention(
+                point_t, zero_convention, curve_id=curve_id, point_index=index
+            )
+
+        wrapper = PointsWrapperT()
+        wrapper.pointType = spec.union
+        wrapper.point = point_t
+        wrappers.append(wrapper)
+
+    for i in range(1, len(pillars)):
+        if pillars[i] <= pillars[i - 1]:
+            raise _value_curve_error(
+                f"Curve {curve_id}: value-curve pillars must be strictly "
+                f"increasing and unique; point {i} ({pillars[i].isoformat()}) "
+                f"does not follow point {i - 1} ({pillars[i - 1].isoformat()}).",
+                curve=curve_id,
+                point_index=i,
+                rule="pillars_not_sorted",
+            )
+
+    return wrappers
+
+
 def resolved_curve_id(curve: ResolvedCurveLike) -> str:
     """Derive the stable engine-facing curve id from a resolved entity.
 
@@ -1665,12 +2077,34 @@ def translate_curve(
         BootstrapTrait.Discount,
     )
 
+    # Value-based curves (InterpolatedZero / InterpolatedDiscount /
+    # InterpolatedFwd): the trait selects the family explicitly — every point
+    # must be the matching value point (mirrors the engine's family selector;
+    # no auto-dispatch, no mixing).
+    value_spec = _VALUE_SPEC_BY_TRAIT.get(int(ts.bootstrapTrait))
+    if value_spec is not None:
+        ts.points = _translate_value_curve_points(curve, ts, value_spec, quote_map, missing_quotes)
+        return ts
+
     points: list[PointsWrapperT] = []
     for index, raw in enumerate(curve.points):
         if not isinstance(raw, Mapping):
             raise CurveTranslationError(
                 f"Curve {ts.id} point {index} is not an object.",
                 details=[{"curve": ts.id, "point_index": index}],
+            )
+        kind, _ = _split_point(raw)
+        if isinstance(kind, str) and kind in _VALUE_POINT_SPECS:
+            trait_name = _TRAIT_NAMES.get(int(ts.bootstrapTrait), str(ts.bootstrapTrait))
+            raise _value_curve_error(
+                f"Curve {ts.id}: bootstrap_trait {trait_name} builds from rate "
+                f"helpers but point {index} is a {kind} — set bootstrap_trait "
+                f"{_TRAIT_NAMES.get(_VALUE_POINT_SPECS[kind].trait)} for a "
+                "value-based curve.",
+                curve=str(ts.id),
+                point_index=index,
+                rule="point_family_mismatch",
+                actual_kind=kind,
             )
         try:
             union, point_t = _translate_point(raw, quote_map, missing_quotes)

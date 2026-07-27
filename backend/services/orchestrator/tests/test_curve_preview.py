@@ -50,10 +50,14 @@ from quantra_common.engine_client._generated.quantra.BootstrapCurvesResponse imp
     BootstrapCurvesResponseT,
 )
 from quantra_common.engine_client._generated.quantra.CurveSeries import CurveSeriesT
+from quantra_common.engine_client._generated.quantra.enums.BootstrapTrait import (
+    BootstrapTrait,
+)
 from quantra_common.engine_client._generated.quantra.enums.Calendar import Calendar
 from quantra_common.engine_client._generated.quantra.enums.DayCounter import DayCounter
 from quantra_common.engine_client._generated.quantra.enums.TimeUnit import TimeUnit
 from quantra_common.engine_client._generated.quantra.IndexType import IndexType
+from quantra_common.engine_client._generated.quantra.Point import Point
 from quantra_common.md_client import MdClient, MdClientConfig
 from quantra_common.settings import Environment, LogLevel
 from quantra_common.types.market_data import ResolvedQuote
@@ -382,4 +386,99 @@ def test_preview_unknown_index_ref_still_422s_naming_both_catalogs(
     # The known-catalog listing now names BOTH families (actionable).
     assert "SONIA" in resp.text
     assert "EURIBOR_6M" in resp.text
+    assert engine.calls == []
+
+
+# ---------------------------------------------------------------------------
+# Value-based curves (InterpolatedZero / InterpolatedDiscount / InterpolatedFwd)
+# ---------------------------------------------------------------------------
+
+
+def _value_curve_payload(
+    points: list[dict[str, Any]], *, trait: str, name: str = "EUR-ZEROS"
+) -> dict[str, Any]:
+    return {
+        "pricing": {
+            "as_of_date": "2025-01-15",
+            "curves": [
+                {
+                    "name": name,
+                    "currency": "EUR",
+                    "day_counter": "Actual365Fixed",
+                    "reference_date": "2025-01-15",
+                    "interpolator": "Linear",
+                    "bootstrap_trait": trait,
+                    "points": points,
+                }
+            ],
+        },
+        "queries": [{"curve_id": name, "measures": ["ZERO"]}],
+    }
+
+
+def test_preview_interpolated_zero_curve_resolves_quotes_and_packs_value_points(
+    app_factory: Any,
+) -> None:
+    """A value curve previews: quote ids resolve via MD, values land inline."""
+
+    md = _FakeMdClient(results=[_resolved_quote(canonical_id="EUR.ZERO.5Y", value=0.0312)])
+    engine = _FakeEngineClient(
+        response=_bootstrap_response_bytes(curve_id="EUR-ZEROS", zeros=[0.02, 0.025, 0.0312])
+    )
+    client = app_factory(md_client=md, engine_client=engine)
+
+    resp = client.post(
+        "/v1/curve-preview",
+        json=_value_curve_payload(
+            [
+                {"point_type": "ZeroRatePoint", "point": {"date": "2025-01-15", "zero_rate": 0.02}},
+                {
+                    "point_type": "ZeroRatePoint",
+                    "point": {"tenor": {"n": 1, "unit": "Years"}, "zero_rate": 0.025},
+                },
+                {
+                    "point_type": "ZeroRatePoint",
+                    "point": {"tenor": {"n": 5, "unit": "Years"}, "quote_id": "EUR.ZERO.5Y"},
+                },
+            ],
+            trait="InterpolatedZero",
+        ),
+        headers=_headers(),
+    )
+
+    assert resp.status_code == HTTPStatus.OK, resp.text
+    # The MD walker got the value point's quote id (same batched resolver).
+    assert md.calls
+    assert md.calls[0][0] == ["EUR.ZERO.5Y"]
+    decoded = _decode_request(engine.calls[0][1])
+    curve = decoded.pricing.rates.curves[0]
+    assert curve.bootstrapTrait == BootstrapTrait.InterpolatedZero
+    assert [w.pointType for w in curve.points] == [Point.ZeroRatePoint] * 3
+    # Invariant #8: the resolved value rides inline on the wire.
+    assert curve.points[2].point.zeroRate == pytest.approx(0.0312)
+
+
+def test_preview_value_curve_validation_maps_to_422(app_factory: Any) -> None:
+    """A pre-flight value-curve rule violation is a clean 422, engine untouched."""
+
+    md = _FakeMdClient()
+    engine = _FakeEngineClient(response=b"")
+    client = app_factory(md_client=md, engine_client=engine)
+
+    resp = client.post(
+        "/v1/curve-preview",
+        json=_value_curve_payload(
+            [
+                {
+                    "point_type": "DiscountFactorPoint",
+                    "point": {"date": "2025-01-15", "discount_factor": 0.98},
+                }
+            ],
+            trait="InterpolatedDiscount",
+        ),
+        headers=_headers(),
+    )
+
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY, resp.text
+    assert "exactly 1.0" in resp.text
     assert engine.calls == []
