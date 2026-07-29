@@ -681,6 +681,35 @@ describe('buildSwaptionVolWirePayload — SabrCalibrate', () => {
     ).toThrow(/SabrCalibrate dimension mismatch.*1×2×5, expected 2×2×5/i);
   });
 
+  it('throws a clear "empty cell" error on NaN (unfilled) cube cells', () => {
+    const cubeWithNaN = JSON.parse(JSON.stringify(goodCube)) as MatrixCell[][][];
+    cubeWithNaN[1][0][3] = NaN;
+    expect(() =>
+      buildSwaptionVolWirePayload(
+        calibrateSurface({ sabr_market_vols: cubeWithNaN }),
+        SWAP_INDEX,
+        AS_OF,
+        noQuotes,
+      ),
+    ).toThrow(/empty cell at expiry 1, tenor 0, strike 3/i);
+  });
+
+  it('throws a clear "empty cell" error on null cube cells (NaN after a JSON save/reload round trip)', () => {
+    // A fresh cube is seeded with NaN literals; JSON.stringify(NaN) === "null",
+    // so a saved-and-reloaded unfilled surface carries null cells. These must
+    // NOT silently wire as 0 (the engine would reject with "vol must be > 0").
+    const cubeWithNull = JSON.parse(JSON.stringify(goodCube)) as MatrixCell[][][];
+    (cubeWithNull[0][1] as unknown[])[1] = null;
+    expect(() =>
+      buildSwaptionVolWirePayload(
+        calibrateSurface({ sabr_market_vols: cubeWithNull }),
+        SWAP_INDEX,
+        AS_OF,
+        noQuotes,
+      ),
+    ).toThrow(/empty cell at expiry 0, tenor 1, strike 1/i);
+  });
+
   it('throws on missing strikes axis', () => {
     expect(() =>
       buildSwaptionVolWirePayload(

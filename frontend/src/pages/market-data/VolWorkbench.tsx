@@ -18,7 +18,7 @@ import { getLegacyFlatQuotes, getQuoteBook, getResolutionMode, resolveQuoteValue
 
 import { collectIndexRefIds, CurveSet, IndexDef, TimeUnit } from '../../lib/types';
 import { normalizeCurveForApi, normalizeIndexDefForApi } from '../../lib/api-normalizers';
-import { backfillSurfaceAxesFromLegacy, buildCubeGeometry, buildEquityGeometry, isStrictlyIncreasing, pickDefaultFloatIndex, rateFloatIndexOptions, swapIndexIdForIndex, type EditableSwaptionKind } from './vol-workbench-helpers';
+import { backfillSurfaceAxesFromLegacy, bpToStrike, buildCubeGeometry, buildEquityGeometry, cubeToNodesMatrix, decodeDiagnosticsPeriod, isStrictlyIncreasing, nodesMatrixToCube, pickDefaultFloatIndex, rateFloatIndexOptions, strikeToBp, swapIndexIdForIndex, type EditableSwaptionKind } from './vol-workbench-helpers';
 import type { DisplayUnits } from './vol-workbench-types';
 import { DuplicateIcon, ExportIcon, ImportIcon, listStyles, NewIcon, TrashButton } from '../../components/lists/listStyles';
 import Matrix2DEditor, { fillAll, type Matrix2D, type MatrixCell } from '../../components/ui/Matrix2DEditor';
@@ -2989,11 +2989,8 @@ function SabrCalibrateEditorBlock({
   const nE = expiries.length;
   const nT = tenors.length;
   const nS = strikes.length;
-  const rowLabels = expiries.map(periodLabel);
-  const colLabels = tenors.map(periodLabel);
   const opts = surface.sabr_calibration_options || {};
   const cube = (surface.sabr_market_vols || []) as MatrixCell[][][];
-  const [activeStrikeIdx, setActiveStrikeIdx] = useState(0);
   const [newStrike, setNewStrike] = useState(0);
   const [calibrating, setCalibrating] = useState(false);
   const [calibrateError, setCalibrateError] = useState<string | null>(null);
@@ -3059,27 +3056,11 @@ function SabrCalibrateEditorBlock({
     } as SwaptionVolDiagnostics);
   }, [surface.id]);
 
-  const writeStrikeMatrix = (strikeIdx: number, next: MatrixCell[][]) => {
-    onChange((s) => {
-      const existing = (s.sabr_market_vols || []) as MatrixCell[][][];
-      const updated: MatrixCell[][][] = [];
-      for (let i = 0; i < nE; i += 1) {
-        const eRow: MatrixCell[][] = [];
-        for (let j = 0; j < nT; j += 1) {
-          const tRow: MatrixCell[] = [];
-          for (let k = 0; k < nS; k += 1) {
-            if (k === strikeIdx) {
-              tRow.push(next[i]?.[j] ?? (NaN as MatrixCell));
-            } else {
-              tRow.push(existing?.[i]?.[j]?.[k] ?? (NaN as MatrixCell));
-            }
-          }
-          eRow.push(tRow);
-        }
-        updated.push(eRow);
-      }
-      return { ...s, sabr_market_vols: updated };
-    });
+  // The vols editor renders the cube as ONE flat table: rows = (expiry,
+  // tenor) calibration nodes in row-major order, cols = strike spreads. A
+  // whole broker-style smile table therefore pastes in a single go.
+  const writeNodesMatrix = (next: MatrixCell[][]) => {
+    onChange((s) => ({ ...s, sabr_market_vols: nodesMatrixToCube(next, nE, nT, nS) }));
   };
 
   const writeStrikeAxis = (next: number[]) => {
@@ -3109,7 +3090,6 @@ function SabrCalibrateEditorBlock({
       }
       return { ...s, axes_strikes: sorted, sabr_market_vols: newCube };
     });
-    if (activeStrikeIdx >= sorted.length) setActiveStrikeIdx(Math.max(0, sorted.length - 1));
   };
 
   const updateOptions = (patch: Partial<NonNullable<VolSurfaceSpec['sabr_calibration_options']>>) => {
@@ -3122,18 +3102,22 @@ function SabrCalibrateEditorBlock({
     }));
   };
 
-  // Project the cube onto the active strike layer for the Matrix2DEditor.
-  const activeMatrix: MatrixCell[][] = useMemo(() => {
-    const out: MatrixCell[][] = [];
+  // Project the cube onto the flat nodes-by-strikes matrix for the editor.
+  // `null` cells (NaN literals that went through a JSON save/reload round
+  // trip) are coerced back to NaN so they render as empty inputs.
+  const nodesMatrix: MatrixCell[][] = useMemo(
+    () => cubeToNodesMatrix(cube, nE, nT, nS),
+    [cube, nE, nT, nS],
+  );
+  const nodeRowLabels = useMemo(() => {
+    const out: string[] = [];
     for (let i = 0; i < nE; i += 1) {
-      const row: MatrixCell[] = [];
       for (let j = 0; j < nT; j += 1) {
-        row.push(cube?.[i]?.[j]?.[activeStrikeIdx] ?? (NaN as MatrixCell));
+        out.push(`${periodLabel(expiries[i])} x ${periodLabel(tenors[j])}`);
       }
-      out.push(row);
     }
     return out;
-  }, [cube, nE, nT, activeStrikeIdx]);
+  }, [expiries, tenors, nE, nT]);
 
   const validateMarketVolCell = (cell: MatrixCell) => {
     if (cell && typeof cell === 'object' && 'quoteId' in cell) {
@@ -3422,9 +3406,13 @@ function SabrCalibrateEditorBlock({
     }
     return out;
   };
-  // diagnostics.expiries/tenors typed as `{n,unit:string}` (looser than the
-  // local Period<TimeUnit>) — coerce defensively before labelling.
-  const toLocalPeriod = (p: { n: number; unit: string }): Period => ({ n: p.n, unit: p.unit as TimeUnit });
+  // diagnostics.expiries/tenors come back with the NUMERIC FlatBuffers
+  // TimeUnit enum (e.g. {n: 1, unit: 8} = 1 Year) — decode to the string
+  // unit before labelling, else every node would label as Days.
+  const toLocalPeriod = (p: { n: number; unit: number | string }): Period => {
+    const d = decodeDiagnosticsPeriod(p);
+    return { n: d.n, unit: d.unit as TimeUnit };
+  };
   const calRowLabels = (diagnostics?.expiries
     ? diagnostics.expiries.map(toLocalPeriod)
     : expiries).map(periodLabel);
@@ -3441,56 +3429,37 @@ function SabrCalibrateEditorBlock({
         helperText="Calibration runs one SABR fit per (expiry, tenor) node. Strikes axis below holds the spreads from per-node ATM forward (rate units, e.g. -0.005 = -50bp)."
       />
       <div className="border border-[#d4d4d4] rounded-lg p-3 space-y-2 bg-white">
-        <h3 className="text-xs font-semibold text-[#0a0a0a]">Strike axis (spreads from ATM, rate units)</h3>
+        <h3 className="text-xs font-semibold text-[#0a0a0a]">Strike axis (spreads from ATM forward, in basis points)</h3>
         <p className="text-[11px] text-[#a3a3a3]">
-          The same spread vector applies at every (expiry, tenor) node. ATM = 0; conventional broker grid is ATM±50bp/±100bp.
+          The same spread vector applies at every (expiry, tenor) node. ATM = 0; a conventional broker grid is -200, -100, 0, 100, 200.
         </p>
         <StrikeGridEditor
           strikes={strikes}
           setStrikes={writeStrikeAxis}
           newStrike={newStrike}
           setNewStrike={setNewStrike}
+          displayUnit="bp"
         />
       </div>
       {nS > 0 && (
         <div>
-          <div className="flex items-center gap-1 border-b border-[#e5e5e5] flex-wrap">
-            {strikes.map((s, idx) => (
-              <button
-                key={`strike-tab-${idx}`}
-                type="button"
-                onClick={() => setActiveStrikeIdx(idx)}
-                className={
-                  idx === activeStrikeIdx
-                    ? 'px-3 py-1.5 text-xs font-medium border-b-2 border-[#8a6a2f] text-[#0a0a0a]'
-                    : 'px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-[#737373] hover:text-[#0a0a0a]'
-                }
-                aria-selected={idx === activeStrikeIdx}
-                role="tab"
-              >
-                {formatStrikeTab(s)}
-              </button>
-            ))}
-          </div>
           <div className="flex items-baseline justify-between mt-2 mb-2">
-            <h3 className="text-xs font-semibold text-[#0a0a0a]">
-              Market σ at strike {formatStrikeTab(strikes[activeStrikeIdx])}
-            </h3>
-            <span className="text-[11px] text-[#737373]">rows = surface expiries, cols = surface tenors</span>
+            <h3 className="text-xs font-semibold text-[#0a0a0a]">Market vols (lognormal σ)</h3>
+            <span className="text-[11px] text-[#737373]">rows = expiry x tenor nodes, cols = strike spreads</span>
           </div>
           <Matrix2DEditor
-            value={activeMatrix}
-            onChange={(next) => writeStrikeMatrix(activeStrikeIdx, next)}
-            rowLabels={rowLabels}
-            colLabels={colLabels}
-            rowAxisLabel="Expiry"
-            colAxisLabel="Tenor"
+            value={nodesMatrix}
+            onChange={writeNodesMatrix}
+            rowLabels={nodeRowLabels}
+            colLabels={strikes.map(formatStrikeTab)}
+            rowAxisLabel="Node"
+            colAxisLabel="Strike"
             quoteIdOptions={quoteIdOptions}
             validateCell={validateMarketVolCell}
-            ariaLabel={`SABR market vol grid editor for strike ${formatStrikeTab(strikes[activeStrikeIdx])}`}
+            ariaLabel="SABR market vol cube editor (rows are expiry x tenor nodes, cols are strike spreads)"
           />
           <p className="text-[11px] text-[#a3a3a3] mt-2">
-            Every cell must be a positive lognormal σ (or a quote reference resolving to one). The backend rejects non-positive vols at parse time.
+            Every cell must be a positive lognormal σ (or a quote reference resolving to one). Paste a whole nodes-by-strikes table straight from a spreadsheet.
           </p>
         </div>
       )}
@@ -3611,6 +3580,11 @@ function SabrCalibrateEditorBlock({
               ))}
             </div>
           )}
+          <SabrPerNodeResultsTable
+            diagnostics={diagnostics}
+            expiryLabels={calRowLabels}
+            tenorLabels={calColLabels}
+          />
           <div className="grid grid-cols-2 gap-3">
             <CalibratedMatrixView
               title="α (alpha) per node"
@@ -3651,6 +3625,87 @@ function SabrCalibrateEditorBlock({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Per-node calibration results table for the SabrCalibrate diagnostics
+ * block: one row per (expiry, tenor) node with the node's ATM forward, ATM
+ * market vol, the four calibrated SABR parameters and the per-node fit RMSE.
+ * Forward and ATM vol render in percent; parameters render raw at 4 decimal
+ * places; RMSE renders in basis points.
+ */
+function SabrPerNodeResultsTable({
+  diagnostics,
+  expiryLabels,
+  tenorLabels,
+}: {
+  diagnostics: SwaptionVolDiagnostics;
+  expiryLabels: string[];
+  tenorLabels: string[];
+}) {
+  const calNE = diagnostics.n_expiries ?? expiryLabels.length;
+  const calNT = diagnostics.n_tenors ?? tenorLabels.length;
+  const at = (arr: number[] | undefined, idx: number): number =>
+    typeof arr?.[idx] === 'number' ? (arr[idx] as number) : NaN;
+  const fmtPct = (v: number, dp: number) => (Number.isFinite(v) ? `${(v * 100).toFixed(dp)}%` : '-');
+  const fmtParam = (v: number) => (Number.isFinite(v) ? v.toFixed(4) : '-');
+  const fmtBp = (v: number) => (Number.isFinite(v) ? (v * 10000).toFixed(2) : '-');
+  const rows: Array<{ key: string; cells: string[] }> = [];
+  for (let i = 0; i < calNE; i += 1) {
+    for (let j = 0; j < calNT; j += 1) {
+      const n = i * calNT + j;
+      rows.push({
+        key: `node-${i}-${j}`,
+        cells: [
+          expiryLabels[i] ?? `${i}`,
+          tenorLabels[j] ?? `${j}`,
+          fmtPct(at(diagnostics.forward_per_node, n), 3),
+          fmtPct(at(diagnostics.atm_vol_per_node, n), 2),
+          fmtParam(at(diagnostics.alpha_per_node, n)),
+          fmtParam(at(diagnostics.beta_per_node, n)),
+          fmtParam(at(diagnostics.rho_per_node, n)),
+          fmtParam(at(diagnostics.nu_per_node, n)),
+          fmtBp(at(diagnostics.calibration?.per_node_rmse, n)),
+        ],
+      });
+    }
+  }
+  const headers = ['Expiry', 'Tenor', 'Forward', 'ATM vol', 'α', 'β', 'ρ', 'ν', 'RMSE (bp)'];
+  return (
+    <div className="space-y-1">
+      <div className="text-[11px] font-medium text-[#525252]">Per-node calibrated parameters</div>
+      <div className="overflow-auto border border-[#e5e5e5] rounded">
+        <table className="text-xs w-full" aria-label="Per-node SABR calibration results">
+          <thead className="bg-[#fafafa]">
+            <tr>
+              {headers.map((h, i) => (
+                <th
+                  key={`pn-h-${i}`}
+                  className={`px-2 py-1 ${i < 2 ? 'text-left' : 'text-right'} text-[#737373] font-medium whitespace-nowrap`}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} className="border-t border-[#f5f5f5]">
+                {r.cells.map((c, ci) => (
+                  <td
+                    key={`${r.key}-c-${ci}`}
+                    className={`px-2 py-1 font-mono whitespace-nowrap ${ci < 2 ? 'text-left text-[#0a0a0a]' : 'text-right text-[#0a0a0a]'}`}
+                  >
+                    {c}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -3706,7 +3761,14 @@ function CalibratedMatrixView({
                     : 0;
                   const bucket = Math.max(0, Math.min(Math.round(t * (bucketColors.length - 1)), bucketColors.length - 1));
                   const bg = Number.isFinite(v) ? bucketColors[bucket] : '#f5f5f5';
-                  const fg = bucket >= 6 ? '#ffffff' : '#0f172a';
+                  // Pick the text color from the ACTUAL background luminance
+                  // (the diverging palette is dark at BOTH ends, so a simple
+                  // "high bucket = white" rule left dark-on-dark cells).
+                  const r = parseInt(bg.slice(1, 3), 16) / 255;
+                  const g = parseInt(bg.slice(3, 5), 16) / 255;
+                  const b = parseInt(bg.slice(5, 7), 16) / 255;
+                  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                  const fg = luminance < 0.5 ? '#ffffff' : '#0f172a';
                   return (
                     <td
                       key={`c-${i}-${j}`}
@@ -3846,19 +3908,26 @@ function StrikeGridEditor({
   setStrikes,
   newStrike,
   setNewStrike,
+  displayUnit = 'rate',
 }: {
   strikes: number[];
   setStrikes: (values: number[]) => void;
   newStrike: number;
   setNewStrike: (v: number) => void;
+  /** 'rate' shows/accepts rate decimals (0.005); 'bp' shows/accepts basis
+   * points (50). Stored values are ALWAYS rate decimals; 'bp' only changes
+   * the display/entry unit. */
+  displayUnit?: 'rate' | 'bp';
 }) {
+  const toDisplay = (s: number) => (displayUnit === 'bp' ? strikeToBp(s) : Number(s.toFixed(8)));
+  const fromDisplay = (v: number) => (displayUnit === 'bp' ? bpToStrike(v) : v);
   const add = () => {
     if (!Number.isFinite(newStrike)) return;
-    setStrikes(normalizeStrikeGrid([...strikes, newStrike]));
+    setStrikes(normalizeStrikeGrid([...strikes, fromDisplay(newStrike)]));
   };
   const update = (idx: number, v: number) => {
     const next = [...strikes];
-    next[idx] = v;
+    next[idx] = fromDisplay(v);
     setStrikes(normalizeStrikeGrid(next));
   };
   const remove = (idx: number) => setStrikes(strikes.filter((_, i) => i !== idx));
@@ -3866,13 +3935,13 @@ function StrikeGridEditor({
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-3 gap-2">
-        <input type="number" step="0.0001" className="w-full px-3 py-2 bg-white border border-[#d4d4d4] rounded-lg text-sm" value={newStrike} onChange={e => setNewStrike(Number(e.target.value) || 0)} />
+        <input type="number" step={displayUnit === 'bp' ? '1' : '0.0001'} aria-label={displayUnit === 'bp' ? 'New strike spread (bp)' : 'New strike'} className="w-full px-3 py-2 bg-white border border-[#d4d4d4] rounded-lg text-sm" value={newStrike} onChange={e => setNewStrike(Number(e.target.value) || 0)} />
         <button type="button" className="px-3 py-2 text-xs border border-[#d4d4d4] rounded-lg hover:bg-[#f5f5f5] col-span-2" onClick={add}>Add Strike</button>
       </div>
       <div className="space-y-1 max-h-28 overflow-auto border border-[#e5e5e5] rounded-lg p-2 bg-[#fafafa]">
         {strikes.map((s, i) => (
           <div key={`${s}-${i}`} className="grid grid-cols-3 gap-2 items-center">
-            <input type="number" step="0.0001" className="col-span-2 w-full px-2 py-1 bg-white border border-[#d4d4d4] rounded text-xs font-mono" value={s} onChange={e => update(i, Number(e.target.value))} />
+            <input type="number" step={displayUnit === 'bp' ? '1' : '0.0001'} className="col-span-2 w-full px-2 py-1 bg-white border border-[#d4d4d4] rounded text-xs font-mono" value={toDisplay(s)} onChange={e => update(i, Number(e.target.value))} />
             <button type="button" className="p-1 text-[#737373] hover:text-red-500 hover:bg-red-50 rounded justify-self-start" onClick={() => remove(i)} title="Remove">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

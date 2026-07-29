@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   backfillSurfaceAxesFromLegacy,
+  bpToStrike,
   buildCubeGeometry,
+  cubeToNodesMatrix,
   expiryLabelToYears,
+  nodesMatrixToCube,
   pickDefaultFloatIndex,
   rateFloatIndexOptions,
+  strikeToBp,
   swapIndexIdForIndex,
 } from './vol-workbench-helpers';
 import type { VolSurfaceSampleResult } from '../../lib/quantra-types';
@@ -236,5 +240,63 @@ describe('buildCubeGeometry', () => {
     expect(g.y.length).toBe(2);
     expect(g.z.length).toBe(2);
     expect(g.z[0].length).toBe(3);
+  });
+});
+
+describe('cubeToNodesMatrix / nodesMatrixToCube', () => {
+  const cube = [
+    [
+      [0.30, 0.25, 0.28],
+      [0.29, 0.24, 0.27],
+    ],
+    [
+      [0.28, 0.23, 0.26],
+      [0.27, 0.22, 0.25],
+    ],
+  ];
+
+  it('projects the cube row-major: row = expiry * nT + tenor, col = strike', () => {
+    const m = cubeToNodesMatrix(cube, 2, 2, 3);
+    expect(m).toHaveLength(4);
+    expect(m[0]).toEqual([0.30, 0.25, 0.28]); // (e0, t0)
+    expect(m[1]).toEqual([0.29, 0.24, 0.27]); // (e0, t1)
+    expect(m[2]).toEqual([0.28, 0.23, 0.26]); // (e1, t0)
+    expect(m[3]).toEqual([0.27, 0.22, 0.25]); // (e1, t1)
+  });
+
+  it('coerces null cells (JSON-round-tripped NaN) to NaN literals', () => {
+    const withNull = JSON.parse(JSON.stringify(cube)) as unknown[][][];
+    withNull[1][0][2] = null;
+    const m = cubeToNodesMatrix(withNull as never, 2, 2, 3);
+    expect(Number.isNaN(m[2][2])).toBe(true);
+    // Quote cells survive the projection.
+    withNull[0][0][0] = { quoteId: 'Q1' };
+    const m2 = cubeToNodesMatrix(withNull as never, 2, 2, 3);
+    expect(m2[0][0]).toEqual({ quoteId: 'Q1' });
+  });
+
+  it('round-trips through nodesMatrixToCube', () => {
+    const m = cubeToNodesMatrix(cube, 2, 2, 3);
+    const back = nodesMatrixToCube(m, 2, 2, 3);
+    expect(back).toEqual(cube);
+  });
+
+  it('fills missing rows/cells with NaN when rebuilding the cube', () => {
+    const back = nodesMatrixToCube([[0.3]], 2, 2, 3);
+    expect(back[0][0][0]).toBe(0.3);
+    expect(Number.isNaN(back[0][0][1] as number)).toBe(true);
+    expect(Number.isNaN(back[1][1][2] as number)).toBe(true);
+  });
+});
+
+describe('strikeToBp / bpToStrike', () => {
+  it('converts rate decimals to display basis points without float noise', () => {
+    expect(strikeToBp(-0.02)).toBe(-200);
+    expect(strikeToBp(0.005)).toBe(50);
+    expect(strikeToBp(0)).toBe(0);
+  });
+  it('converts basis points back to rate decimals', () => {
+    expect(bpToStrike(-200)).toBe(-0.02);
+    expect(bpToStrike(100)).toBe(0.01);
   });
 });

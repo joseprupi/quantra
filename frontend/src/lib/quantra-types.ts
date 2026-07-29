@@ -120,8 +120,10 @@ export interface SabrCalibrationDiagnostics {
 export interface SwaptionVolDiagnostics {
   vol_id: string;
   kind?: string;
-  expiries?: Array<{ n: number; unit: string }>;
-  tenors?: Array<{ n: number; unit: string }>;
+  // The unit is the NUMERIC FlatBuffers TimeUnit enum on the wire (e.g.
+  // {n: 1, unit: 8} = 1 Year); string units are accepted for cached values.
+  expiries?: Array<{ n: number; unit: number | string }>;
+  tenors?: Array<{ n: number; unit: number | string }>;
   n_expiries?: number;
   n_tenors?: number;
   forward_per_node?: number[];

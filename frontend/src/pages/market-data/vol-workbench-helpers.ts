@@ -1,4 +1,5 @@
 import type { DisplayUnits } from './vol-workbench-types';
+import type { MatrixCell } from '../../lib/types/matrix2d';
 import type { VolSurfaceSampleResult } from '../../lib/quantra-types';
 import type { VolSurfaceSpec } from '../../lib/storage/volSurfaces';
 import type { StoredIndexSpec } from '../../lib/storage/indices';
@@ -413,4 +414,106 @@ export function buildEquityGeometry(
     yAllZero: y.every(v => Math.abs(v) < 1e-12),
     yHasDuplicates: ySet.size !== y.length,
   };
+}
+
+// ---------------------------------------------------------------------------
+// SABR-calibrate cube <-> flat nodes-by-strikes matrix projection
+// ---------------------------------------------------------------------------
+
+/** True when the cell is either a finite/NaN number literal or a quote ref.
+ * `null` (a NaN literal that went through a JSON round trip) is NOT valid and
+ * is coerced to a NaN literal so the Matrix2DEditor renders an empty input. */
+function coerceCubeCell(cell: unknown): MatrixCell {
+  if (typeof cell === 'number') return cell;
+  if (cell && typeof cell === 'object' && 'quoteId' in (cell as Record<string, unknown>)) {
+    return cell as MatrixCell;
+  }
+  return NaN as MatrixCell;
+}
+
+/**
+ * Project the 3D market-vol cube `[expiry][tenor][strike]` onto a flat 2D
+ * matrix whose rows are the (expiry, tenor) nodes in row-major order
+ * (row = e * nTenors + t) and whose columns are the strikes. This is the
+ * layout the SabrCalibrate vols editor renders: one row per calibration
+ * node, one column per strike spread, so a whole broker-style smile table
+ * pastes in one go.
+ */
+export function cubeToNodesMatrix(
+  cube: ReadonlyArray<ReadonlyArray<ReadonlyArray<unknown>>> | undefined,
+  nE: number,
+  nT: number,
+  nS: number,
+): MatrixCell[][] {
+  const out: MatrixCell[][] = [];
+  for (let i = 0; i < nE; i += 1) {
+    for (let j = 0; j < nT; j += 1) {
+      const row: MatrixCell[] = [];
+      for (let k = 0; k < nS; k += 1) {
+        row.push(coerceCubeCell(cube?.[i]?.[j]?.[k]));
+      }
+      out.push(row);
+    }
+  }
+  return out;
+}
+
+/**
+ * Inverse of `cubeToNodesMatrix`: rebuild the 3D cube from the flat
+ * nodes-by-strikes matrix. Missing cells become NaN literals.
+ */
+export function nodesMatrixToCube(
+  matrix: ReadonlyArray<ReadonlyArray<MatrixCell>> | undefined,
+  nE: number,
+  nT: number,
+  nS: number,
+): MatrixCell[][][] {
+  const cube: MatrixCell[][][] = [];
+  for (let i = 0; i < nE; i += 1) {
+    const eRow: MatrixCell[][] = [];
+    for (let j = 0; j < nT; j += 1) {
+      const tRow: MatrixCell[] = [];
+      const flatRow = matrix?.[i * nT + j];
+      for (let k = 0; k < nS; k += 1) {
+        tRow.push(coerceCubeCell(flatRow?.[k]));
+      }
+      eRow.push(tRow);
+    }
+    cube.push(eRow);
+  }
+  return cube;
+}
+
+/** Rate-decimal strike spread -> display basis points (e.g. -0.01 -> -100). */
+export function strikeToBp(s: number): number {
+  return Number((s * 10000).toFixed(4));
+}
+
+/** Display basis points -> rate-decimal strike spread (e.g. -100 -> -0.01). */
+export function bpToStrike(bp: number): number {
+  return bp / 10000;
+}
+
+/**
+ * FlatBuffers TimeUnit enum (engine schema, alphabetical ordering). The
+ * /v1/calibrate-swaption-vol diagnostics echo the calibration grid's periods
+ * with the NUMERIC enum unit (e.g. {n: 1, unit: 8} for 1 Year), while the
+ * portal's own Period type carries the string unit. Decode numbers to the
+ * matching string; strings pass through unchanged.
+ */
+const FB_TIME_UNITS: Record<number, string> = {
+  0: 'Days',
+  1: 'Hours',
+  2: 'Microseconds',
+  3: 'Milliseconds',
+  4: 'Minutes',
+  5: 'Months',
+  6: 'Seconds',
+  7: 'Weeks',
+  8: 'Years',
+};
+
+export function decodeDiagnosticsPeriod(p: { n: number; unit: number | string }): { n: number; unit: string } {
+  const unit = typeof p.unit === 'number' ? (FB_TIME_UNITS[p.unit] ?? 'Days') : p.unit;
+  return { n: p.n, unit };
 }

@@ -327,6 +327,37 @@ export function checkCubeShape(
 }
 
 /**
+ * Find the first cube cell that is EMPTY: neither a finite number literal nor
+ * a quote reference. This catches NaN literals (unfilled editor cells) AND
+ * `null` cells — a fresh cube is seeded with NaN literals, and NaN does not
+ * survive a JSON round trip (`JSON.stringify(NaN) === "null"`), so a surface
+ * saved to the backend and reloaded carries `null` where the user never
+ * entered a vol. Before this guard, `flattenCubeForWire` silently mapped
+ * those cells to 0 and the engine rejected the request server-side with
+ * "vol must be > 0 and finite"; now the user gets a precise client-side
+ * message naming the first unfilled cell.
+ */
+export function findEmptyCubeCell(
+  cube: ReadonlyArray<ReadonlyArray<ReadonlyArray<MatrixCell>>>,
+): { e: number; t: number; s: number } | null {
+  for (let i = 0; i < cube.length; i += 1) {
+    const eRow = cube[i] || [];
+    for (let j = 0; j < eRow.length; j += 1) {
+      const tRow = eRow[j] || [];
+      for (let k = 0; k < tRow.length; k += 1) {
+        const cell = tRow[k];
+        const isFiniteNumber = typeof cell === 'number' && Number.isFinite(cell);
+        const isQuote = !!cell && typeof cell === 'object' && 'quoteId' in cell;
+        if (!isFiniteNumber && !isQuote) {
+          return { e: i, t: j, s: k };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Find the first cube cell that's a non-positive literal (NaN, -Inf, ≤ 0).
  * Quote cells are skipped (their resolved values are checked at wire-emit
  * time via the resolver). Mirrors the backend's
@@ -534,6 +565,12 @@ function buildSabrCalibrateInner(
   if (cubeErr) {
     throw new VolSurfacePayloadError(
       `Surface "${surface.id}" SabrCalibrate dimension mismatch: ${cubeErr}.`
+    );
+  }
+  const empty = findEmptyCubeCell(cube as MatrixCell[][][]);
+  if (empty) {
+    throw new VolSurfacePayloadError(
+      `Surface "${surface.id}" SabrCalibrate market vol cube has an empty cell at expiry ${empty.e}, tenor ${empty.t}, strike ${empty.s}. Fill or paste a positive market vol into every cell (or switch the cell to a quote reference) before calibrating.`
     );
   }
   const nonPos = findNonPositiveCubeLiteral(cube as MatrixCell[][][]);
