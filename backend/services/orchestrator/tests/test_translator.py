@@ -684,6 +684,214 @@ def test_swaption_atm_matrix_axis_grid_disagreement_rejects() -> None:
         )
 
 
+# ---------------------------------------------------------------------------
+# SABR calibrate swaption vol surface (expiry x tenor x strike-spread cube)
+# ---------------------------------------------------------------------------
+
+
+_SABR_STRIKES: list[float] = [-0.02, -0.01, 0.0, 0.01, 0.02]
+_SABR_VOLS: list[float] = [
+    # 2 expiries x 2 tenors x 5 strikes, row-major; simple smiles around ATM.
+    0.24, 0.22, 0.21, 0.22, 0.24,
+    0.23, 0.21, 0.20, 0.21, 0.23,
+    0.22, 0.20, 0.19, 0.20, 0.22,
+    0.21, 0.19, 0.18, 0.19, 0.21,
+]  # fmt: skip
+
+
+def _sabr_calibrate_surface(
+    surface_id: uuid.UUID | None = None,
+    *,
+    name: str = "EUR-SABR",
+    strikes: list[float] | None = None,
+    values: list[float] | None = None,
+    n_1: int | None = 2,
+    n_2: int | None = 2,
+    n_3: int | None = 5,
+    inner_extra: dict[str, Any] | None = None,
+) -> ResolvedVolSurface:
+    vols: dict[str, Any] = {
+        "values": values if values is not None else list(_SABR_VOLS),
+    }
+    if n_1 is not None:
+        vols["n_1"] = n_1
+    if n_2 is not None:
+        vols["n_2"] = n_2
+    if n_3 is not None:
+        vols["n_3"] = n_3
+    inner: dict[str, Any] = {
+        "base": {
+            "reference_date": "2026-05-13",
+            "calendar": "TARGET",
+            "business_day_convention": "ModifiedFollowing",
+            "day_counter": "Actual365Fixed",
+            "volatility_type": "Lognormal",
+            "shape": "SabrCalibrate",
+        },
+        "expiries": [{"n": 1, "unit": "Years"}, {"n": 5, "unit": "Years"}],
+        "tenors": [{"n": 2, "unit": "Years"}, {"n": 5, "unit": "Years"}],
+        "strikes": strikes if strikes is not None else list(_SABR_STRIKES),
+        "vols": vols,
+        "beta_fixed": True,
+        "beta_value": 0.5,
+        "vega_weighted_smile_fit": False,
+    }
+    if inner_extra:
+        inner.update(inner_extra)
+    payload = {
+        "swap_index_id": "EUR_SWAP_6M",
+        "payload_type": "SwaptionSabrCalibrateSpec",
+        "payload": inner,
+    }
+    return ResolvedVolSurface(id=surface_id, name=name, kind="SwaptionVolSpec", payload=payload)
+
+
+def _build_sabr_pricing(surface: ResolvedVolSurface) -> PricingT:
+    return build_pricing_from_resolved(
+        _resolved(
+            curves=[_curve(uuid.uuid4())],
+            quotes=[_quote()],
+            vol_surfaces=[surface],
+            models=[_model()],
+        )
+    )
+
+
+def test_swaption_sabr_calibrate_surface_translates() -> None:
+    """A SabrCalibrate surface builds the calibration cube payload (was a 422)."""
+
+    surface_id = uuid.uuid4()
+    pricing = _build_sabr_pricing(_sabr_calibrate_surface(surface_id))
+    spec = pricing.volatility.volSurfaces[0]
+    assert spec.id == str(surface_id)
+    assert spec.payloadType == VolPayload.SwaptionVolSpec
+    swaption_vol = spec.payload
+    assert swaption_vol.swapIndexId == "EUR_SWAP_6M"
+    assert swaption_vol.payloadType == SwaptionVolPayload.SwaptionSabrCalibrateSpec
+    cube = swaption_vol.payload
+    assert cube.base.shape == VolSurfaceShape.SabrCalibrate
+    assert cube.base.volatilityType == VolatilityType.Lognormal
+    assert cube.base.referenceDate == "2026-05-13"
+    assert len(cube.expiries) == 2
+    assert len(cube.tenors) == 2
+    assert (cube.expiries[1].n, cube.expiries[1].unit) == (5, TimeUnit.Years)
+    assert (cube.tenors[0].n, cube.tenors[0].unit) == (2, TimeUnit.Years)
+    assert list(cube.strikes) == pytest.approx(_SABR_STRIKES)
+    assert (cube.vols.n1, cube.vols.n2, cube.vols.n3) == (2, 2, 5)
+    assert list(cube.vols.values) == pytest.approx(_SABR_VOLS)
+    assert cube.betaFixed is True
+    assert cube.betaValue == pytest.approx(0.5)
+    assert cube.vegaWeightedSmileFit is False
+    # v1 contract: weights are never emitted (engine parse-time rejection).
+    assert cube.weights is None
+    # Invariant #8: inline values only — no quote-id vector on the tensor.
+    assert not cube.vols.quoteIds
+
+
+def test_swaption_sabr_calibrate_wire_roundtrip() -> None:
+    """The cube survives a ForceDefaults encode → decode round-trip (wire fidelity)."""
+
+    pricing = _build_sabr_pricing(
+        _sabr_calibrate_surface(inner_extra={"beta_fixed": False, "beta_value": 0.7})
+    )
+    builder = flatbuffers.Builder(2048)
+    builder.ForceDefaults(True)
+    builder.Finish(pricing.Pack(builder))
+    decoded = PricingT.InitFromObj(Pricing.GetRootAs(bytearray(builder.Output()), 0))
+
+    swaption_vol = decoded.volatility.volSurfaces[0].payload
+    assert swaption_vol.payloadType == SwaptionVolPayload.SwaptionSabrCalibrateSpec
+    cube = swaption_vol.payload
+    assert cube.base.shape == VolSurfaceShape.SabrCalibrate
+    assert [(p.n, p.unit) for p in cube.expiries] == [(1, TimeUnit.Years), (5, TimeUnit.Years)]
+    assert [(p.n, p.unit) for p in cube.tenors] == [(2, TimeUnit.Years), (5, TimeUnit.Years)]
+    assert list(cube.strikes) == pytest.approx(_SABR_STRIKES)
+    assert (cube.vols.n1, cube.vols.n2, cube.vols.n3) == (2, 2, 5)
+    assert list(cube.vols.values) == pytest.approx(_SABR_VOLS)
+    assert cube.betaFixed is False
+    assert cube.betaValue == pytest.approx(0.7)
+    # weights stay absent on the wire.
+    assert cube.weights is None
+
+
+def test_swaption_sabr_calibrate_tensor_length_mismatch_rejects() -> None:
+    """A ``vols`` tensor whose values ≠ nExp*nTen*nStrikes rejects → surface 422."""
+
+    with pytest.raises(VolSurfaceTranslationError, match="row-major"):
+        _build_sabr_pricing(
+            # Axes are 2x2x5 = 20 but only 19 values.
+            _sabr_calibrate_surface(values=list(_SABR_VOLS[:-1]), n_1=None, n_2=None, n_3=None)
+        )
+
+
+def test_swaption_sabr_calibrate_declared_dims_disagree_rejects() -> None:
+    """Declared ``n_1/n_2/n_3`` disagreeing with the axes rejects → surface 422."""
+
+    with pytest.raises(VolSurfaceTranslationError, match="n_3"):
+        # 2x2x5 axes but the tensor claims n_3 = 4.
+        _build_sabr_pricing(_sabr_calibrate_surface(n_3=4))
+
+
+def test_swaption_sabr_calibrate_empty_strikes_rejects() -> None:
+    """A missing/empty ``strikes`` axis rejects → surface 422."""
+
+    with pytest.raises(VolSurfaceTranslationError, match="strikes"):
+        _build_sabr_pricing(_sabr_calibrate_surface(strikes=[]))
+
+
+def test_swaption_sabr_calibrate_empty_expiries_rejects() -> None:
+    """A missing/empty ``expiries`` axis rejects → surface 422."""
+
+    with pytest.raises(VolSurfaceTranslationError, match="expiries"):
+        _build_sabr_pricing(_sabr_calibrate_surface(inner_extra={"expiries": []}))
+
+
+def test_swaption_sabr_calibrate_empty_tenors_rejects() -> None:
+    """A missing/empty ``tenors`` axis rejects → surface 422."""
+
+    with pytest.raises(VolSurfaceTranslationError, match="tenors"):
+        _build_sabr_pricing(_sabr_calibrate_surface(inner_extra={"tenors": []}))
+
+
+def test_swaption_sabr_calibrate_weights_present_rejects() -> None:
+    """User-supplied per-strike ``weights`` reject → surface 422 (v1 contract)."""
+
+    with pytest.raises(VolSurfaceTranslationError, match="weights"):
+        _build_sabr_pricing(
+            _sabr_calibrate_surface(
+                inner_extra={"weights": {"n_1": 2, "n_2": 2, "n_3": 5, "values": [1.0] * 20}}
+            )
+        )
+
+
+def test_swaption_sabr_calibrate_empty_weights_envelope_is_ignored() -> None:
+    """A weights envelope with NO values (e.g. ``{}``) is inert, not a rejection."""
+
+    pricing = _build_sabr_pricing(_sabr_calibrate_surface(inner_extra={"weights": {}}))
+    cube = pricing.volatility.volSurfaces[0].payload.payload
+    assert cube.weights is None
+
+
+def test_swaption_sabr_calibrate_missing_base_rejects() -> None:
+    """A SabrCalibrate payload without the inner ``base`` envelope rejects."""
+
+    surface = _sabr_calibrate_surface()
+    assert isinstance(surface.payload["payload"], dict)
+    del surface.payload["payload"]["base"]
+    with pytest.raises(VolSurfaceTranslationError, match="base"):
+        _build_sabr_pricing(surface)
+
+
+def test_swaption_sabr_calibrate_missing_vols_rejects() -> None:
+    """A SabrCalibrate payload without the ``vols`` tensor rejects."""
+
+    surface = _sabr_calibrate_surface()
+    assert isinstance(surface.payload["payload"], dict)
+    del surface.payload["payload"]["vols"]
+    with pytest.raises(VolSurfaceTranslationError, match="vols"):
+        _build_sabr_pricing(surface)
+
+
 def test_vol_surface_base_without_value_source_rejects() -> None:
     """A base with neither a quote_id nor a constant_vol rejects (no default vol)."""
 

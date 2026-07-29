@@ -219,6 +219,9 @@ from quantra_common.engine_client._generated.quantra.QuoteMatrix2D import (
     QuoteMatrix2DT,
 )
 from quantra_common.engine_client._generated.quantra.QuoteSpec import QuoteSpecT
+from quantra_common.engine_client._generated.quantra.QuoteTensor3D import (
+    QuoteTensor3DT,
+)
 from quantra_common.engine_client._generated.quantra.QuoteType import QuoteType
 from quantra_common.engine_client._generated.quantra.RatesMarketData import (
     RatesMarketDataT,
@@ -227,6 +230,9 @@ from quantra_common.engine_client._generated.quantra.Schedule import ScheduleT
 from quantra_common.engine_client._generated.quantra.SwapHelper import SwapHelperT
 from quantra_common.engine_client._generated.quantra.SwaptionModelSpec import (
     SwaptionModelSpecT,
+)
+from quantra_common.engine_client._generated.quantra.SwaptionSabrCalibrateSpec import (
+    SwaptionSabrCalibrateSpecT,
 )
 from quantra_common.engine_client._generated.quantra.SwaptionVolAtmMatrixSpec import (
     SwaptionVolAtmMatrixSpecT,
@@ -2176,6 +2182,7 @@ _SWAP_INDEX_KEYS: Final[tuple[str, ...]] = ("swap_index_id", "swapIndexId")
 _VOL_VALUE_KEYS: Final[tuple[str, ...]] = ("constant_vol", "constantVol")
 _PAYLOAD_TYPE_KEYS: Final[tuple[str, ...]] = ("payload_type", "payloadType")
 _SWAPTION_MATRIX_PAYLOAD_TYPE: Final[str] = "SwaptionVolAtmMatrixSpec"
+_SWAPTION_SABR_CALIBRATE_PAYLOAD_TYPE: Final[str] = "SwaptionSabrCalibrateSpec"
 
 
 def resolved_vol_surface_id(vol_surface: ResolvedVolSurfaceLike) -> str:
@@ -2289,20 +2296,24 @@ def _swaption_vol_base(
 
 
 def _matrix_periods(
-    raw: object, *, field: str, vol_surface: ResolvedVolSurfaceLike
+    raw: object,
+    *,
+    field: str,
+    vol_surface: ResolvedVolSurfaceLike,
+    spec_name: str = _SWAPTION_MATRIX_PAYLOAD_TYPE,
 ) -> list[PeriodT]:
     """Translate a matrix axis (``[{n, unit}, …]``) into a list of ``Period``."""
 
     if not isinstance(raw, list) or not raw:
         raise VolSurfaceTranslationError(
-            f"SwaptionVolAtmMatrixSpec surface is missing the required ``{field}`` axis.",
+            f"{spec_name} surface is missing the required ``{field}`` axis.",
             details=[{"vol_surface": resolved_vol_surface_id(vol_surface), "missing_field": field}],
         )
     periods: list[PeriodT] = []
     for item in raw:
         if not isinstance(item, Mapping):
             raise VolSurfaceTranslationError(
-                f"SwaptionVolAtmMatrixSpec ``{field}`` axis entry is not a ``{{n, unit}}`` tenor.",
+                f"{spec_name} ``{field}`` axis entry is not a ``{{n, unit}}`` tenor.",
                 details=[{"vol_surface": resolved_vol_surface_id(vol_surface), "field": field}],
             )
         periods.append(
@@ -2419,6 +2430,192 @@ def _translate_swaption_atm_matrix(
     return matrix
 
 
+def _sabr_strikes(raw: object, *, vol_surface: ResolvedVolSurfaceLike) -> list[float]:
+    """Translate the SABR strike-spread axis (``[double]``, rate units).
+
+    Strikes are SPREADS from the per-node ATM forward (e.g. ``-0.02`` = -200bp);
+    the same vector applies at every (expiry, tenor) node. Ordering/finiteness
+    rules beyond non-emptiness are enforced engine-side (strictly-increasing,
+    finite) — the translator only rejects a missing/empty/non-numeric axis.
+    """
+
+    if not isinstance(raw, list) or not raw:
+        raise VolSurfaceTranslationError(
+            "SwaptionSabrCalibrateSpec surface is missing the required "
+            "``strikes`` axis (spreads from the per-node ATM forward).",
+            details=[
+                {"vol_surface": resolved_vol_surface_id(vol_surface), "missing_field": "strikes"}
+            ],
+        )
+    strikes: list[float] = []
+    for item in raw:
+        if isinstance(item, bool) or not isinstance(item, (int, float)):
+            raise VolSurfaceTranslationError(
+                "SwaptionSabrCalibrateSpec ``strikes`` axis entry is not a number.",
+                details=[{"vol_surface": resolved_vol_surface_id(vol_surface), "field": "strikes"}],
+            )
+        strikes.append(float(item))
+    return strikes
+
+
+def _quote_tensor_3d(
+    raw: object,
+    *,
+    n_expiries: int,
+    n_tenors: int,
+    n_strikes: int,
+    vol_surface: ResolvedVolSurfaceLike,
+) -> QuoteTensor3DT:
+    """Translate a ``{n_1, n_2, n_3, values}`` cube into a ``QuoteTensor3D``.
+
+    Row-major ``n_expiries * n_tenors * n_strikes`` inline market vols. Mirrors
+    :func:`_quote_matrix_2d`: inline values only — per invariant #8 the engine
+    never sees a ``quote_id``, so ``quoteIds`` is left absent. Declared dims (if
+    present) must agree with the axes; the flat ``values`` length must equal the
+    axes product.
+    """
+
+    if not isinstance(raw, Mapping):
+        raise VolSurfaceTranslationError(
+            "SwaptionSabrCalibrateSpec surface is missing the required "
+            "``vols`` tensor (``{n_1, n_2, n_3, values}``).",
+            details=[
+                {"vol_surface": resolved_vol_surface_id(vol_surface), "missing_field": "vols"}
+            ],
+        )
+    values_raw = raw.get("values")
+    if not isinstance(values_raw, list) or not values_raw:
+        raise VolSurfaceTranslationError(
+            "SwaptionSabrCalibrateSpec ``vols.values`` is empty.",
+            details=[{"vol_surface": resolved_vol_surface_id(vol_surface)}],
+        )
+    values = [_float(v, 0.0) for v in values_raw]
+
+    def _declared(*keys: str) -> int | None:
+        for key in keys:
+            if raw.get(key) is not None:
+                return _int(raw.get(key), 0)
+        return None
+
+    declared = (_declared("n_1", "n1"), _declared("n_2", "n2"), _declared("n_3", "n3"))
+    axes = (n_expiries, n_tenors, n_strikes)
+    for dim_declared, dim_axis, label in zip(declared, axes, ("n_1", "n_2", "n_3"), strict=True):
+        if dim_declared is not None and dim_declared != dim_axis:
+            raise VolSurfaceTranslationError(
+                f"SwaptionSabrCalibrateSpec ``vols.{label}`` is {dim_declared} but the "
+                f"axes declare {n_expiries} expiries x {n_tenors} tenors x "
+                f"{n_strikes} strikes.",
+                details=[{"vol_surface": resolved_vol_surface_id(vol_surface)}],
+            )
+    expected = n_expiries * n_tenors * n_strikes
+    if len(values) != expected:
+        raise VolSurfaceTranslationError(
+            f"SwaptionSabrCalibrateSpec ``vols`` tensor must carry "
+            f"{n_expiries}x{n_tenors}x{n_strikes} = {expected} row-major values "
+            f"but carries {len(values)}.",
+            details=[{"vol_surface": resolved_vol_surface_id(vol_surface)}],
+        )
+
+    tensor = QuoteTensor3DT()
+    tensor.n1 = n_expiries
+    tensor.n2 = n_tenors
+    tensor.n3 = n_strikes
+    tensor.values = values
+    tensor.quoteIds = None
+    return tensor
+
+
+def _translate_swaption_sabr_calibrate(
+    vol_surface: ResolvedVolSurfaceLike,
+    payload: Mapping[str, Any],
+    *,
+    default_reference_date: str,
+) -> SwaptionSabrCalibrateSpecT:
+    """Translate a ``SwaptionSabrCalibrateSpec`` surface (SABR smile calibration).
+
+    The concrete spec sits under the inner ``payload`` envelope:
+    ``{base, expiries:[{n,unit}], tenors:[{n,unit}], strikes:[double],
+    vols:{n_1,n_2,n_3,values}, beta_fixed, beta_value, vega_weighted_smile_fit}``.
+    The vols are inline (already-resolved) absolute market vols, row-major
+    nExp*nTen*nStrikes; strikes are spreads from the per-node ATM forward.
+    ``weights`` is a v1 parse-time rejection engine-side (per-strike weights are
+    not exposed by QuantLib 1.41's calibrator) — the translator rejects it here
+    with a typed 422 and never emits the field.
+    """
+
+    inner = payload.get("payload")
+    if not isinstance(inner, Mapping):
+        raise VolSurfaceTranslationError(
+            "SwaptionSabrCalibrateSpec surface is missing the required inner "
+            "``payload`` envelope (``{base, expiries, tenors, strikes, vols}``).",
+            details=[
+                {"vol_surface": resolved_vol_surface_id(vol_surface), "missing_field": "payload"}
+            ],
+        )
+    base_raw = inner.get("base")
+    if not isinstance(base_raw, Mapping):
+        raise VolSurfaceTranslationError(
+            "SwaptionSabrCalibrateSpec surface is missing the required ``base`` "
+            "envelope (conventions + volatility type).",
+            details=[
+                {"vol_surface": resolved_vol_surface_id(vol_surface), "missing_field": "base"}
+            ],
+        )
+
+    weights_raw = inner.get("weights")
+    if isinstance(weights_raw, Mapping) and weights_raw.get("values"):
+        raise VolSurfaceTranslationError(
+            "SwaptionSabrCalibrateSpec ``weights`` are not supported in v1 — "
+            "per-strike weights are not exposed by the engine's calibrator; "
+            "use ``vega_weighted_smile_fit`` instead.",
+            details=[{"vol_surface": resolved_vol_surface_id(vol_surface), "field": "weights"}],
+        )
+
+    base = _swaption_vol_base(
+        base_raw,
+        default_reference_date=default_reference_date,
+        default_shape=VolSurfaceShape.SabrCalibrate,
+    )
+
+    expiries = _matrix_periods(
+        inner.get("expiries"),
+        field="expiries",
+        vol_surface=vol_surface,
+        spec_name=_SWAPTION_SABR_CALIBRATE_PAYLOAD_TYPE,
+    )
+    tenors = _matrix_periods(
+        inner.get("tenors"),
+        field="tenors",
+        vol_surface=vol_surface,
+        spec_name=_SWAPTION_SABR_CALIBRATE_PAYLOAD_TYPE,
+    )
+    strikes = _sabr_strikes(inner.get("strikes"), vol_surface=vol_surface)
+    vols = _quote_tensor_3d(
+        inner.get("vols"),
+        n_expiries=len(expiries),
+        n_tenors=len(tenors),
+        n_strikes=len(strikes),
+        vol_surface=vol_surface,
+    )
+
+    beta_fixed_raw = inner.get("beta_fixed", inner.get("betaFixed"))
+    vega_weighted_raw = inner.get("vega_weighted_smile_fit", inner.get("vegaWeightedSmileFit"))
+    beta_value_raw = inner.get("beta_value", inner.get("betaValue"))
+
+    spec = SwaptionSabrCalibrateSpecT()
+    spec.base = base
+    spec.expiries = expiries
+    spec.tenors = tenors
+    spec.strikes = strikes
+    spec.vols = vols
+    spec.betaFixed = beta_fixed_raw if isinstance(beta_fixed_raw, bool) else True
+    spec.betaValue = _float(beta_value_raw, 0.5)
+    spec.vegaWeightedSmileFit = vega_weighted_raw if isinstance(vega_weighted_raw, bool) else False
+    # Never emit ``weights`` (engine v1 parse-time rejection; see above).
+    spec.weights = None
+    return spec
+
+
 def _translate_swaption_constant(
     vol_surface: ResolvedVolSurfaceLike,
     payload: Mapping[str, Any],
@@ -2469,6 +2666,8 @@ def _translate_swaption_vol_surface(
 
     * ``SwaptionVolAtmMatrixSpec`` → the ATM expiry x tenor vol matrix so a
       real term-structured surface reaches the engine (was a hard 422 before).
+    * ``SwaptionSabrCalibrateSpec`` → the SABR smile-calibration cube
+      (expiry x tenor x strike-spread market vols + beta policy).
     * ``SwaptionVolConstantSpec`` / base-at-top-level → the constant-vol path,
       unchanged.
     """
@@ -2481,6 +2680,11 @@ def _translate_swaption_vol_surface(
     if payload_type == _SWAPTION_MATRIX_PAYLOAD_TYPE:
         swaption_vol.payloadType = SwaptionVolPayload.SwaptionVolAtmMatrixSpec
         swaption_vol.payload = _translate_swaption_atm_matrix(
+            vol_surface, payload, default_reference_date=default_reference_date
+        )
+    elif payload_type == _SWAPTION_SABR_CALIBRATE_PAYLOAD_TYPE:
+        swaption_vol.payloadType = SwaptionVolPayload.SwaptionSabrCalibrateSpec
+        swaption_vol.payload = _translate_swaption_sabr_calibrate(
             vol_surface, payload, default_reference_date=default_reference_date
         )
     else:
