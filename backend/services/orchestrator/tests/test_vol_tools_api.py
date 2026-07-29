@@ -34,8 +34,15 @@ from quantra_common.engine_client import EngineClient, EngineClientError, Engine
 from quantra_common.engine_client._generated.quantra.CalibrateSwaptionModelResponse import (
     CalibrateSwaptionModelResponseT,
 )
+from quantra_common.engine_client._generated.quantra.CalibrateSwaptionVolRequest import (
+    CalibrateSwaptionVolRequest,
+    CalibrateSwaptionVolRequestT,
+)
 from quantra_common.engine_client._generated.quantra.CalibrateSwaptionVolResponse import (
     CalibrateSwaptionVolResponseT,
+)
+from quantra_common.engine_client._generated.quantra.SabrCalibrationDiagnostics import (
+    SabrCalibrationDiagnosticsT,
 )
 from quantra_common.engine_client._generated.quantra.SampleVolSurfacesRequest import (
     SampleVolSurfacesRequest,
@@ -432,6 +439,212 @@ def test_calibrate_vol_happy_path(headers: dict[str, str]) -> None:
     assert body["vol_id"] == "USD-ATM"
     assert body["diagnostics"]["atm_vol_per_node"] == [0.20]
     assert engine.calls[0][0] == EngineRpc.CALIBRATE_SWAPTION_VOL
+
+
+_SABR_TEST_VOLS: list[float] = [
+    0.24, 0.22, 0.21, 0.22, 0.24,
+    0.23, 0.21, 0.20, 0.21, 0.23,
+    0.22, 0.20, 0.19, 0.20, 0.22,
+    0.21, 0.19, 0.18, 0.19, 0.21,
+]  # fmt: skip
+
+
+def _sabr_calibrate_surface() -> dict[str, Any]:
+    return {
+        "name": "EUR-SABR",
+        "payload_type": "SwaptionVolSpec",
+        "payload": {
+            "swap_index_id": "EUR_SWAP_6M",
+            "payload_type": "SwaptionSabrCalibrateSpec",
+            "payload": {
+                "base": {
+                    "reference_date": "2026-05-13",
+                    "calendar": "TARGET",
+                    "business_day_convention": "ModifiedFollowing",
+                    "day_counter": "Actual365Fixed",
+                    "volatility_type": "Lognormal",
+                    "shape": "SabrCalibrate",
+                },
+                "expiries": [{"n": 1, "unit": "Years"}, {"n": 5, "unit": "Years"}],
+                "tenors": [{"n": 2, "unit": "Years"}, {"n": 5, "unit": "Years"}],
+                "strikes": [-0.02, -0.01, 0.0, 0.01, 0.02],
+                "vols": {
+                    "n_1": 2,
+                    "n_2": 2,
+                    "n_3": 5,
+                    # Row-major 2 expiries x 2 tenors x 5 strikes; smiles around ATM.
+                    "values": _SABR_TEST_VOLS,
+                },
+                "beta_fixed": True,
+                "beta_value": 0.5,
+                "vega_weighted_smile_fit": False,
+            },
+        },
+    }
+
+
+def _sabr_calibrate_vol_response() -> bytes:
+    """A canned CalibrateSwaptionVol response with FULL SABR diagnostics."""
+
+    resp = CalibrateSwaptionVolResponseT()
+    resp.volId = "EUR-SABR"
+    diag = SwaptionVolDiagnosticsT()
+    diag.volId = "EUR-SABR"
+    diag.kind = 4  # SwaptionVolKind_SabrCalibrate
+    diag.nExpiries = 2
+    diag.nTenors = 2
+    diag.forwardPerNode = [0.021, 0.022, 0.023, 0.024]
+    diag.atmVolPerNode = [0.21, 0.20, 0.19, 0.18]
+    diag.timeToExpiryPerNode = [1.0, 1.0, 5.0, 5.0]
+    diag.alphaPerNode = [0.031, 0.032, 0.033, 0.034]
+    diag.betaPerNode = [0.5, 0.5, 0.5, 0.5]
+    diag.rhoPerNode = [-0.1, -0.12, -0.14, -0.16]
+    diag.nuPerNode = [0.41, 0.42, 0.43, 0.44]
+    cal = SabrCalibrationDiagnosticsT()
+    cal.perNodeRmse = [1e-5, 2e-5, 3e-5, 4e-5]
+    cal.perNodeMaxAbsError = [2e-5, 4e-5, 6e-5, 8e-5]
+    cal.overallRmse = 2.5e-5
+    cal.converged = True
+    cal.iterationsPerNode = [-1, -1, -1, -1]
+    cal.strikes = [-0.02, -0.01, 0.0, 0.01, 0.02]
+    cal.perStrikeFitError = [0.0] * 20
+    diag.calibration = cal
+    diag.warnings = []
+    resp.diagnostics = diag
+    builder = flatbuffers.Builder(1024)
+    builder.Finish(resp.Pack(builder))
+    return bytes(builder.Output())
+
+
+def test_calibrate_vol_sabr_surface_reaches_engine(headers: dict[str, str]) -> None:
+    """A SabrCalibrate surface translates onto the CalibrateSwaptionVol wire."""
+
+    engine = _FakeEngine(response=_sabr_calibrate_vol_response())
+    md = _FakeMd()
+    pricing = _pricing()
+    pricing["vol_surfaces"] = [_sabr_calibrate_surface()]
+    with _client(engine, md) as client:
+        resp = client.post(
+            "/v1/calibrate-swaption-vol",
+            headers=headers,
+            json={
+                "pricing": pricing,
+                "vol_id": "EUR-SABR",
+                "discounting_curve_id": "USD-OIS",
+                "forwarding_curve_id": "USD-OIS",
+            },
+        )
+    assert resp.status_code == 200, resp.text
+    assert engine.calls[0][0] == EngineRpc.CALIBRATE_SWAPTION_VOL
+    # Decode the EXACT request bytes: the SABR cube is on the wire.
+    decoded = CalibrateSwaptionVolRequestT.InitFromObj(
+        CalibrateSwaptionVolRequest.GetRootAs(bytearray(engine.calls[0][1]), 0)
+    )
+    assert decoded.pricing is not None
+    assert decoded.pricing.volatility is not None
+    surfaces = decoded.pricing.volatility.volSurfaces
+    assert surfaces is not None
+    assert len(surfaces) == 1
+    swaption_vol = surfaces[0].payload
+    assert swaption_vol.payloadType == SwaptionVolPayload.SwaptionSabrCalibrateSpec
+    cube = swaption_vol.payload
+    assert (cube.vols.n1, cube.vols.n2, cube.vols.n3) == (2, 2, 5)
+    assert len(cube.vols.values) == 20
+    assert list(cube.strikes) == pytest.approx([-0.02, -0.01, 0.0, 0.01, 0.02])
+    assert cube.betaFixed is True
+    assert cube.weights is None
+
+
+def test_calibrate_vol_decodes_full_sabr_diagnostics(headers: dict[str, str]) -> None:
+    """The response decode surfaces per-node params + the calibration block."""
+
+    engine = _FakeEngine(response=_sabr_calibrate_vol_response())
+    md = _FakeMd()
+    pricing = _pricing()
+    pricing["vol_surfaces"] = [_sabr_calibrate_surface()]
+    with _client(engine, md) as client:
+        resp = client.post(
+            "/v1/calibrate-swaption-vol",
+            headers=headers,
+            json={
+                "pricing": pricing,
+                "vol_id": "EUR-SABR",
+                "discounting_curve_id": "USD-OIS",
+                "forwarding_curve_id": "USD-OIS",
+            },
+        )
+    assert resp.status_code == 200, resp.text
+    diag = resp.json()["diagnostics"]
+    assert diag["vol_id"] == "EUR-SABR"
+    assert diag["forward_per_node"] == [0.021, 0.022, 0.023, 0.024]
+    assert diag["atm_vol_per_node"] == [0.21, 0.20, 0.19, 0.18]
+    assert diag["time_to_expiry_per_node"] == [1.0, 1.0, 5.0, 5.0]
+    assert diag["alpha_per_node"] == [0.031, 0.032, 0.033, 0.034]
+    assert diag["beta_per_node"] == [0.5, 0.5, 0.5, 0.5]
+    assert diag["rho_per_node"] == [-0.1, -0.12, -0.14, -0.16]
+    assert diag["nu_per_node"] == [0.41, 0.42, 0.43, 0.44]
+    cal = diag["calibration"]
+    assert cal["per_node_rmse"] == [1e-5, 2e-5, 3e-5, 4e-5]
+    assert cal["per_node_max_abs_error"] == [2e-5, 4e-5, 6e-5, 8e-5]
+    assert cal["overall_rmse"] == pytest.approx(2.5e-5)
+    assert cal["converged"] is True
+    assert cal["iterations_per_node"] == [-1, -1, -1, -1]
+    assert cal["strikes"] == [-0.02, -0.01, 0.0, 0.01, 0.02]
+    assert len(cal["per_strike_fit_error"]) == 20
+
+
+def test_calibrate_vol_sabr_weights_present_is_422(headers: dict[str, str]) -> None:
+    """User-supplied per-strike weights reject with a clean 422 pre-engine."""
+
+    engine = _FakeEngine(response=_sabr_calibrate_vol_response())
+    md = _FakeMd()
+    surface = _sabr_calibrate_surface()
+    surface["payload"]["payload"]["weights"] = {
+        "n_1": 2,
+        "n_2": 2,
+        "n_3": 5,
+        "values": [1.0] * 20,
+    }
+    pricing = _pricing()
+    pricing["vol_surfaces"] = [surface]
+    with _client(engine, md) as client:
+        resp = client.post(
+            "/v1/calibrate-swaption-vol",
+            headers=headers,
+            json={
+                "pricing": pricing,
+                "vol_id": "EUR-SABR",
+                "discounting_curve_id": "USD-OIS",
+                "forwarding_curve_id": "USD-OIS",
+            },
+        )
+    assert resp.status_code == 422, resp.text
+    assert "weights" in resp.text
+    assert engine.calls == []
+
+
+def test_calibrate_vol_sabr_tensor_mismatch_is_422(headers: dict[str, str]) -> None:
+    """A vols tensor shorter than nExp*nTen*nStrikes rejects pre-engine."""
+
+    engine = _FakeEngine(response=_sabr_calibrate_vol_response())
+    md = _FakeMd()
+    surface = _sabr_calibrate_surface()
+    surface["payload"]["payload"]["vols"] = {"values": [0.2] * 19}
+    pricing = _pricing()
+    pricing["vol_surfaces"] = [surface]
+    with _client(engine, md) as client:
+        resp = client.post(
+            "/v1/calibrate-swaption-vol",
+            headers=headers,
+            json={
+                "pricing": pricing,
+                "vol_id": "EUR-SABR",
+                "discounting_curve_id": "USD-OIS",
+                "forwarding_curve_id": "USD-OIS",
+            },
+        )
+    assert resp.status_code == 422, resp.text
+    assert engine.calls == []
 
 
 def test_calibrate_model_happy_path(headers: dict[str, str]) -> None:

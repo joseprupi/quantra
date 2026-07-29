@@ -18,11 +18,14 @@ points, a constant-vol swaption surface, an optional model), resolves every
 leave the client resolved), substitutes the resolved values and returns
 the faithful ``PricingT``.
 
-Vol-surface value source: the translator maps both the constant-vol path
-(``payload.base.constant_vol`` / ``payload.base.quote_id``) AND the ATM-matrix
+Vol-surface value source: the translator maps the constant-vol path
+(``payload.base.constant_vol`` / ``payload.base.quote_id``), the ATM-matrix
 path (``payload_type == 'SwaptionVolAtmMatrixSpec'`` with an inline
-expiry x tenor grid) — so the Vol Workbench can sample a real term
-structure, not just a flat surface. Queries accept the portal's engine-native
+expiry x tenor grid) AND the SABR-calibration path
+(``payload_type == 'SwaptionSabrCalibrateSpec'`` with an inline
+expiry x tenor x strike-spread market-vol cube) — so the Vol Workbench can
+sample a real term structure and the calibration endpoint can fit SABR
+smiles, not just flat surfaces. Queries accept the portal's engine-native
 shape (``expiry_grid`` / ``tenor_grid`` / ``strike_grid`` objects +
 ``output_mode`` / ``options`` / slice params); the engine REQUIRES a strike
 grid on every query (an omitted one is unparseable). Auth is the standard
@@ -82,6 +85,9 @@ from quantra_common.engine_client._generated.quantra.Period import PeriodT
 from quantra_common.engine_client._generated.quantra.Pricing import PricingT
 from quantra_common.engine_client._generated.quantra.QueryOptions import QueryOptionsT
 from quantra_common.engine_client._generated.quantra.RangeGrid import RangeGridT
+from quantra_common.engine_client._generated.quantra.SabrCalibrationDiagnostics import (
+    SabrCalibrationDiagnosticsT,
+)
 from quantra_common.engine_client._generated.quantra.SampleVolSurfacesRequest import (
     SampleVolSurfacesRequestT,
 )
@@ -1050,6 +1056,27 @@ async def calibrate_swaption_vol(
     }
 
 
+def _float_list(values: object) -> list[float]:
+    """Render an optional FB float vector (list OR numpy array) as a plain list.
+
+    Avoids ``values or []``, which raises on a multi-element numpy array (the
+    generated ``InitFromObj`` decodes vectors via ``AsNumpy`` when numpy is
+    importable).
+    """
+
+    if values is None:
+        return []
+    return [float(v) for v in values]  # type: ignore[attr-defined]
+
+
+def _int_list(values: object) -> list[int]:
+    """Integer analogue of :func:`_float_list`."""
+
+    if values is None:
+        return []
+    return [int(v) for v in values]  # type: ignore[attr-defined]
+
+
 def _decode_diagnostics(
     diag: SwaptionVolDiagnosticsT | None,
 ) -> dict[str, Any] | None:
@@ -1062,10 +1089,33 @@ def _decode_diagnostics(
         "n_tenors": int(diag.nTenors),
         "expiries": [{"n": int(p.n), "unit": int(p.unit)} for p in (diag.expiries or [])],
         "tenors": [{"n": int(p.n), "unit": int(p.unit)} for p in (diag.tenors or [])],
-        "forward_per_node": [float(v) for v in (diag.forwardPerNode or [])],
-        "atm_vol_per_node": [float(v) for v in (diag.atmVolPerNode or [])],
-        "time_to_expiry_per_node": [float(v) for v in (diag.timeToExpiryPerNode or [])],
+        "forward_per_node": _float_list(diag.forwardPerNode),
+        "atm_vol_per_node": _float_list(diag.atmVolPerNode),
+        "time_to_expiry_per_node": _float_list(diag.timeToExpiryPerNode),
+        "alpha_per_node": _float_list(diag.alphaPerNode),
+        "beta_per_node": _float_list(diag.betaPerNode),
+        "rho_per_node": _float_list(diag.rhoPerNode),
+        "nu_per_node": _float_list(diag.nuPerNode),
+        "calibration": _decode_calibration(diag.calibration),
         "warnings": [_decode_str(w) for w in (diag.warnings or [])],
+    }
+
+
+def _decode_calibration(
+    cal: SabrCalibrationDiagnosticsT | None,
+) -> dict[str, Any] | None:
+    """Decode the SABR calibration sub-block (present only for SabrCalibrate)."""
+
+    if cal is None:
+        return None
+    return {
+        "per_node_rmse": _float_list(cal.perNodeRmse),
+        "per_node_max_abs_error": _float_list(cal.perNodeMaxAbsError),
+        "overall_rmse": float(cal.overallRmse),
+        "converged": bool(cal.converged),
+        "iterations_per_node": _int_list(cal.iterationsPerNode),
+        "strikes": _float_list(cal.strikes),
+        "per_strike_fit_error": _float_list(cal.perStrikeFitError),
     }
 
 
