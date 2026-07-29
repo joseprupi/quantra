@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quantra-common"
-version = "0.4.1"
+version = "0.4.2"
 description = "Shared library for Quantra backend services (auth, db, settings, logging, MD/engine clients, types)."
 readme = "README.md"
 requires-python = ">=3.12"

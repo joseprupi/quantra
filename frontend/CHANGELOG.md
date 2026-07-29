@@ -12,6 +12,22 @@ Versions 0.2.x and earlier predate this monorepo — they are the
 pre-open-source release history of the portal, kept for reference. 0.3.0 is
 the first release cut from the monorepo.
 
+## [0.4.2] - 2026-07-29
+
+### Added
+- **SABR swaption smile calibration** works end to end in the Volatility
+  Workbench: fill an expiry x tenor x strike-spread vol grid, calibrate, and
+  read per-node alpha/beta/rho/nu with fit diagnostics.
+
+### Changed
+- Value-curve rows now use explicit tenor and date controls (a per-row
+  Tenor/Date toggle with a number-plus-unit selector or a date picker)
+  replacing the free-text field, with shorter anchor labels.
+
+### Fixed
+- An unfilled vol cube could reach the engine as zeros; empty cells are now
+  rejected client-side with the exact cell named.
+
 ## [0.4.1] - 2026-07-27
 
 ### Removed

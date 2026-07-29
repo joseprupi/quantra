@@ -9,6 +9,16 @@ Backend and portal are released together at the same platform `vX.Y.Z` tag.
 Versions **0.2.x and earlier are historical release tags from before this
 monorepo was assembled**; 0.3.0 is the first release cut from the monorepo.
 
+## [0.4.2] - 2026-07-29
+
+### Added
+- `SwaptionSabrCalibrateSpec` surfaces are now translated to the engine
+  (SABR smile calibration).
+
+### Fixed
+- `/v1/calibrate-swaption-vol` returns the full diagnostics including
+  per-node calibrated parameters, which were previously dropped in decoding.
+
 ## [0.4.1] - 2026-07-27
 
 ### Fixed
