@@ -67,6 +67,7 @@ from quantra_orchestrator.api import (
     debug_engine,
     debug_md,
     health,
+    import_doc,
     market_data_import,
     market_data_latest,
     market_data_series,
@@ -103,6 +104,7 @@ def register_all(app: FastAPI) -> None:
     app.include_router(calendar.router)
     app.include_router(vol_tools.router)
     app.include_router(market_data_import.router)
+    app.include_router(import_doc.router)
     app.include_router(market_data_series.router)
     app.include_router(market_data_latest.router)
     data.register_data(app)
