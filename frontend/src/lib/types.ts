@@ -217,6 +217,10 @@ export interface BondHelper {
   };
 }
 
+/** OIS overnight-coupon averaging (engine >= 0.6): 'Compound' | 'Simple'. */
+export type OvernightAveragingMethod = 'Compound' | 'Simple';
+export const OVERNIGHT_AVERAGING_METHODS: OvernightAveragingMethod[] = ['Compound', 'Simple'];
+
 export interface OISHelper {
   point_type: 'OISHelper';
   point: {
@@ -231,6 +235,16 @@ export interface OISHelper {
     fixed_leg_frequency?: Frequency;
     fixed_leg_convention?: BusinessDayConvention;
     fixed_leg_day_counter?: DayCounter;
+    /** Business days from accrual end to payment (engine >= 0.6; legacy default 0). */
+    payment_lag?: number;
+    /** Overnight averaging: Compound | Simple (engine >= 0.6; legacy default Compound). */
+    averaging_method?: OvernightAveragingMethod;
+    /** Rate observation lookback in days; 0 = none (engine >= 0.6). */
+    lookback_days?: number;
+    /** Rate lockout in days at period end; 0 = none (engine >= 0.6). */
+    lockout_days?: number;
+    /** Apply observation shift with lookback (engine >= 0.6; legacy default false). */
+    apply_observation_shift?: boolean;
     deps?: HelperDependencies;
   };
 }
@@ -246,8 +260,20 @@ export interface DatedOISHelper {
     overnight_index?: IndexRef;
     settlement_days?: number;
     calendar?: Calendar;
+    /** Fixed leg payment frequency (engine >= 0.6; engine previously hardcoded Annual). */
+    fixed_leg_frequency?: Frequency;
     fixed_leg_convention?: BusinessDayConvention;
     fixed_leg_day_counter?: DayCounter;
+    /** Business days from accrual end to payment (engine >= 0.6; legacy default 0). */
+    payment_lag?: number;
+    /** Overnight averaging: Compound | Simple (engine >= 0.6; legacy default Compound). */
+    averaging_method?: OvernightAveragingMethod;
+    /** Rate observation lookback in days; 0 = none (engine >= 0.6). */
+    lookback_days?: number;
+    /** Rate lockout in days at period end; 0 = none (engine >= 0.6). */
+    lockout_days?: number;
+    /** Apply observation shift with lookback (engine >= 0.6; legacy default false). */
+    apply_observation_shift?: boolean;
     deps?: HelperDependencies;
   };
 }
@@ -489,6 +515,8 @@ export const DEFAULT_OIS_HELPER: OISHelper = {
     overnight_index: { id: 'ESTR' },
     settlement_days: 2, calendar: 'TARGET', fixed_leg_frequency: 'Annual',
     fixed_leg_convention: 'ModifiedFollowing', fixed_leg_day_counter: 'Actual360',
+    payment_lag: 0, averaging_method: 'Compound',
+    lookback_days: 0, lockout_days: 0, apply_observation_shift: false,
   },
 };
 
@@ -499,8 +527,10 @@ export const DEFAULT_DATED_OIS_HELPER: DatedOISHelper = {
     start_date: new Date().toISOString().split('T')[0],
     end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     overnight_index: { id: 'ESTR' },
-    settlement_days: 2, calendar: 'TARGET',
+    settlement_days: 2, calendar: 'TARGET', fixed_leg_frequency: 'Annual',
     fixed_leg_convention: 'ModifiedFollowing', fixed_leg_day_counter: 'Actual360',
+    payment_lag: 0, averaging_method: 'Compound',
+    lookback_days: 0, lockout_days: 0, apply_observation_shift: false,
   },
 };
 

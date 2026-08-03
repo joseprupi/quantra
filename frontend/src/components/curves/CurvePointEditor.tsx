@@ -6,7 +6,7 @@ import {
   DEFAULT_DEPOSIT_HELPER, DEFAULT_SWAP_HELPER, DEFAULT_FRA_HELPER,
   DEFAULT_FUTURE_HELPER, DEFAULT_BOND_HELPER, DEFAULT_OIS_HELPER, DEFAULT_DATED_OIS_HELPER,
   DAY_COUNTERS, BUSINESS_DAY_CONVENTIONS, CALENDARS, TIME_UNITS,
-  FREQUENCIES,
+  FREQUENCIES, OVERNIGHT_AVERAGING_METHODS,
 } from '../../lib/types';
 import IndexPicker from './IndexPicker';
 import {
@@ -175,6 +175,47 @@ export default function CurvePointEditor({ point, onSave, onCancel, availableCur
     </div>
   );
 
+  // Emit non-negative ints as numbers (never strings; blank/garbage -> 0).
+  const nonNegativeInt = (raw: string): number => {
+    const v = parseInt(raw, 10);
+    return Number.isFinite(v) && v >= 0 ? v : 0;
+  };
+
+  // Engine >= 0.6 overnight-coupon params, shared by OISHelper + DatedOISHelper.
+  const OvernightParams = () => (
+    <>
+      <div>
+        <label htmlFor="ois-payment-lag" className={labelClass} title="Payment lag in business days (SOFR market standard: 2)">Payment lag (bd)</label>
+        <input id="ois-payment-lag" type="number" min={0} step={1} value={p.payment_lag ?? 0}
+          onChange={e => updateField('payment_lag', nonNegativeInt(e.target.value))} className={inputClass} />
+      </div>
+      <div>
+        <label htmlFor="ois-averaging" className={labelClass} title="Overnight rate averaging over the coupon period">Averaging</label>
+        <select id="ois-averaging" value={p.averaging_method || 'Compound'} onChange={e => updateField('averaging_method', e.target.value)} className={inputClass}>
+          {OVERNIGHT_AVERAGING_METHODS.map(m => <option key={m}>{m}</option>)}
+        </select>
+      </div>
+      <div>
+        <label htmlFor="ois-lookback" className={labelClass} title="Rate observation lookback in days (0 = none)">Lookback (d)</label>
+        <input id="ois-lookback" type="number" min={0} step={1} value={p.lookback_days ?? 0}
+          onChange={e => updateField('lookback_days', nonNegativeInt(e.target.value))} className={inputClass} />
+      </div>
+      <div>
+        <label htmlFor="ois-lockout" className={labelClass} title="Rate lockout in days at period end (0 = none)">Lockout (d)</label>
+        <input id="ois-lockout" type="number" min={0} step={1} value={p.lockout_days ?? 0}
+          onChange={e => updateField('lockout_days', nonNegativeInt(e.target.value))} className={inputClass} />
+      </div>
+      <div className="col-span-2">
+        <label className="flex items-center gap-1.5 text-xs text-[#525252] cursor-pointer"
+          title="Apply observation shift together with the lookback">
+          <input type="checkbox" checked={!!p.apply_observation_shift}
+            onChange={e => updateField('apply_observation_shift', e.target.checked)} className="text-[#8a6a2f]" />
+          Obs. shift
+        </label>
+      </div>
+    </>
+  );
+
   // Dependency selector for SwapHelper
   const DepsSelector = () => {
     if (!availableCurves || availableCurves.length === 0) return null;
@@ -301,6 +342,7 @@ export default function CurvePointEditor({ point, onSave, onCancel, availableCur
               {DAY_COUNTERS.map(dc => <option key={dc}>{dc}</option>)}
             </select>
           </div>
+          <OvernightParams />
           <DepsSelector />
         </div>
       )}
@@ -332,6 +374,12 @@ export default function CurvePointEditor({ point, onSave, onCancel, availableCur
             </select>
           </div>
           <div>
+            <label htmlFor="dated-ois-fixed-leg-freq" className={labelClass} title="Fixed leg payment frequency (engine hardcoded Annual before 0.6)">Fixed leg freq</label>
+            <select id="dated-ois-fixed-leg-freq" value={p.fixed_leg_frequency || 'Annual'} onChange={e => updateField('fixed_leg_frequency', e.target.value)} className={inputClass}>
+              {FREQUENCIES.map(f => <option key={f}>{f}</option>)}
+            </select>
+          </div>
+          <div>
             <label className={labelClass}>Fixed Leg Day Counter</label>
             <select value={p.fixed_leg_day_counter || 'Actual360'} onChange={e => updateField('fixed_leg_day_counter', e.target.value)} className={inputClass}>
               {DAY_COUNTERS.map(dc => <option key={dc}>{dc}</option>)}
@@ -341,6 +389,7 @@ export default function CurvePointEditor({ point, onSave, onCancel, availableCur
             <label className={labelClass}>Settlement Days</label>
             <input type="number" value={p.settlement_days ?? 2} onChange={e => updateField('settlement_days', parseInt(e.target.value))} className={inputClass} />
           </div>
+          <OvernightParams />
         </div>
       )}
 
