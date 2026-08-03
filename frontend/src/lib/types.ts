@@ -623,7 +623,7 @@ export const BUSINESS_DAY_CONVENTIONS: BusinessDayConvention[] = [
 ];
 
 export const CALENDARS: Calendar[] = [
-  'TARGET', 'UnitedStates', 'UnitedKingdom', 'Japan', 'Germany',
+  'TARGET', 'UnitedStates', 'UnitedStatesGovernmentBond', 'UnitedKingdom', 'Japan', 'Germany',
   'Switzerland', 'Canada', 'Australia', 'Italy', 'Brazil', 'China',
   'NullCalendar', 'WeekendsOnly',
 ];
