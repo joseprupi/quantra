@@ -31,11 +31,15 @@ from quantra_common.engine_client._generated.quantra.enums.CdsQuoteType import (
     CdsQuoteType,
 )
 from quantra_common.engine_client._generated.quantra.enums.DayCounter import DayCounter
+from quantra_common.engine_client._generated.quantra.enums.Frequency import Frequency
 from quantra_common.engine_client._generated.quantra.enums.InflationCurveKind import (
     InflationCurveKind,
 )
 from quantra_common.engine_client._generated.quantra.enums.IrModelType import (
     IrModelType,
+)
+from quantra_common.engine_client._generated.quantra.enums.RateAveragingType import (
+    RateAveragingType,
 )
 from quantra_common.engine_client._generated.quantra.enums.TimeUnit import TimeUnit
 from quantra_common.engine_client._generated.quantra.enums.VolatilityType import (
@@ -1143,6 +1147,162 @@ def test_unknown_overnight_index_ref_raises_actionable_error() -> None:
     assert excinfo.value.index_id == "WIBOR_ON"
     assert excinfo.value.details is not None
     assert excinfo.value.details[0]["unregistered_index_id"] == "WIBOR_ON"
+
+
+# ---------------------------------------------------------------------------
+# OIS helper overnight params (engine 0.6 contract)
+# ---------------------------------------------------------------------------
+# Engine 0.6 makes five overnight-coupon convention fields REQUIRED on both
+# OIS curve helpers: payment_lag, averaging_method, lookback_days,
+# lockout_days, apply_observation_shift. The translator must always emit them
+# explicitly (presence-based bindings; zero/false still land on the wire), and
+# a stored curve that predates the fields must translate with the exact
+# <=0.5.0-behavior values (payment_lag=0, Compound, 0, 0, False).
+
+
+def _dated_ois_point(**overrides: Any) -> dict[str, Any]:
+    point: dict[str, Any] = {
+        "start_date": "2026-06-13",
+        "end_date": "2027-06-13",
+        "settlement_days": 2,
+        "calendar": "TARGET",
+        "fixed_leg_convention": "ModifiedFollowing",
+        "overnight_index": {"id": "ESTR"},
+        "rate": 0.025,
+    }
+    point.update(overrides)
+    return {"point_type": "DatedOISHelper", "point": point}
+
+
+def _ois_pricing(points: list[dict[str, Any]]) -> Any:
+    curve = _curve(uuid.uuid4(), name="EUR-ESTR-OIS", points=points)
+    return build_pricing_from_resolved(_resolved(curves=[curve], quotes=[]))
+
+
+def test_ois_helper_accepts_and_emits_overnight_params() -> None:
+    """Explicit stored values for the five 0.6 fields land on the helper."""
+
+    point = _ois_point(5, rate=0.025)
+    point["point"].update(
+        {
+            "payment_lag": 2,
+            "averaging_method": "Simple",
+            "lookback_days": 5,
+            "lockout_days": 3,
+            "apply_observation_shift": True,
+        }
+    )
+    helper = _ois_pricing([point]).rates.curves[0].points[0].point
+    assert helper.paymentLag == 2
+    assert helper.averagingMethod == RateAveragingType.Simple
+    assert helper.lookbackDays == 5
+    assert helper.lockoutDays == 3
+    assert helper.applyObservationShift is True
+
+
+def test_ois_helper_legacy_points_emit_050_parity_defaults() -> None:
+    """A stored point WITHOUT the 0.6 fields emits the exact <=0.5.0 values.
+
+    The 0.5.0 engine built the 5-arg QuantLib ``OISRateHelper`` → QuantLib
+    defaults: payment_lag=0, Compound averaging, no lookback (wire 0), no
+    lockout, no observation shift. These are the legacy-compat contract.
+    """
+
+    helper = _ois_pricing([_ois_point(5, rate=0.025)]).rates.curves[0].points[0].point
+    assert helper.paymentLag == 0
+    assert helper.averagingMethod == RateAveragingType.Compound
+    assert helper.lookbackDays == 0
+    assert helper.lockoutDays == 0
+    assert helper.applyObservationShift is False
+
+
+def test_dated_ois_helper_legacy_points_emit_050_parity_defaults() -> None:
+    """DatedOISHelper legacy emission incl. the frequency the engine hardcoded.
+
+    The 0.5.0 engine hardcoded the dated helper's payment frequency to Annual
+    and its payment lag to 0; both are schema fields on 0.6, so the legacy
+    emission must reproduce Annual/0 (plus the shared five-field defaults).
+    """
+
+    helper = _ois_pricing([_dated_ois_point()]).rates.curves[0].points[0].point
+    assert helper.fixedLegFrequency == Frequency.Annual
+    assert helper.paymentLag == 0
+    assert helper.averagingMethod == RateAveragingType.Compound
+    assert helper.lookbackDays == 0
+    assert helper.lockoutDays == 0
+    assert helper.applyObservationShift is False
+
+
+def test_dated_ois_helper_accepts_explicit_frequency_and_params() -> None:
+    helper = (
+        _ois_pricing(
+            [
+                _dated_ois_point(
+                    fixed_leg_frequency="Quarterly",
+                    payment_lag=1,
+                    averaging_method="Simple",
+                    lookback_days=2,
+                    lockout_days=2,
+                    apply_observation_shift=True,
+                )
+            ]
+        )
+        .rates.curves[0]
+        .points[0]
+        .point
+    )
+    assert helper.fixedLegFrequency == Frequency.Quarterly
+    assert helper.paymentLag == 1
+    assert helper.averagingMethod == RateAveragingType.Simple
+    assert helper.lookbackDays == 2
+    assert helper.lockoutDays == 2
+    assert helper.applyObservationShift is True
+
+
+def test_ois_overnight_params_present_on_wire_at_zero_values() -> None:
+    """All five fields are PRESENT on the decoded wire even at 0/false.
+
+    The engine's required-field validation distinguishes absent from zero, so
+    "no error in the object graph" is not enough — this packs with a plain
+    Builder (NO ForceDefaults: presence must come from the presence-based
+    bindings themselves) and asserts the decoded bytes carry every field.
+    """
+
+    pricing = _ois_pricing([_ois_point(5, rate=0.025), _dated_ois_point()])
+    decoded = PricingT.InitFromObj(Pricing.GetRootAs(bytearray(_pack(pricing)), 0))
+    ois, dated = (w.point for w in decoded.rates.curves[0].points)
+
+    for helper in (ois, dated):
+        # ``None`` would mean absent-on-wire (the decode maps a missing slot
+        # to None with the presence-based bindings) — every value must be the
+        # explicit legacy zero/false, present.
+        assert helper.paymentLag == 0
+        assert helper.averagingMethod == RateAveragingType.Compound
+        assert helper.lookbackDays == 0
+        assert helper.lockoutDays == 0
+        assert helper.applyObservationShift is False
+    assert dated.fixedLegFrequency == Frequency.Annual
+
+
+@pytest.mark.parametrize("field", ["payment_lag", "lookback_days", "lockout_days"])
+def test_ois_helper_negative_int_rejects_with_422(field: str) -> None:
+    point = _ois_point(5, rate=0.025)
+    point["point"][field] = -1
+    with pytest.raises(CurveTranslationError) as excinfo:
+        _ois_pricing([point])
+    assert excinfo.value.details is not None
+    assert excinfo.value.details[0]["field"] == field
+
+
+@pytest.mark.parametrize("bad", ["Weighted", "compound", 7])
+def test_ois_helper_unknown_averaging_method_rejects_with_422(bad: Any) -> None:
+    """Compound-vs-Simple changes the curve — a typo must not silently price."""
+
+    point = _dated_ois_point(averaging_method=bad)
+    with pytest.raises(CurveTranslationError) as excinfo:
+        _ois_pricing([point])
+    assert excinfo.value.details is not None
+    assert excinfo.value.details[0]["field"] == "averaging_method"
 
 
 def _swap_point(

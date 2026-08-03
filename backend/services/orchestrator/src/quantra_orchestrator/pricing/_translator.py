@@ -166,6 +166,9 @@ from quantra_common.engine_client._generated.quantra.enums.Interpolator import (
 from quantra_common.engine_client._generated.quantra.enums.IrModelType import (
     IrModelType,
 )
+from quantra_common.engine_client._generated.quantra.enums.RateAveragingType import (
+    RateAveragingType,
+)
 from quantra_common.engine_client._generated.quantra.enums.TimeUnit import TimeUnit
 from quantra_common.engine_client._generated.quantra.enums.VolatilityType import (
     VolatilityType,
@@ -1507,6 +1510,79 @@ def _build_bond(inner: Mapping[str, Any]) -> BondHelperT:
     return h
 
 
+def _ois_non_negative_int(inner: Mapping[str, Any], key: str, kind: str) -> int:
+    """Read an optional non-negative int helper field (absent → 0, negative → 422).
+
+    Absent means "the stored point predates engine 0.6" and 0 is the exact
+    legacy value for every field this reads (see :func:`_apply_ois_overnight_params`).
+    A negative value can never translate (the engine wraps these into unsigned
+    QuantLib ``Natural``s and 400s), so it is a cheap pre-flight typed 422.
+    """
+
+    raw = inner.get(key)
+    value = _int(raw, 0)
+    if value < 0:
+        raise CurveTranslationError(
+            f"{kind} point field {key!r} must be >= 0 (got {value}).",
+            details=[{"helper_kind": kind, "field": key, "value": value}],
+        )
+    return value
+
+
+def _ois_averaging_method(inner: Mapping[str, Any], kind: str) -> int:
+    """Read ``averaging_method`` strictly: Compound | Simple, absent → Compound.
+
+    Unlike the loose convention enums, an unrecognised averaging method is a
+    typed 422 rather than a silent fallback: Compound-vs-Simple changes the
+    bootstrapped curve, so a typo must not silently price as Compound.
+    Absent → Compound (the exact <=0.5.0 engine behavior; see
+    :func:`_apply_ois_overnight_params`).
+    """
+
+    raw = inner.get("averaging_method")
+    if raw is None:
+        return int(RateAveragingType.Compound)
+    if not isinstance(raw, bool) and isinstance(raw, int):
+        if raw in (RateAveragingType.Compound, RateAveragingType.Simple):
+            return raw
+    elif isinstance(raw, str):
+        member = getattr(RateAveragingType, raw, None)
+        if isinstance(member, int):
+            return member
+    raise CurveTranslationError(
+        f"{kind} point field 'averaging_method' must be 'Compound' or 'Simple' (got {raw!r}).",
+        details=[{"helper_kind": kind, "field": "averaging_method", "value": raw}],
+    )
+
+
+def _apply_ois_overnight_params(
+    inner: Mapping[str, Any], h: OISHelperT | DatedOISHelperT, kind: str
+) -> None:
+    """Emit the five engine-0.6 overnight params, REQUIRED on the wire.
+
+    ``payment_lag`` / ``averaging_method`` / ``lookback_days`` /
+    ``lockout_days`` / ``apply_observation_shift`` became required helper
+    fields in engine 0.6 (an omitted convention is an error, never a silent
+    default). All five are always assigned here — the presence-based bindings
+    then serialize each one explicitly even at its zero/false value.
+
+    LEGACY-COMPAT: a stored curve whose OIS points predate engine 0.6 lacks
+    these keys; we emit the exact values the <=0.5.0 engine applied silently
+    (its 5-arg QuantLib ``OISRateHelper`` call → QuantLib defaults):
+    ``payment_lag=0``, ``averaging_method=Compound``, ``lookback_days=0``
+    (wire 0 = "no lookback" → QuantLib ``Null``, the engine maps it),
+    ``lockout_days=0``, ``apply_observation_shift=False``. Do not change
+    these — they are the 0.5.0-parity contract for stored curves.
+    """
+
+    h.paymentLag = _ois_non_negative_int(inner, "payment_lag", kind)
+    h.averagingMethod = _ois_averaging_method(inner, kind)
+    h.lookbackDays = _ois_non_negative_int(inner, "lookback_days", kind)
+    h.lockoutDays = _ois_non_negative_int(inner, "lockout_days", kind)
+    # bool(...) mirrors the Schedule.end_of_month presence pattern.
+    h.applyObservationShift = bool(inner.get("apply_observation_shift", False))
+
+
 def _build_ois(inner: Mapping[str, Any]) -> OISHelperT:
     h = OISHelperT()
     h.tenor = _require_tenor(inner, "OISHelper")
@@ -1519,9 +1595,13 @@ def _build_ois(inner: Mapping[str, Any]) -> OISHelperT:
         inner.get("fixed_leg_convention"),
         BusinessDayConvention.ModifiedFollowing,
     )
+    # Deprecated/accepted-but-unused on engine >=0.6 (no QuantLib overload
+    # takes it); still accepted from the stored point and emitted for
+    # backward compatibility — the engine ignores it.
     h.fixedLegDayCounter = _enum(
         DayCounter, inner.get("fixed_leg_day_counter"), DayCounter.Actual365Fixed
     )
+    _apply_ois_overnight_params(inner, h, "OISHelper")
     return h
 
 
@@ -1532,14 +1612,20 @@ def _build_dated_ois(inner: Mapping[str, Any]) -> DatedOISHelperT:
     h.overnightIndex = _index_ref(inner.get("overnight_index"))
     h.settlementDays = _int(inner.get("settlement_days"), 2)
     h.calendar = _enum(Calendar, inner.get("calendar"), Calendar.TARGET)
+    # Required since engine 0.6 (the dated helper's payment frequency was
+    # previously hardcoded Annual engine-side); Annual == the exact legacy
+    # behavior for stored points that lack the key.
+    h.fixedLegFrequency = _enum(Frequency, inner.get("fixed_leg_frequency"), Frequency.Annual)
     h.fixedLegConvention = _enum(
         BusinessDayConvention,
         inner.get("fixed_leg_convention"),
         BusinessDayConvention.ModifiedFollowing,
     )
+    # Deprecated/accepted-but-unused on engine >=0.6 — see _build_ois.
     h.fixedLegDayCounter = _enum(
         DayCounter, inner.get("fixed_leg_day_counter"), DayCounter.Actual365Fixed
     )
+    _apply_ois_overnight_params(inner, h, "DatedOISHelper")
     return h
 
 

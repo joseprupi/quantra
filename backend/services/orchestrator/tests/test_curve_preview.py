@@ -55,6 +55,9 @@ from quantra_common.engine_client._generated.quantra.enums.BootstrapTrait import
 )
 from quantra_common.engine_client._generated.quantra.enums.Calendar import Calendar
 from quantra_common.engine_client._generated.quantra.enums.DayCounter import DayCounter
+from quantra_common.engine_client._generated.quantra.enums.RateAveragingType import (
+    RateAveragingType,
+)
 from quantra_common.engine_client._generated.quantra.enums.TimeUnit import TimeUnit
 from quantra_common.engine_client._generated.quantra.IndexType import IndexType
 from quantra_common.engine_client._generated.quantra.Point import Point
@@ -363,6 +366,92 @@ def test_preview_sonia_ois_helper_still_registers_overnight_indexdef(
     sonia = by_id["SONIA"]
     assert sonia.indexType == IndexType.Overnight
     assert sonia.currency.decode() == "GBP"
+
+
+def test_preview_ois_helper_carries_overnight_params_on_wire(app_factory: Any) -> None:
+    """The preview path emits the five engine-0.6 OIS overnight params.
+
+    The preview uses the same shared translator as pricing, so a legacy point
+    (no new fields) must land the exact <=0.5.0-parity values on the decoded
+    wire (payment_lag=0, Compound, 0, 0, False — present, not absent), and an
+    explicit point must land its own values.
+    """
+
+    md = _FakeMdClient()
+    engine = _FakeEngineClient(response=_bootstrap_response_bytes(zeros=[0.04, 0.042]))
+    client = app_factory(md_client=md, engine_client=engine)
+
+    legacy_point = {
+        "point_type": "OISHelper",
+        "point": {
+            "tenor": {"n": 5, "unit": "Years"},
+            "rate": 0.04,
+            "overnight_index": {"id": "SONIA"},
+        },
+    }
+    explicit_point = {
+        "point_type": "OISHelper",
+        "point": {
+            "tenor": {"n": 10, "unit": "Years"},
+            "rate": 0.042,
+            "overnight_index": {"id": "SONIA"},
+            "payment_lag": 2,
+            "averaging_method": "Simple",
+            "lookback_days": 2,
+            "lockout_days": 2,
+            "apply_observation_shift": True,
+        },
+    }
+    resp = client.post(
+        "/v1/curve-preview",
+        json=_yield_payload([legacy_point, explicit_point], name="GBP-OIS"),
+        headers=_headers(),
+    )
+
+    assert resp.status_code == HTTPStatus.OK, resp.text
+    decoded = _decode_request(engine.calls[0][1])
+    # points[0] is the _yield_payload deposit; the OIS points follow.
+    legacy, explicit = (w.point for w in decoded.pricing.rates.curves[0].points[1:])
+
+    assert legacy.paymentLag == 0
+    assert legacy.averagingMethod == RateAveragingType.Compound
+    assert legacy.lookbackDays == 0
+    assert legacy.lockoutDays == 0
+    assert legacy.applyObservationShift is False
+
+    assert explicit.paymentLag == 2
+    assert explicit.averagingMethod == RateAveragingType.Simple
+    assert explicit.lookbackDays == 2
+    assert explicit.lockoutDays == 2
+    assert explicit.applyObservationShift is True
+
+
+def test_preview_ois_helper_negative_payment_lag_is_422(app_factory: Any) -> None:
+    """Pre-flight typed 422 (D54 envelope) — the engine is never called."""
+
+    md = _FakeMdClient()
+    engine = _FakeEngineClient(response=_bootstrap_response_bytes(zeros=[0.04]))
+    client = app_factory(md_client=md, engine_client=engine)
+
+    bad_point = {
+        "point_type": "OISHelper",
+        "point": {
+            "tenor": {"n": 5, "unit": "Years"},
+            "rate": 0.04,
+            "overnight_index": {"id": "SONIA"},
+            "payment_lag": -2,
+        },
+    }
+    resp = client.post(
+        "/v1/curve-preview",
+        json=_yield_payload([bad_point], name="GBP-OIS"),
+        headers=_headers(),
+    )
+
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY, resp.text
+    body = resp.json()
+    assert "payment_lag" in body["error"]
+    assert engine.calls == []
 
 
 def test_preview_unknown_index_ref_still_422s_naming_both_catalogs(
