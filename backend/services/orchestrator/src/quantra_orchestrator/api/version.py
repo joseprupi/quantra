@@ -30,7 +30,7 @@ from quantra_orchestrator.settings import (
 # Single source of truth for the orchestrator's version. ``create_app`` reads
 # this same constant when constructing the FastAPI app, so the value reported
 # by ``GET /v1/version`` and the OpenAPI ``info.version`` can never drift.
-ORCHESTRATOR_VERSION = "0.4.2"
+ORCHESTRATOR_VERSION = "0.5.0"
 
 # HARDCODED STOPGAP (backlog F3): the pricing engine does not yet expose its
 # version over its gRPC surface. Until it does, we report this constant and
@@ -38,7 +38,7 @@ ORCHESTRATOR_VERSION = "0.4.2"
 # it in sync with the engine image pinned in the compose files. When F3
 # lands, replace this constant + the ``hardcoded`` source with a real gRPC
 # meta call. Do NOT derive this from the image tag.
-ENGINE_VERSION = "0.5.0"
+ENGINE_VERSION = "0.6.0"
 
 router = APIRouter(prefix="/v1", tags=["meta"])
 

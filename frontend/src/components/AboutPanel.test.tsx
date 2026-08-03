@@ -33,8 +33,8 @@ describe('AboutPanel (About Quantra version info)', () => {
     expect(screen.getByText('Pricing engine')).toBeInTheDocument();
 
     // Web-client version comes from the build-time constant (__APP_VERSION__),
-    // which Vite `define` injects as the package.json version ("0.4.2").
-    expect(screen.getByText('0.4.2')).toBeInTheDocument();
+    // which Vite `define` injects as the package.json version ("0.5.0").
+    expect(screen.getByText('0.5.0')).toBeInTheDocument();
 
     // Backend + engine populate from the fetched contract.
     await waitFor(() => {
@@ -88,7 +88,7 @@ describe('AboutPanel (About Quantra version info)', () => {
 
     // Web-client row still renders immediately (no network needed).
     expect(screen.getByText('Web client')).toBeInTheDocument();
-    expect(screen.getByText('0.4.2')).toBeInTheDocument();
+    expect(screen.getByText('0.5.0')).toBeInTheDocument();
     // Backend + engine show the subtle loading indicator.
     expect(screen.getAllByText('Loading…').length).toBeGreaterThanOrEqual(2);
   });
@@ -105,7 +105,7 @@ describe('AboutPanel (About Quantra version info)', () => {
 
     // Panel + web-client row survive the failure.
     expect(screen.getByRole('dialog', { name: 'About Quantra' })).toBeInTheDocument();
-    expect(screen.getByText('0.4.2')).toBeInTheDocument();
+    expect(screen.getByText('0.5.0')).toBeInTheDocument();
 
     // Backend + engine degrade to "Unavailable", never blank/crash.
     await waitFor(() => {

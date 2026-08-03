@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quantra-market-data"
-version = "0.4.2"
+version = "0.5.0"
 description = "Quantra market data read service. Read-only on the request path; ingestion runs in `quantra-md-ingester`."
 readme = "README.md"
 requires-python = ">=3.12"

@@ -59,7 +59,7 @@ services:
   # ``command: []`` so Docker uses the image's OWN entrypoint (Envoy cluster +
   # workers serving the gRPC contract on :50051).
   quantra-engine:
-    image: ${QUANTRA_ENGINE_IMAGE:-ghcr.io/joseprupi/quantra-server:0.5.0}
+    image: ${QUANTRA_ENGINE_IMAGE:-ghcr.io/joseprupi/quantra-server:0.6.0}
     # The published engine image is amd64-only; pin so arm64 hosts (Apple
     # Silicon) pull + run under Rosetta instead of failing on
     # "no matching manifest".

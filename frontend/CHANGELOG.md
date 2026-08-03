@@ -12,6 +12,21 @@ Versions 0.2.x and earlier predate this monorepo — they are the
 pre-open-source release history of the portal, kept for reference. 0.3.0 is
 the first release cut from the monorepo.
 
+## [0.5.0] - 2026-08-03
+
+Platform release **v0.5.0**, cut against pricing engine 0.6.0.
+
+### Added
+- **OIS overnight-coupon parameters in the Curve Builder.** OIS and dated-OIS
+  curve points expose the engine-0.6 fields: payment lag, averaging method
+  (Compound/Simple), lookback days, lockout days and observation shift, plus
+  a fixed-leg frequency for dated OIS helpers. An untouched form emits the
+  exact pre-0.6 defaults. **Requires pricing engine >= 0.6.0** for curves
+  that use OIS helpers — self-hosted users pinning an older engine image
+  must upgrade the engine to price them.
+- `UnitedStatesGovernmentBond` is selectable in the calendar dropdowns (the
+  market-standard calendar for SOFR/Treasury instruments).
+
 ## [0.4.2] - 2026-07-29
 
 ### Added

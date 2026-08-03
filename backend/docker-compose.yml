@@ -209,7 +209,7 @@ services:
   # ``python3`` but not ``nc``); the connect-and-close pattern returns
   # success only after the server actually accepts on `:50051`.
   quantra-engine:
-    image: ${QUANTRA_ENGINE_IMAGE:-ghcr.io/joseprupi/quantra-server:0.2.0}
+    image: ${QUANTRA_ENGINE_IMAGE:-ghcr.io/joseprupi/quantra-server:0.6.0}
     # The published engine image is amd64-only; pin so arm64 hosts (Apple
     # Silicon) pull + run under Rosetta instead of failing on
     # "no matching manifest".

@@ -66,12 +66,12 @@ services:
 
   # --- Live pricing engine ------------------------------------------------
   # Public, pullable engine image by default (ghcr.io/joseprupi/quantra-server
-  # :0.5.0). QUANTRA_ENGINE_COMMAND left EMPTY (colon-less ``-`` default)
+  # :0.6.0). QUANTRA_ENGINE_COMMAND left EMPTY (colon-less ``-`` default)
   # resolves to ``command: []`` so Docker uses the image's OWN entrypoint
   # (quantra start Envoy cluster + JSON server), which serves the gRPC contract
   # on :50051 — the verified off-box drop-in.
   quantra-engine:
-    image: ${QUANTRA_ENGINE_IMAGE:-ghcr.io/joseprupi/quantra-server:0.5.0}
+    image: ${QUANTRA_ENGINE_IMAGE:-ghcr.io/joseprupi/quantra-server:0.6.0}
     # Release images are amd64-only; pin so arm64 hosts (Apple Silicon) pull +
     # run under Rosetta instead of failing on "no matching manifest".
     platform: linux/amd64

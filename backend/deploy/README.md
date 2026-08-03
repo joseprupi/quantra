@@ -95,7 +95,7 @@ Every knob is documented in [`.env.example`](.env.example). The essentials:
 |----------|---------|---------|
 | `REGISTRY` | `ghcr.io/joseprupi` | Registry + namespace the release compose resolves image refs against (single swappable variable). |
 | `QUANTRA_VERSION` | `0.3.0` | Version tag the release compose pins the platform images to. Release bundles ship it pre-pinned to their own version. |
-| `QUANTRA_ENGINE_IMAGE` | `ghcr.io/joseprupi/quantra-server:0.2.0` | The public pricing-engine image (a separate open-source project). |
+| `QUANTRA_ENGINE_IMAGE` | `ghcr.io/joseprupi/quantra-server:0.6.0` | The public pricing-engine image (a separate open-source project). |
 | `QUANTRA_ENGINE_COMMAND` | *(empty)* | Empty → the engine image's own entrypoint. |
 | `FRED_API_KEY` | *(empty)* | Optional free key enabling the FRED feed (~31 extra US series). |
 | `DEFAULT_AS_OF` | `2025-01-15` | Pre-ingest fallback for the portal's default pricing date; the portal rolls forward automatically once real data lands. |

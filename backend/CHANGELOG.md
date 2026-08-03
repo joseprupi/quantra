@@ -9,6 +9,30 @@ Backend and portal are released together at the same platform `vX.Y.Z` tag.
 Versions **0.2.x and earlier are historical release tags from before this
 monorepo was assembled**; 0.3.0 is the first release cut from the monorepo.
 
+## [0.5.0] - 2026-08-03
+
+Platform release pinned to the OSS pricing engine **0.6.0**.
+
+### Added
+- **Importer service.** `POST /v1/import` accepts a JSON document in the
+  pricing engine's request format and creates the corresponding entities:
+  indices, curves (instrument helpers and value points), credit curves,
+  volatility surfaces and swaption models, with a per-item ok/skipped/error
+  report. Supports `dry_run` and `on_conflict=error|skip`; document quote
+  values are substituted where possible, and unsupported sections (trades,
+  swap indices, inflation, equity) are reported, never silently dropped.
+
+### Changed
+- **Pricing engine updated to quantra-server 0.6.0.** OIS curve helpers now
+  always emit the overnight-coupon parameters the 0.6.0 contract requires —
+  `payment_lag`, `averaging_method`, `lookback_days`, `lockout_days`,
+  `apply_observation_shift` — and `DatedOISHelper` gains
+  `fixed_leg_frequency` (previously hardcoded to Annual engine-side).
+  Stored curves whose OIS points predate these fields translate with the
+  exact pre-0.6 behavior (payment lag 0, Compound, no lookback/lockout, no
+  observation shift). **BREAKING for self-hosted installs that pin an older
+  engine image:** curves using OIS helpers require pricing engine >= 0.6.0.
+
 ## [0.4.2] - 2026-07-29
 
 ### Added
