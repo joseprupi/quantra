@@ -66,6 +66,9 @@ from quantra_common.engine_client._generated.quantra.SwaptionVolConstantSpec imp
 from quantra_common.engine_client._generated.quantra.SwaptionVolSpec import (
     SwaptionVolSpec,
 )
+from quantra_common.engine_client._generated.quantra.VanillaSwap import (
+    VanillaSwap as VanillaSwapTbl,
+)
 from quantra_common.md_client import (
     MdClient,
     MdClientConfig,
@@ -898,13 +901,18 @@ def test_engine_request_bytes_are_faithful_no_canonical_leak(
     assert swaption is not None
     # Per-trade references honour the resolved ids (inline surface / model →
     # their resolved name; curve → its UUID), never the canonical placeholders.
-    assert swaption.DiscountingCurve() == str(curve_id).encode()
-    assert swaption.ForwardingCurve() == str(curve_id).encode()
+    # Engine >= 0.10.0: the curve ids live on the underlying's legs.
+    underlying = swaption.Swaption().Underlying()
+    vs = VanillaSwapTbl()
+    vs.Init(underlying.Bytes, underlying.Pos)
+    assert vs.FixedLeg().DiscountingCurve() == str(curve_id).encode()
+    assert vs.FloatingLeg().DiscountingCurve() == str(curve_id).encode()
+    assert vs.FloatingLeg().ForwardingCurve() == str(curve_id).encode()
     assert swaption.Volatility() == b"inline-vol-surface"
     assert swaption.Model() == b"inline-swaption-model"
     for ref in (
-        swaption.DiscountingCurve(),
-        swaption.ForwardingCurve(),
+        vs.FixedLeg().DiscountingCurve(),
+        vs.FloatingLeg().ForwardingCurve(),
         swaption.Volatility(),
         swaption.Model(),
     ):

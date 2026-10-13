@@ -69,7 +69,8 @@ from quantra_common.engine_client._generated.quantra.enums.Frequency import Freq
 from quantra_common.engine_client._generated.quantra.enums.SettlementType import (
     SettlementType,
 )
-from quantra_common.engine_client._generated.quantra.enums.SwapType import SwapType
+from quantra_common.engine_client._generated.quantra.FixedCoupons import FixedCouponsT
+from quantra_common.engine_client._generated.quantra.IborCoupons import IborCouponsT
 from quantra_common.engine_client._generated.quantra.PriceSwaption import (
     PriceSwaptionT,
 )
@@ -80,8 +81,8 @@ from quantra_common.engine_client._generated.quantra.PriceSwaptionResponse impor
     PriceSwaptionResponse,
 )
 from quantra_common.engine_client._generated.quantra.Schedule import ScheduleT
-from quantra_common.engine_client._generated.quantra.SwapFixedLeg import SwapFixedLegT
-from quantra_common.engine_client._generated.quantra.SwapFloatingLeg import SwapFloatingLegT
+from quantra_common.engine_client._generated.quantra.SwapCoupons import SwapCoupons
+from quantra_common.engine_client._generated.quantra.SwapLeg import SwapLegT
 from quantra_common.engine_client._generated.quantra.Swaption import SwaptionT
 from quantra_common.engine_client._generated.quantra.SwaptionUnderlying import (
     SwaptionUnderlying,
@@ -96,11 +97,13 @@ from quantra_orchestrator.pricing._translator import (
     VolSurfaceTranslationError,
     build_pricing_from_resolved,
     float_leg_frequency,
+    forwarding_index_currency,
     resolved_curve_id,
     resolved_model_id,
     resolved_vol_surface_id,
 )
 from quantra_orchestrator.pricing.concurrency import EngineBatch
+from quantra_orchestrator.pricing.swap_ir.engine_io import pay_receive_sides
 from quantra_orchestrator.pricing.swaption.errors import (
     SwaptionCurveResolutionFailedError,
     SwaptionMissingTradeFieldsError,
@@ -187,6 +190,7 @@ def build_swaption_request(
     discount_curve_id, forwarding_curve_id = _resolve_curve_refs(resolved)
     vol_surface_id, model_id = _resolve_vol_and_model_refs(resolved)
     forwarding_index_id = resolved.forwarding_index_id
+    leg_currency = forwarding_index_currency(resolved)
     float_frequency = float_leg_frequency(resolved)
     request.swaptions = [
         _build_one_swaption(
@@ -197,6 +201,7 @@ def build_swaption_request(
             float_frequency=float_frequency,
             vol_surface_id=vol_surface_id,
             model_id=model_id,
+            leg_currency=leg_currency,
         )
         for trade in trades
     ]
@@ -292,22 +297,34 @@ def decode_swaption_response(
         if swaption_response is None:
             msg = f"decode_swaption_response: null swaption result at index {i}."
             raise ValueError(msg)
+        # Engine >= 0.8.0: the greek / diagnostic fields are ``= null``
+        # optionals (absent when the engine did not compute them, e.g. a
+        # lattice model without the rebump greeks). Decode presence, never
+        # ``float(None)``.
         results.append(
             SwaptionResult(
                 npv=float(swaption_response.Npv()),
-                vega=float(swaption_response.Vega()),
-                delta=float(swaption_response.Delta()),
+                vega=_decode_optional_float(swaption_response.Vega()),
+                delta=_decode_optional_float(swaption_response.Delta()),
                 extras={
-                    "implied_volatility": float(swaption_response.ImpliedVolatility()),
-                    "atm_forward": float(swaption_response.AtmForward()),
-                    "annuity": float(swaption_response.Annuity()),
-                    "gamma": float(swaption_response.Gamma()),
-                    "theta": float(swaption_response.Theta()),
-                    "dv01": float(swaption_response.Dv01()),
+                    "implied_volatility": _decode_optional_float(
+                        swaption_response.ImpliedVolatility()
+                    ),
+                    "atm_forward": _decode_optional_float(swaption_response.AtmForward()),
+                    "annuity": _decode_optional_float(swaption_response.Annuity()),
+                    "gamma": _decode_optional_float(swaption_response.Gamma()),
+                    "theta": _decode_optional_float(swaption_response.Theta()),
+                    "dv01": _decode_optional_float(swaption_response.Dv01()),
                 },
             )
         )
     return results
+
+
+def _decode_optional_float(raw: float | None) -> float | None:
+    """Decode a ``= null`` FlatBuffers double (``None`` when absent on the wire)."""
+
+    return float(raw) if raw is not None else None
 
 
 def decode_swaption_request_wire(request_bytes: bytes) -> dict[str, Any]:
@@ -375,13 +392,25 @@ def _build_underlying_swap(
     *,
     notional: float,
     strike: float,
-    swap_type_value: int,
+    swap_type_label: str,
     effective_date: str,
     termination_date: str,
     forwarding_index_id: str,
     float_frequency: int,
+    discount_curve_id: str,
+    forwarding_curve_id: str,
+    leg_currency: str,
 ) -> VanillaSwapT:
     """Construct the underlying ``VanillaSwap`` for a swaption trade.
+
+    Engine >= 0.10.0 ``SwapLeg`` model (same mapping as swap_ir's
+    ``_build_one_swap``): ``swap_type`` → ``pay_receive`` on each leg,
+    ``currency`` = the forwarding index's ``IndexDef.currency`` on both legs,
+    ``FixedCoupons{rate=strike}`` / ``IborCoupons{index, spread 0}``. The
+    swaption's curves now live on the underlying's legs: BOTH legs name the
+    one request-level discounting curve (the engine prices a swaption on one
+    discount curve and 400s when the two differ) and the floating leg names
+    the forwarding curve.
 
     The float leg references the resolved float index id — the resolved
     one when supplied, else the interim default forwarding index — and its
@@ -391,31 +420,47 @@ def _build_underlying_swap(
     module default when no index was resolved.
     """
 
-    fixed_leg = SwapFixedLegT()
+    fixed_side, float_side = pay_receive_sides(swap_type_label)
+
+    fixed_coupons = FixedCouponsT()
+    fixed_coupons.rate = strike
+
+    fixed_leg = SwapLegT()
+    fixed_leg.payReceive = fixed_side
+    fixed_leg.currency = leg_currency
     fixed_leg.notional = notional
     fixed_leg.schedule = _build_swap_schedule(
         effective_date=effective_date,
         termination_date=termination_date,
         frequency=Frequency.Annual,
     )
-    fixed_leg.rate = strike
     fixed_leg.dayCounter = DayCounter.Thirty360
     fixed_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    fixed_leg.couponsType = SwapCoupons.FixedCoupons
+    fixed_leg.coupons = fixed_coupons
+    fixed_leg.discountingCurve = discount_curve_id
 
-    float_leg = SwapFloatingLegT()
+    ibor_coupons = IborCouponsT()
+    ibor_coupons.index = build_index_ref(forwarding_index_id)
+    ibor_coupons.spread = 0.0
+
+    float_leg = SwapLegT()
+    float_leg.payReceive = float_side
+    float_leg.currency = leg_currency
     float_leg.notional = notional
     float_leg.schedule = _build_swap_schedule(
         effective_date=effective_date,
         termination_date=termination_date,
         frequency=float_frequency,
     )
-    float_leg.index = build_index_ref(forwarding_index_id)
     float_leg.dayCounter = DayCounter.Actual360
-    float_leg.spread = 0.0
     float_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    float_leg.couponsType = SwapCoupons.IborCoupons
+    float_leg.coupons = ibor_coupons
+    float_leg.discountingCurve = discount_curve_id
+    float_leg.forwardingCurve = forwarding_curve_id
 
     underlying = VanillaSwapT()
-    underlying.swapType = swap_type_value
     underlying.fixedLeg = fixed_leg
     underlying.floatingLeg = float_leg
     return underlying
@@ -430,10 +475,13 @@ def _build_one_swaption(
     float_frequency: int,
     vol_surface_id: str,
     model_id: str,
+    leg_currency: str,
 ) -> PriceSwaptionT:
     """Map one :class:`SwaptionTrade` to a ``PriceSwaption`` FB graph.
 
-    The discount / forwarding curve, ``volatility`` and ``model`` references
+    The discount / forwarding curve references land on the underlying's
+    legs (engine >= 0.10.0: ``PriceSwaption`` carries only ``swaption`` /
+    ``volatility`` / ``model``); the ``volatility`` and ``model`` references
     honour the resolved entity ids the translator placed in the ``Pricing``
     graph, not ``CANONICAL_*``.
     """
@@ -446,16 +494,18 @@ def _build_one_swaption(
     effective_date = str(body["effective_date"])
     termination_date = str(body["termination_date"])
     swap_type_label = str(body.get("swap_type", "Payer"))
-    swap_type_value = SwapType.Receiver if swap_type_label.lower() == "receiver" else SwapType.Payer
 
     underlying = _build_underlying_swap(
         notional=notional,
         strike=strike,
-        swap_type_value=swap_type_value,
+        swap_type_label=swap_type_label,
         effective_date=effective_date,
         termination_date=termination_date,
         forwarding_index_id=forwarding_index_id,
         float_frequency=float_frequency,
+        discount_curve_id=discount_curve_id,
+        forwarding_curve_id=forwarding_curve_id,
+        leg_currency=leg_currency,
     )
 
     swaption = SwaptionT()
@@ -467,8 +517,6 @@ def _build_one_swaption(
 
     price_swaption = PriceSwaptionT()
     price_swaption.swaption = swaption
-    price_swaption.discountingCurve = discount_curve_id
-    price_swaption.forwardingCurve = forwarding_curve_id
     price_swaption.volatility = vol_surface_id
     price_swaption.model = model_id
     return price_swaption

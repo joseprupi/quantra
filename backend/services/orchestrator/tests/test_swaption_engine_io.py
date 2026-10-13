@@ -41,7 +41,9 @@ from quantra_common.engine_client._generated.quantra.enums.Frequency import Freq
 from quantra_common.engine_client._generated.quantra.enums.IrModelType import (
     IrModelType,
 )
-from quantra_common.engine_client._generated.quantra.enums.SwapType import SwapType
+from quantra_common.engine_client._generated.quantra.enums.PayReceive import PayReceive
+from quantra_common.engine_client._generated.quantra.FixedCoupons import FixedCoupons
+from quantra_common.engine_client._generated.quantra.IborCoupons import IborCoupons
 from quantra_common.engine_client._generated.quantra.ModelPayload import ModelPayload
 from quantra_common.engine_client._generated.quantra.PriceSwaptionRequest import (
     PriceSwaptionRequest,
@@ -49,6 +51,8 @@ from quantra_common.engine_client._generated.quantra.PriceSwaptionRequest import
 from quantra_common.engine_client._generated.quantra.PriceSwaptionResponse import (
     PriceSwaptionResponseT,
 )
+from quantra_common.engine_client._generated.quantra.SwapCoupons import SwapCoupons
+from quantra_common.engine_client._generated.quantra.SwapLeg import SwapLeg
 from quantra_common.engine_client._generated.quantra.SwaptionModelSpec import (
     SwaptionModelSpec,
 )
@@ -284,6 +288,28 @@ class _FakeEngine(EngineClient):
         return None
 
 
+def _fixed_coupons(leg: SwapLeg) -> FixedCoupons:
+    """Read the ``FixedCoupons`` member of a leg's ``coupons`` union."""
+
+    assert leg.CouponsType() == SwapCoupons.FixedCoupons
+    table = leg.Coupons()
+    assert table is not None
+    coupons = FixedCoupons()
+    coupons.Init(table.Bytes, table.Pos)
+    return coupons
+
+
+def _ibor_coupons(leg: SwapLeg) -> IborCoupons:
+    """Read the ``IborCoupons`` member of a leg's ``coupons`` union."""
+
+    assert leg.CouponsType() == SwapCoupons.IborCoupons
+    table = leg.Coupons()
+    assert table is not None
+    coupons = IborCoupons()
+    coupons.Init(table.Bytes, table.Pos)
+    return coupons
+
+
 def test_swaption_engine_rpc_is_price_swaption() -> None:
     """The 07-plan's ``PRICE_SWAPTION`` placeholder matches the canonical enum.
 
@@ -389,24 +415,31 @@ def test_build_request_per_trade_refs_carry_resolved_ids() -> None:
     request = PriceSwaptionRequest.GetRootAs(raw, 0)
     swaption = request.Swaptions(0)
     assert swaption is not None
-    assert swaption.DiscountingCurve() == str(discount_id).encode()
-    assert swaption.ForwardingCurve() == str(forwarding_id).encode()
     assert swaption.Volatility() == str(surface_id).encode()
     assert swaption.Model() == str(model_id).encode()
+    # Engine >= 0.10.0: the swaption's curves live on the underlying's legs —
+    # the ONE discounting curve on both legs, the forwarding curve on the
+    # floating leg only.
+    underlying = swaption.Swaption().Underlying()
+    vs = VanillaSwapTbl()
+    vs.Init(underlying.Bytes, underlying.Pos)
+    fixed_leg = vs.FixedLeg()
+    floating_leg = vs.FloatingLeg()
+    assert fixed_leg.DiscountingCurve() == str(discount_id).encode()
+    assert floating_leg.DiscountingCurve() == str(discount_id).encode()
+    assert floating_leg.ForwardingCurve() == str(forwarding_id).encode()
+    assert fixed_leg.ForwardingCurve() is None
     # None of the canonical placeholders leak into the wire references.
     for ref in (
-        swaption.DiscountingCurve(),
-        swaption.ForwardingCurve(),
+        fixed_leg.DiscountingCurve(),
+        floating_leg.ForwardingCurve(),
         swaption.Volatility(),
         swaption.Model(),
     ):
         assert ref not in (b"discount", b"swaption_vol", b"black_model")
     # The underlying float leg references the interim default forwarding index,
     # never a canonical curve / index id.
-    underlying = swaption.Swaption().Underlying()
-    vs = VanillaSwapTbl()
-    vs.Init(underlying.Bytes, underlying.Pos)
-    assert vs.FloatingLeg().Index().Id() == DEFAULT_FORWARDING_INDEX_ID.encode()
+    assert _ibor_coupons(floating_leg).Index().Id() == DEFAULT_FORWARDING_INDEX_ID.encode()
 
 
 def test_build_request_missing_quote_raises_swaption_quote_resolution_failed() -> None:
@@ -492,11 +525,13 @@ def test_build_request_honors_per_trade_overrides() -> None:
     assert underlying is not None
     vs = VanillaSwapTbl()
     vs.Init(underlying.Bytes, underlying.Pos)
-    assert vs.SwapType() == SwapType.Receiver
+    # ``Receiver`` = the party receives the fixed leg and pays the floating leg.
     fl = vs.FixedLeg()
     assert fl is not None
+    assert fl.PayReceive() == PayReceive.Receive
+    assert vs.FloatingLeg().PayReceive() == PayReceive.Pay
     assert fl.Notional() == pytest.approx(2_500_000.0)
-    assert fl.Rate() == pytest.approx(0.04)
+    assert _fixed_coupons(fl).Rate() == pytest.approx(0.04)
 
 
 def _index_with_tenor(n: int, unit: str) -> ResolvedIndex:
@@ -594,6 +629,23 @@ def test_decode_response_round_trips_multi_trade_payload_in_order() -> None:
     ]
 
 
+def test_decode_response_absent_greeks_decode_to_none() -> None:
+    """Greeks are ``= null`` optionals (engine >= 0.8.0): absent decodes to ``None``."""
+
+    response = PriceSwaptionResponseT()
+    swaption = SwaptionResponseT()
+    swaption.npv = 1234.5
+    # Every greek / diagnostic left ``None`` => absent on the wire.
+    response.swaptions = [swaption]
+    builder = flatbuffers.Builder(256)
+    builder.Finish(response.Pack(builder))
+    decoded = decode_swaption_response(bytes(builder.Output()), expected_count=1)
+    assert decoded[0].npv == pytest.approx(1234.5)
+    assert decoded[0].vega is None
+    assert decoded[0].delta is None
+    assert all(decoded[0].extras[k] is None for k in ("gamma", "theta", "dv01", "annuity"))
+
+
 def test_decode_response_rejects_empty_body() -> None:
     with pytest.raises(ValueError, match="empty engine response"):
         decode_swaption_response(b"", expected_count=1)
@@ -655,44 +707,49 @@ async def test_price_swaption_batch_propagates_engine_exceptions() -> None:
 # EUR-6M fixture). Golden bytes captured from the previous swaption request path.
 # ---------------------------------------------------------------------------
 
-# golden = the canonical engine-0.5.0 wire (the compose engine pin), captured
-# from the v0.5.0-tag bindings after the ENGINE_WIRE_COMPAT seam was retired;
-# NPV byte-parity vs the engine-0.2.0 baseline was live-proven at the pin bump.
+# golden = the canonical engine-0.11.0 wire (the compose engine pin), captured
+# from the v0.11.0-tag bindings: the underlying is two 0.10.0 ``SwapLeg``s
+# (curves on the legs; ``PriceSwaption`` keeps only swaption / volatility /
+# model). NPV parity vs the engine-0.6.0 baseline was live-proven at the pin
+# bump (U1 A/B).
 _SWAPTION_GOLDEN_HEX = (
-    "140000000000000000000a0010000c00080007000a000000000000000800000064020000010000001400000000"
-    "000e001800140010000c00080004000e000000140000003c000000640000008c000000c4000000240000003434"
-    "3434343434342d343434342d343434342d343434342d3434343434343434343434340000000024000000333333"
-    "33333333332d333333332d333333332d333333332d333333333333333333333333000000002400000032323232"
-    "323232322d323232322d323232322d323232322d32323232323232323232323200000000240000003131313131"
-    "3131312d313131312d313131312d313131312d3131313131313131313131310000120016001500140013000c00"
-    "00000b000400120000001c000000000000013c0100000000000000000a000e000d00080004000a000000200000"
-    "00b40000000000160030002c00200000001c0010000f000e000800070016000000000000000200000000000200"
-    "000000000000000000000000140000000000000080842e41000000002400000016feffff040000001000000066"
-    "6f7277617264696e675f696e6465780000000098ffffff000000000202020b0c00000018000000000000200a00"
-    "0000323033312d30312d313700000a000000323032362d30312d31370000100020001c00100000000800070006"
-    "00100000000000020eec51b81e85eba13f0000000080842e41000000001800000014001800170010000c000b00"
-    "0a000900080007001400000000000000020202000c00000018000000000000200a000000323033312d30312d31"
-    "3700000a000000323032362d30312d313700000a000000323032362d30312d3135000000001600180014001000"
-    "00000c000000080000000000040016000000200000002c0000007801000044030000500300000c000800070006"
-    "00050004000c0000000001000008000c000800040008000000080000007c000000010000000400000076ffffff"
-    "1c000000000000023800000000000e002400230014000c00080007000e00000000000000320000007b14ae47e1"
-    "7a843f9a9999999999a93f00000000000000032400000034343434343434342d343434342d343434342d343434"
-    "342d343434343434343434343434000000000100000004000000eeffffff18000000000000028400000000000a"
-    "0012000c000b0004000a0000001400000000000001580000000000060008000400060000001800000014002000"
-    "1c001b001a001900180017000c000400140000009a9999999999c93f0000000000000000000000010001022004"
-    "0000000a000000323032362d30352d313300000b0000004555525f535741505f364d0024000000333333333333"
-    "33332d333333332d333333332d333333332d33333333333333333333333300000a000c000800000004000a0000"
-    "00080000004801000002000000a00000000400000078ffffff100000001c000000000004004c0000000a000000"
-    "323032362d30352d31330000010000000400000068ffffff080000000000000160ffffff00010220020000000c"
-    "0000006abc74931804a63fd0feffff00000008010000002400000032323232323232322d323232322d32323232"
-    "2d323232322d323232323232323232323232000000001000140010000f000e000d000800040010000000100000"
-    "001c00000000000400640000000a000000323032362d30352d31330000010000000c00000008000c000b000400"
-    "0800000018000000000000011000180010000c0008000700060005001000000000010220020000000c000000c3"
-    "f5285c8fc2a53f80ffffff00000008010000002400000031313131313131312d313131312d313131312d313131"
-    "312d31313131313131313131313100000000010000001c000000180020001c001800170010000c000b000a0009"
-    "0008000400180000001c00000000000220020000002000000000000000240000002c0000000300000045555200"
-    "08000c00080007000800000000000005060000000700000045757269626f720010000000666f7277617264696e"
-    "675f696e646578000000000a000000323032362d30352d313300000a000000323032362d30352d31330000"
+    "140000000000000000000a0010000c00080007000a0000000000000008000000dc020000010000001000000000"
+    "000a0010000c00080004000a0000000c000000340000006c0000002400000034343434343434342d343434342d"
+    "343434342d343434342d343434343434343434343434000000002400000033333333333333332d333333332d33"
+    "3333332d333333332d3333333333333333333333330000120014001300120011000c0000000b00040012000000"
+    "1800000000000001180200000000000008000e000800040008000000280000004801000000001e002c002b0024"
+    "00180000001400130012000000000011000c00080004001e00000028000000500000008400000000020200b400"
+    "00000000000080842e4100000000dc000000000000012400000032323232323232322d323232322d323232322d"
+    "323232322d323232323232323232323232000000002400000031313131313131312d313131312d313131312d31"
+    "3131312d313131313131313131313131000000000c00180014000800000007000c000000000000000000000000"
+    "0000000000000004000000b6fdffff0400000010000000666f7277617264696e675f696e6465780000000040ff"
+    "ffff000000000202020b0c00000018000000000000200a000000323033312d30312d313700000a000000323032"
+    "362d30312d3137000003000000455552001c002800270020001400000010000f000e00000000000d0008000400"
+    "1c00000024000000500000000001020e680000000000000080842e410000000090000000000000002400000031"
+    "313131313131312d313131312d313131312d313131312d313131313131313131313131000006000c0004000600"
+    "0000ec51b81e85eba13f14001800170010000c000b000a000900080007001400000000000000020202000c0000"
+    "0018000000000000200a000000323033312d30312d313700000a000000323032362d30312d3137000003000000"
+    "455552000a000000323032362d30312d313500000000160018001400100000000c000000080000000000040016"
+    "000000200000002c0000007801000044030000500300000c00080007000600050004000c000000000100000800"
+    "0c000800040008000000080000007c000000010000000400000076ffffff1c000000000000023800000000000e"
+    "002400230014000c00080007000e00000000000000320000007b14ae47e17a843f9a9999999999a93f00000000"
+    "000000032400000034343434343434342d343434342d343434342d343434342d34343434343434343434343400"
+    "0000000100000004000000eeffffff18000000000000028400000000000a0012000c000b0004000a0000001400"
+    "0000000000015800000000000600080004000600000018000000140020001c001b001a001900180017000c0004"
+    "00140000009a9999999999c93f00000000000000000000000100010220040000000a000000323032362d30352d"
+    "313300000b0000004555525f535741505f364d002400000033333333333333332d333333332d333333332d3333"
+    "33332d33333333333333333333333300000a000c000800000004000a000000080000004801000002000000a000"
+    "00000400000078ffffff100000001c000000000004004c0000000a000000323032362d30352d31330000010000"
+    "000400000068ffffff080000000000000160ffffff00010220020000000c0000006abc74931804a63fd0feffff"
+    "00000008010000002400000032323232323232322d323232322d323232322d323232322d323232323232323232"
+    "323232000000001000140010000f000e000d000800040010000000100000001c00000000000400640000000a00"
+    "0000323032362d30352d31330000010000000c00000008000c000b000400080000001800000000000001100018"
+    "0010000c0008000700060005001000000000010220020000000c000000c3f5285c8fc2a53f80ffffff00000008"
+    "010000002400000031313131313131312d313131312d313131312d313131312d31313131313131313131313100"
+    "000000010000001c000000180020001c001800170010000c000b000a00090008000400180000001c0000000000"
+    "0220020000002000000000000000240000002c000000030000004555520008000c000800070008000000000000"
+    "05060000000700000045757269626f720010000000666f7277617264696e675f696e646578000000000a000000"
+    "323032362d30352d313300000a000000323032362d30352d31330000"
 )
 
 
@@ -744,3 +801,27 @@ def test_build_request_bytes_unchanged_pre_post_16c() -> None:
     )
     raw = build_swaption_request([trade], resolved=resolved)
     assert raw.hex() == _SWAPTION_GOLDEN_HEX
+
+    # Decode the golden bytes back and assert the intended underlying legs.
+    request = PriceSwaptionRequest.GetRootAs(raw, 0)
+    swaption = request.Swaptions(0)
+    assert swaption is not None
+    assert swaption.Volatility() == str(vol_id).encode()
+    assert swaption.Model() == str(model_id).encode()
+    underlying = swaption.Swaption().Underlying()
+    vs = VanillaSwapTbl()
+    vs.Init(underlying.Bytes, underlying.Pos)
+    fixed_leg = vs.FixedLeg()
+    floating_leg = vs.FloatingLeg()
+    assert fixed_leg.PayReceive() == PayReceive.Pay
+    assert floating_leg.PayReceive() == PayReceive.Receive
+    assert fixed_leg.Currency() == b"EUR"
+    assert floating_leg.Currency() == b"EUR"
+    assert _fixed_coupons(fixed_leg).Rate() == pytest.approx(0.035)
+    assert _ibor_coupons(floating_leg).Index().Id() == DEFAULT_FORWARDING_INDEX_ID.encode()
+    # One discount curve on both legs (the engine prices a swaption on one),
+    # the forwarding curve on the floating leg only.
+    assert fixed_leg.DiscountingCurve() == str(discount_id).encode()
+    assert floating_leg.DiscountingCurve() == str(discount_id).encode()
+    assert floating_leg.ForwardingCurve() == str(forwarding_id).encode()
+    assert fixed_leg.ForwardingCurve() is None

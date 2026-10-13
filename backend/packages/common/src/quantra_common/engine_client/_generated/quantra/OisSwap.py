@@ -6,7 +6,17 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Overnight indexed swap: fixed vs compounded overnight.
+# Overnight indexed swap: a fixed leg against a compounded (or averaged)
+# overnight leg, both `SwapLeg`s in one currency (400 otherwise), one paid
+# and one received (`SwapLeg.pay_receive`; 400 when both take the same
+# side). The legs name their own discounting and forwarding curves. Priced
+# as two QuantLib legs on their discount curves: FixedRateLeg with the fixed
+# leg's own payment calendar and lag (`SwapLeg.payment_calendar` /
+# `payment_lag`, presence-required on both legs of this endpoint: an OIS
+# pays with the overnight calendar and lag) and OvernightLeg with the
+# overnight conventions, the chains
+# QuantLib::OvernightIndexedSwap builds, plus the notional exchanges when a
+# leg asks for them (see `OisSwapResponse`).
 class OisSwap(object):
     __slots__ = ['_tab']
 
@@ -25,57 +35,46 @@ class OisSwap(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Payer/receiver refer to the fixed leg. Presence-required: an omitted
-    # type is a 400, never the alphabetical-0 default (Payer).
-    # OisSwap
-    def SwapType(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return None
-
+    # The fixed leg: `coupons` must be `FixedCoupons`. Required. Reported as
+    # `legs[0]`.
     # OisSwap
     def FixedLeg(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra_common.engine_client._generated.quantra.SwapFixedLeg import SwapFixedLeg
-            obj = SwapFixedLeg()
+            from quantra_common.engine_client._generated.quantra.SwapLeg import SwapLeg
+            obj = SwapLeg()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
+    # The overnight leg: `coupons` must be `OvernightCoupons`. Required.
+    # Reported as `legs[1]`.
     # OisSwap
     def OvernightLeg(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        from quantra_common.engine_client._generated.quantra.SwapLeg import SwapLeg
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra_common.engine_client._generated.quantra.OisFloatingLeg import OisFloatingLeg
-            obj = OisFloatingLeg()
+            obj = SwapLeg()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
 def OisSwapStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(2)
 
 def Start(builder):
     OisSwapStart(builder)
 
-def OisSwapAddSwapType(builder, swapType):
-    builder.PrependInt8Slot(0, swapType, None)
-
-def AddSwapType(builder, swapType):
-    OisSwapAddSwapType(builder, swapType)
-
 def OisSwapAddFixedLeg(builder, fixedLeg):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(fixedLeg), 0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(fixedLeg), 0)
 
 def AddFixedLeg(builder, fixedLeg):
     OisSwapAddFixedLeg(builder, fixedLeg)
 
 def OisSwapAddOvernightLeg(builder, overnightLeg):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(overnightLeg), 0)
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(overnightLeg), 0)
 
 def AddOvernightLeg(builder, overnightLeg):
     OisSwapAddOvernightLeg(builder, overnightLeg)
@@ -95,9 +94,8 @@ class OisSwapT(object):
 
     # OisSwapT
     def __init__(self):
-        self.swapType = None  # type: Optional[int]
-        self.fixedLeg = None  # type: Optional[SwapFixedLegT]
-        self.overnightLeg = None  # type: Optional[OisFloatingLegT]
+        self.fixedLeg = None  # type: Optional[SwapLegT]
+        self.overnightLeg = None  # type: Optional[SwapLegT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -118,15 +116,13 @@ class OisSwapT(object):
 
     # OisSwapT
     def _UnPack(self, oisSwap):
-        from quantra_common.engine_client._generated.quantra.OisFloatingLeg import OisFloatingLegT
-        from quantra_common.engine_client._generated.quantra.SwapFixedLeg import SwapFixedLegT
+        from quantra_common.engine_client._generated.quantra.SwapLeg import SwapLegT
         if oisSwap is None:
             return
-        self.swapType = oisSwap.SwapType()
         if oisSwap.FixedLeg() is not None:
-            self.fixedLeg = SwapFixedLegT.InitFromObj(oisSwap.FixedLeg())
+            self.fixedLeg = SwapLegT.InitFromObj(oisSwap.FixedLeg())
         if oisSwap.OvernightLeg() is not None:
-            self.overnightLeg = OisFloatingLegT.InitFromObj(oisSwap.OvernightLeg())
+            self.overnightLeg = SwapLegT.InitFromObj(oisSwap.OvernightLeg())
 
     # OisSwapT
     def Pack(self, builder):
@@ -135,7 +131,6 @@ class OisSwapT(object):
         if self.overnightLeg is not None:
             overnightLeg = self.overnightLeg.Pack(builder)
         OisSwapStart(builder)
-        OisSwapAddSwapType(builder, self.swapType)
         if self.fixedLeg is not None:
             OisSwapAddFixedLeg(builder, fixedLeg)
         if self.overnightLeg is not None:

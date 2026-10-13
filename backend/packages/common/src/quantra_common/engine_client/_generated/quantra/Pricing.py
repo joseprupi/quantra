@@ -133,8 +133,48 @@ class Pricing(object):
             return obj
         return None
 
+    # Per-request holiday overrides (optional). Applied to every use of the
+    # named calendars in this request. Used by: ALL.
+    # Pricing
+    def CalendarOverrides(self, j):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            x = self._tab.Vector(o)
+            x += flatbuffers.number_types.UOffsetTFlags.py_type(j) * 4
+            x = self._tab.Indirect(x)
+            from quantra_common.engine_client._generated.quantra.CalendarOverride import CalendarOverride
+            obj = CalendarOverride()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
+    # Pricing
+    def CalendarOverridesLength(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        if o != 0:
+            return self._tab.VectorLen(o)
+        return 0
+
+    # Pricing
+    def CalendarOverridesIsNone(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(22))
+        return o == 0
+
+    # FX spot rates referenced by FX-implied curve helpers (FxSwapHelper,
+    # CrossCcyBasisHelper) and FX products. Optional.
+    # Pricing
+    def Fx(self):
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(24))
+        if o != 0:
+            x = self._tab.Indirect(o + self._tab.Pos)
+            from quantra_common.engine_client._generated.quantra.FxMarketData import FxMarketData
+            obj = FxMarketData()
+            obj.Init(self._tab.Bytes, x)
+            return obj
+        return None
+
 def PricingStart(builder):
-    builder.StartObject(9)
+    builder.StartObject(11)
 
 def Start(builder):
     PricingStart(builder)
@@ -199,6 +239,24 @@ def PricingAddOptions(builder, options):
 def AddOptions(builder, options):
     PricingAddOptions(builder, options)
 
+def PricingAddCalendarOverrides(builder, calendarOverrides):
+    builder.PrependUOffsetTRelativeSlot(9, flatbuffers.number_types.UOffsetTFlags.py_type(calendarOverrides), 0)
+
+def AddCalendarOverrides(builder, calendarOverrides):
+    PricingAddCalendarOverrides(builder, calendarOverrides)
+
+def PricingStartCalendarOverridesVector(builder, numElems):
+    return builder.StartVector(4, numElems, 4)
+
+def StartCalendarOverridesVector(builder, numElems):
+    return PricingStartCalendarOverridesVector(builder, numElems)
+
+def PricingAddFx(builder, fx):
+    builder.PrependUOffsetTRelativeSlot(10, flatbuffers.number_types.UOffsetTFlags.py_type(fx), 0)
+
+def AddFx(builder, fx):
+    PricingAddFx(builder, fx)
+
 def PricingEnd(builder):
     return builder.EndObject()
 
@@ -223,6 +281,8 @@ class PricingT(object):
         self.equity = None  # type: Optional[EquityMarketDataT]
         self.inflation = None  # type: Optional[InflationMarketDataT]
         self.options = None  # type: Optional[PricingOptionsT]
+        self.calendarOverrides = None  # type: List[CalendarOverrideT]
+        self.fx = None  # type: Optional[FxMarketDataT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -243,8 +303,10 @@ class PricingT(object):
 
     # PricingT
     def _UnPack(self, pricing):
+        from quantra_common.engine_client._generated.quantra.CalendarOverride import CalendarOverrideT
         from quantra_common.engine_client._generated.quantra.CreditMarketData import CreditMarketDataT
         from quantra_common.engine_client._generated.quantra.EquityMarketData import EquityMarketDataT
+        from quantra_common.engine_client._generated.quantra.FxMarketData import FxMarketDataT
         from quantra_common.engine_client._generated.quantra.InflationMarketData import InflationMarketDataT
         from quantra_common.engine_client._generated.quantra.PricingOptions import PricingOptionsT
         from quantra_common.engine_client._generated.quantra.QuoteSpec import QuoteSpecT
@@ -274,6 +336,16 @@ class PricingT(object):
             self.inflation = InflationMarketDataT.InitFromObj(pricing.Inflation())
         if pricing.Options() is not None:
             self.options = PricingOptionsT.InitFromObj(pricing.Options())
+        if not pricing.CalendarOverridesIsNone():
+            self.calendarOverrides = []
+            for i in range(pricing.CalendarOverridesLength()):
+                if pricing.CalendarOverrides(i) is None:
+                    self.calendarOverrides.append(None)
+                else:
+                    calendarOverride_ = CalendarOverrideT.InitFromObj(pricing.CalendarOverrides(i))
+                    self.calendarOverrides.append(calendarOverride_)
+        if pricing.Fx() is not None:
+            self.fx = FxMarketDataT.InitFromObj(pricing.Fx())
 
     # PricingT
     def Pack(self, builder):
@@ -301,6 +373,16 @@ class PricingT(object):
             inflation = self.inflation.Pack(builder)
         if self.options is not None:
             options = self.options.Pack(builder)
+        if self.calendarOverrides is not None:
+            calendarOverrideslist = []
+            for i in range(len(self.calendarOverrides)):
+                calendarOverrideslist.append(self.calendarOverrides[i].Pack(builder))
+            PricingStartCalendarOverridesVector(builder, len(self.calendarOverrides))
+            for i in reversed(range(len(self.calendarOverrides))):
+                builder.PrependUOffsetTRelative(calendarOverrideslist[i])
+            calendarOverrides = builder.EndVector()
+        if self.fx is not None:
+            fx = self.fx.Pack(builder)
         PricingStart(builder)
         if self.asOfDate is not None:
             PricingAddAsOfDate(builder, asOfDate)
@@ -320,5 +402,9 @@ class PricingT(object):
             PricingAddInflation(builder, inflation)
         if self.options is not None:
             PricingAddOptions(builder, options)
+        if self.calendarOverrides is not None:
+            PricingAddCalendarOverrides(builder, calendarOverrides)
+        if self.fx is not None:
+            PricingAddFx(builder, fx)
         pricing = PricingEnd(builder)
         return pricing

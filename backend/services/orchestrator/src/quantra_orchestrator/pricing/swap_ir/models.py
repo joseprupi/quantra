@@ -236,14 +236,20 @@ class SwapFlow(BaseModel):
     cms_swap_rate: float = 0.0
     spread: float = 0.0
     rate: float = 0.0
+    # Engine >= 0.10.0: ``"Coupon"`` or ``"NotionalExchange"`` (a trailing
+    # optional on ``SwapLegFlow``; ``None`` on an older response).
+    kind: str | None = None
 
 
 class IrSwapResult(BaseModel):
     """Engine response for one IR swap, decoded from FlatBuffers.
 
-    Carries the headline NPV / per-leg NPVs / extras (fair rate, etc.) plus
-    the per-period cashflows for each leg (``fixed_leg_flows`` /
-    ``floating_leg_flows``). The engine already supports detailed flows behind
+    Carries the headline NPV / per-leg NPVs (``legs[0]`` fixed, ``legs[1]``
+    floating on engine >= 0.10.0) / extras (``fair_rate`` / ``fair_spread``,
+    each ``None`` when the engine omits it) plus the per-period cashflows for
+    each leg (``fixed_leg_flows`` / ``floating_leg_flows``). The engine's
+    per-leg ``*_bps`` fields were removed in 0.10.0 and are no longer
+    surfaced. The engine already supports detailed flows behind
     the request's ``include_flows`` bool; the orchestrator now requests and
     decodes them. The inner ``leg_npvs`` / ``extras`` fields stay
     deliberately loose because the engine's wire shape is still in flux

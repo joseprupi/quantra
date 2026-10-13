@@ -6,7 +6,15 @@ import flatbuffers
 from flatbuffers.compat import import_numpy
 np = import_numpy()
 
-# Basis swap with two floating legs (e.g., 3M vs 6M).
+# Basis swap: two floating `SwapLeg`s in one currency (400 otherwise), e.g.
+# 3M vs 6M IBOR or IBOR vs overnight, one paid and one received
+# (`SwapLeg.pay_receive`; 400 when both take the same side). Each leg's
+# `coupons` is `IborCoupons` or `OvernightCoupons`; the legs name their own
+# discounting and forwarding curves (the usual multi-curve setup discounts
+# both on the OIS curve and projects each on its tenor curve). Priced as two
+# QuantLib legs (IborLeg with a zero-volatility Black pricer / OvernightLeg)
+# on their discount curves, plus the notional exchanges when a leg asks for
+# them (see `BasisSwapResponse`).
 class BasisSwap(object):
     __slots__ = ['_tab']
 
@@ -25,57 +33,45 @@ class BasisSwap(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-    # Payer/receiver refer to leg1. Presence-required: an omitted type is a
-    # 400, never the alphabetical-0 default (Payer).
-    # BasisSwap
-    def SwapType(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
-        if o != 0:
-            return self._tab.Get(flatbuffers.number_types.Int8Flags, o + self._tab.Pos)
-        return None
-
+    # First floating leg. Required. Reported as `legs[0]`.
     # BasisSwap
     def Leg1(self):
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(4))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            from quantra_common.engine_client._generated.quantra.SwapFloatingLeg import SwapFloatingLeg
-            obj = SwapFloatingLeg()
+            from quantra_common.engine_client._generated.quantra.SwapLeg import SwapLeg
+            obj = SwapLeg()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
+    # Second floating leg. Required. Reported as `legs[1]`; by convention
+    # the leg `fair_spread` refers to when neither leg carries a spread.
     # BasisSwap
     def Leg2(self):
-        from quantra_common.engine_client._generated.quantra.SwapFloatingLeg import SwapFloatingLeg
-        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(8))
+        from quantra_common.engine_client._generated.quantra.SwapLeg import SwapLeg
+        o = flatbuffers.number_types.UOffsetTFlags.py_type(self._tab.Offset(6))
         if o != 0:
             x = self._tab.Indirect(o + self._tab.Pos)
-            obj = SwapFloatingLeg()
+            obj = SwapLeg()
             obj.Init(self._tab.Bytes, x)
             return obj
         return None
 
 def BasisSwapStart(builder):
-    builder.StartObject(3)
+    builder.StartObject(2)
 
 def Start(builder):
     BasisSwapStart(builder)
 
-def BasisSwapAddSwapType(builder, swapType):
-    builder.PrependInt8Slot(0, swapType, None)
-
-def AddSwapType(builder, swapType):
-    BasisSwapAddSwapType(builder, swapType)
-
 def BasisSwapAddLeg1(builder, leg1):
-    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(leg1), 0)
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(leg1), 0)
 
 def AddLeg1(builder, leg1):
     BasisSwapAddLeg1(builder, leg1)
 
 def BasisSwapAddLeg2(builder, leg2):
-    builder.PrependUOffsetTRelativeSlot(2, flatbuffers.number_types.UOffsetTFlags.py_type(leg2), 0)
+    builder.PrependUOffsetTRelativeSlot(1, flatbuffers.number_types.UOffsetTFlags.py_type(leg2), 0)
 
 def AddLeg2(builder, leg2):
     BasisSwapAddLeg2(builder, leg2)
@@ -95,9 +91,8 @@ class BasisSwapT(object):
 
     # BasisSwapT
     def __init__(self):
-        self.swapType = None  # type: Optional[int]
-        self.leg1 = None  # type: Optional[SwapFloatingLegT]
-        self.leg2 = None  # type: Optional[SwapFloatingLegT]
+        self.leg1 = None  # type: Optional[SwapLegT]
+        self.leg2 = None  # type: Optional[SwapLegT]
 
     @classmethod
     def InitFromBuf(cls, buf, pos):
@@ -118,14 +113,13 @@ class BasisSwapT(object):
 
     # BasisSwapT
     def _UnPack(self, basisSwap):
-        from quantra_common.engine_client._generated.quantra.SwapFloatingLeg import SwapFloatingLegT
+        from quantra_common.engine_client._generated.quantra.SwapLeg import SwapLegT
         if basisSwap is None:
             return
-        self.swapType = basisSwap.SwapType()
         if basisSwap.Leg1() is not None:
-            self.leg1 = SwapFloatingLegT.InitFromObj(basisSwap.Leg1())
+            self.leg1 = SwapLegT.InitFromObj(basisSwap.Leg1())
         if basisSwap.Leg2() is not None:
-            self.leg2 = SwapFloatingLegT.InitFromObj(basisSwap.Leg2())
+            self.leg2 = SwapLegT.InitFromObj(basisSwap.Leg2())
 
     # BasisSwapT
     def Pack(self, builder):
@@ -134,7 +128,6 @@ class BasisSwapT(object):
         if self.leg2 is not None:
             leg2 = self.leg2.Pack(builder)
         BasisSwapStart(builder)
-        BasisSwapAddSwapType(builder, self.swapType)
         if self.leg1 is not None:
             BasisSwapAddLeg1(builder, leg1)
         if self.leg2 is not None:

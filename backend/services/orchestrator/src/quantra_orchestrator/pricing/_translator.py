@@ -1143,6 +1143,23 @@ def _build_rates_indices(resolved: ResolvedMarketData) -> list[IndexDefT]:
     return list(indices_by_id.values())
 
 
+def forwarding_index_currency(resolved: ResolvedMarketData) -> str:
+    """ISO currency of the ``IndexDef`` the float leg projects on.
+
+    Engine >= 0.10.0 requires ``SwapLeg.currency`` on every leg and rejects a
+    floating leg whose currency differs from its index's ``IndexDef.currency``
+    (400). Read it off the SAME def :func:`_build_rates_indices` registers
+    (the resolved index when supplied, else the interim default forwarding
+    index) so the leg and the registry can never disagree; the fixed leg of a
+    single-currency swap takes the same value (the engine's converter rule:
+    "the fixed leg takes the other leg's currency").
+    """
+
+    if resolved.index is not None:
+        return str(translate_index(resolved.index).currency)
+    return str(_build_default_forwarding_index().currency)
+
+
 def resolved_index_id(index: ResolvedIndexLike) -> str:
     """Derive the stable engine-facing index id from a resolved entity.
 
@@ -3992,6 +4009,7 @@ __all__ = [
     "build_pricing_from_resolved",
     "dividend_curve_id",
     "float_leg_frequency",
+    "forwarding_index_currency",
     "resolved_credit_curve_id",
     "resolved_curve_id",
     "resolved_index_id",

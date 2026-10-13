@@ -56,7 +56,10 @@ from quantra_common.engine_client._generated.quantra.enums.DateGenerationRule im
 )
 from quantra_common.engine_client._generated.quantra.enums.DayCounter import DayCounter
 from quantra_common.engine_client._generated.quantra.enums.Frequency import Frequency
-from quantra_common.engine_client._generated.quantra.enums.SwapType import SwapType
+from quantra_common.engine_client._generated.quantra.enums.PayReceive import PayReceive
+from quantra_common.engine_client._generated.quantra.enums.SwapFlowKind import SwapFlowKind
+from quantra_common.engine_client._generated.quantra.FixedCoupons import FixedCouponsT
+from quantra_common.engine_client._generated.quantra.IborCoupons import IborCouponsT
 from quantra_common.engine_client._generated.quantra.PriceVanillaSwap import (
     PriceVanillaSwapT,
 )
@@ -67,8 +70,8 @@ from quantra_common.engine_client._generated.quantra.PriceVanillaSwapResponse im
     PriceVanillaSwapResponse,
 )
 from quantra_common.engine_client._generated.quantra.Schedule import ScheduleT
-from quantra_common.engine_client._generated.quantra.SwapFixedLeg import SwapFixedLegT
-from quantra_common.engine_client._generated.quantra.SwapFloatingLeg import SwapFloatingLegT
+from quantra_common.engine_client._generated.quantra.SwapCoupons import SwapCoupons
+from quantra_common.engine_client._generated.quantra.SwapLeg import SwapLegT
 from quantra_common.engine_client._generated.quantra.SwapLegFlow import SwapLegFlow
 from quantra_common.engine_client._generated.quantra.VanillaSwap import VanillaSwapT
 from quantra_orchestrator.engine.errors import EngineMissingFixingError
@@ -80,6 +83,7 @@ from quantra_orchestrator.pricing._translator import (
     ResolvedMarketData,
     build_pricing_from_resolved,
     float_leg_frequency,
+    forwarding_index_currency,
     resolved_curve_id,
 )
 from quantra_orchestrator.pricing.concurrency import EngineBatch
@@ -96,6 +100,10 @@ from quantra_orchestrator.pricing.swap_ir.models import (
 from quantra_orchestrator.tracing.stages import serialize_fb_object
 
 SWAP_IR_ENGINE_RPC: Final[EngineRpc] = EngineRpc.PRICE_VANILLA_SWAP
+
+# A vanilla swap is exactly two ``SwapLeg``s: ``fixed_leg`` (``legs[0]``) and
+# ``floating_leg`` (``legs[1]``) — the engine's ``VanillaSwap`` table order.
+_VANILLA_SWAP_LEG_COUNT: Final[int] = 2
 
 # Economic fields with NO sensible market-convention default. Historically a
 # missing key here silently priced a fixture swap (3.5 % fixed rate, 1M
@@ -182,6 +190,7 @@ def build_swap_ir_request(
 
     discount_curve_id, forwarding_curve_id = _resolve_curve_refs(resolved)
     forwarding_index_id = resolved.forwarding_index_id
+    leg_currency = forwarding_index_currency(resolved)
     float_frequency = float_leg_frequency(resolved)
     request.swaps = [
         _build_one_swap(
@@ -190,6 +199,7 @@ def build_swap_ir_request(
             forwarding_curve_id=forwarding_curve_id,
             forwarding_index_id=forwarding_index_id,
             float_frequency=float_frequency,
+            leg_currency=leg_currency,
         )
         for trade in trades
     ]
@@ -295,10 +305,11 @@ def decode_swap_ir_response(
 ) -> list[IrSwapResult]:
     """Decode one batch of ``PriceVanillaSwapResponse`` bytes into typed results.
 
-    Pulls NPV / fair_rate / per-leg NPVs out of each
-    ``VanillaSwapResponse``, plus the per-period cashflows from
-    ``FixedLegFlows`` / ``FloatingLegFlows`` (each a ``[SwapLegFlow]``
-    vector the engine emits when the request set ``include_flows``).
+    Pulls NPV / fair_rate / fair_spread out of each ``VanillaSwapResponse``
+    and the per-leg NPVs + per-period cashflows out of its ``legs[]``
+    (engine >= 0.10.0: ``legs[0]`` = fixed leg, ``legs[1]`` = floating leg,
+    each a ``SwapLegResult`` whose ``flows`` vector the engine fills when
+    the request set ``include_flows``).
     A response built without flows decodes to empty flow lists, so the
     path is back-compatible. Rejects a count mismatch (engine returned
     a different number of swaps than the orchestrator sent) with a
@@ -329,27 +340,36 @@ def decode_swap_ir_response(
         if swap_response is None:
             msg = f"decode_swap_ir_response: null swap result at index {i}."
             raise ValueError(msg)
+        # Engine >= 0.10.0: one ``SwapLegResult`` per leg in request order
+        # (``fixed_leg`` then ``floating_leg``); the per-leg ``*_npv`` /
+        # ``*_bps`` / ``*_flows`` fields no longer exist.
+        n_legs = swap_response.LegsLength()
+        if n_legs != _VANILLA_SWAP_LEG_COUNT:
+            msg = (
+                "decode_swap_ir_response: engine returned "
+                f"{n_legs} leg result(s) for swap {i}, expected {_VANILLA_SWAP_LEG_COUNT}."
+            )
+            raise ValueError(msg)
+        fixed_leg = swap_response.Legs(0)
+        floating_leg = swap_response.Legs(1)
+        if fixed_leg is None or floating_leg is None:
+            msg = f"decode_swap_ir_response: null leg result at index {i}."
+            raise ValueError(msg)
         results.append(
             IrSwapResult(
                 npv=float(swap_response.Npv()),
                 leg_npvs=[
-                    {"role": "fixed", "npv": float(swap_response.FixedLegNpv())},
-                    {"role": "floating", "npv": float(swap_response.FloatingLegNpv())},
+                    {"role": "fixed", "npv": float(fixed_leg.Npv())},
+                    {"role": "floating", "npv": float(floating_leg.Npv())},
                 ],
                 extras={
-                    "fair_rate": float(swap_response.FairRate()),
-                    "fair_spread": float(swap_response.FairSpread()),
-                    "fixed_leg_bps": float(swap_response.FixedLegBps()),
-                    "floating_leg_bps": float(swap_response.FloatingLegBps()),
+                    # ``= null`` optionals since 0.10.0: absent when the leg's
+                    # annuity is zero. Decode presence, never ``float(None)``.
+                    "fair_rate": _decode_optional_float(swap_response.FairRate()),
+                    "fair_spread": _decode_optional_float(swap_response.FairSpread()),
                 },
-                fixed_leg_flows=_decode_leg_flows(
-                    swap_response.FixedLegFlowsLength,
-                    swap_response.FixedLegFlows,
-                ),
-                floating_leg_flows=_decode_leg_flows(
-                    swap_response.FloatingLegFlowsLength,
-                    swap_response.FloatingLegFlows,
-                ),
+                fixed_leg_flows=_decode_leg_flows(fixed_leg.FlowsLength, fixed_leg.Flows),
+                floating_leg_flows=_decode_leg_flows(floating_leg.FlowsLength, floating_leg.Flows),
             )
         )
     return results
@@ -377,6 +397,26 @@ def decode_swap_ir_request_wire(request_bytes: bytes) -> dict[str, Any]:
     except Exception as exc:  # tracing is best-effort — never raise
         return {"__undecodable__": True, "exc_type": type(exc).__name__}
     return serialize_fb_object(request)
+
+
+def _decode_optional_float(raw: float | None) -> float | None:
+    """Decode a ``= null`` FlatBuffers double (``None`` when absent on the wire)."""
+
+    return float(raw) if raw is not None else None
+
+
+_FLOW_KIND_LABELS: Final[dict[int, str]] = {
+    SwapFlowKind.Coupon: "Coupon",
+    SwapFlowKind.NotionalExchange: "NotionalExchange",
+}
+
+
+def _decode_flow_kind(raw: int | None) -> str | None:
+    """Map the trailing ``SwapLegFlow.kind`` enum (engine >= 0.10.0) to its label."""
+
+    if raw is None:
+        return None
+    return _FLOW_KIND_LABELS.get(int(raw), str(raw))
 
 
 def _decode_str(raw: bytes | None) -> str | None:
@@ -417,6 +457,7 @@ def _decode_one_flow(flow: SwapLegFlow) -> SwapFlow:
         cms_swap_rate=float(cms_raw) if cms_raw is not None else 0.0,
         spread=float(flow.Spread()),
         rate=float(flow.Rate()),
+        kind=_decode_flow_kind(flow.Kind()),
     )
 
 
@@ -464,14 +505,33 @@ def _build_one_swap(
     forwarding_curve_id: str,
     forwarding_index_id: str,
     float_frequency: int,
+    leg_currency: str,
 ) -> PriceVanillaSwapT:
     """Map one :class:`IrSwapTrade` to a ``PriceVanillaSwap`` FB graph.
 
+    Engine >= 0.10.0 ``SwapLeg`` model: each leg carries its side
+    (``pay_receive``), ``currency``, notional, schedule, day count, payment
+    convention, a ``coupons`` union (``FixedCoupons{rate}`` /
+    ``IborCoupons{index, spread}``) and its own curves. The mapping from the
+    orchestrator's ``/v1`` body (unchanged) follows the engine's converter
+    (``tools/migrate_swap_requests/README.md`` § "What changes, field by
+    field"):
+
+    * ``swap_type`` ``Payer`` → fixed leg ``Pay`` / floating leg ``Receive``;
+      ``Receiver`` the inverse.
+    * ``currency`` = the forwarding index's ``IndexDef.currency`` on both legs
+      (the engine 400s a floating leg whose currency differs from its index).
+    * the request-level discounting curve → ``discounting_curve`` on BOTH
+      legs; the request-level forwarding curve → ``forwarding_curve`` on the
+      floating leg only (rejected on a fixed leg).
+    * ``IborCoupons.fixing_days`` left absent = the index's own fixing days;
+      ``initial_exchange`` / ``final_exchange`` absent = ``false``.
+
     The discount / forwarding curve references honour the resolved entity ids
-    the translator placed in ``Pricing.rates.curves``, not
-    ``CANONICAL_*``; the float-leg index references the resolved float index
-    id (``forwarding_index_id``) — the resolved one when supplied, else
-    the interim default forwarding index. ``float_frequency`` is the coupon
+    the translator placed in ``Pricing.rates.curves``, not ``CANONICAL_*``;
+    the float-leg index references the resolved float index id
+    (``forwarding_index_id``) — the resolved one when supplied, else the
+    interim default forwarding index. ``float_frequency`` is the coupon
     frequency derived from that index's tenor — Quarterly for a 3M index,
     Semiannual for 6M, etc. — so the float schedule and the projection index
     agree; it is the module default when no index was resolved.
@@ -484,55 +544,125 @@ def _build_one_swap(
     effective_date = str(body["effective_date"])
     termination_date = str(body["termination_date"])
     swap_type_label = str(body.get("swap_type", "Payer"))
-    swap_type_value = SwapType.Receiver if swap_type_label.lower() == "receiver" else SwapType.Payer
-
-    fixed_schedule = ScheduleT()
-    fixed_schedule.effectiveDate = effective_date
-    fixed_schedule.terminationDate = termination_date
-    fixed_schedule.calendar = Calendar.TARGET
-    fixed_schedule.frequency = Frequency.Annual
-    fixed_schedule.convention = BusinessDayConvention.ModifiedFollowing
-    fixed_schedule.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
-    fixed_schedule.dateGenerationRule = DateGenerationRule.Forward
-    # Presence-required since engine 0.5.0 (#118); False == the engine-0.2.0
-    # default this schedule always priced with.
-    fixed_schedule.endOfMonth = False
-
-    fixed_leg = SwapFixedLegT()
-    fixed_leg.notional = notional
-    fixed_leg.schedule = fixed_schedule
-    fixed_leg.rate = fixed_rate
-    fixed_leg.dayCounter = DayCounter.Thirty360
-    fixed_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
-
-    float_schedule = ScheduleT()
-    float_schedule.effectiveDate = effective_date
-    float_schedule.terminationDate = termination_date
-    float_schedule.calendar = Calendar.TARGET
-    float_schedule.frequency = float_frequency
-    float_schedule.convention = BusinessDayConvention.ModifiedFollowing
-    float_schedule.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
-    float_schedule.dateGenerationRule = DateGenerationRule.Forward
-    float_schedule.endOfMonth = False
-
-    float_leg = SwapFloatingLegT()
-    float_leg.notional = notional
-    float_leg.schedule = float_schedule
-    float_leg.index = build_index_ref(forwarding_index_id)
-    float_leg.dayCounter = DayCounter.Actual360
-    float_leg.spread = 0.0
-    float_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    fixed_side, float_side = pay_receive_sides(swap_type_label)
 
     swap = VanillaSwapT()
-    swap.swapType = swap_type_value
-    swap.fixedLeg = fixed_leg
-    swap.floatingLeg = float_leg
+    swap.fixedLeg = _build_fixed_leg(
+        side=fixed_side,
+        currency=leg_currency,
+        notional=notional,
+        rate=fixed_rate,
+        schedule=_build_leg_schedule(effective_date, termination_date, Frequency.Annual),
+        discount_curve_id=discount_curve_id,
+    )
+    swap.floatingLeg = _build_floating_leg(
+        side=float_side,
+        currency=leg_currency,
+        notional=notional,
+        index_id=forwarding_index_id,
+        schedule=_build_leg_schedule(effective_date, termination_date, float_frequency),
+        discount_curve_id=discount_curve_id,
+        forwarding_curve_id=forwarding_curve_id,
+    )
 
     price_swap = PriceVanillaSwapT()
     price_swap.vanillaSwap = swap
-    price_swap.discountingCurve = discount_curve_id
-    price_swap.forwardingCurve = forwarding_curve_id
     return price_swap
+
+
+def _build_leg_schedule(effective_date: str, termination_date: str, frequency: int) -> ScheduleT:
+    """The vanilla TARGET / ModifiedFollowing / Forward schedule both legs use."""
+
+    schedule = ScheduleT()
+    schedule.effectiveDate = effective_date
+    schedule.terminationDate = termination_date
+    schedule.calendar = Calendar.TARGET
+    schedule.frequency = frequency
+    schedule.convention = BusinessDayConvention.ModifiedFollowing
+    schedule.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
+    schedule.dateGenerationRule = DateGenerationRule.Forward
+    # Presence-required since engine 0.5.0 (#118); False == the engine-0.2.0
+    # default this schedule always priced with.
+    schedule.endOfMonth = False
+    return schedule
+
+
+def _build_fixed_leg(
+    *,
+    side: int,
+    currency: str,
+    notional: float,
+    rate: float,
+    schedule: ScheduleT,
+    discount_curve_id: str,
+) -> SwapLegT:
+    """A ``SwapLeg`` carrying ``FixedCoupons{rate}`` (Thirty360, MF payments).
+
+    No ``forwarding_curve``: the engine rejects one on a fixed leg (400).
+    """
+
+    coupons = FixedCouponsT()
+    coupons.rate = rate
+
+    leg = SwapLegT()
+    leg.payReceive = side
+    leg.currency = currency
+    leg.notional = notional
+    leg.schedule = schedule
+    leg.dayCounter = DayCounter.Thirty360
+    leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    leg.couponsType = SwapCoupons.FixedCoupons
+    leg.coupons = coupons
+    leg.discountingCurve = discount_curve_id
+    return leg
+
+
+def _build_floating_leg(
+    *,
+    side: int,
+    currency: str,
+    notional: float,
+    index_id: str,
+    schedule: ScheduleT,
+    discount_curve_id: str,
+    forwarding_curve_id: str,
+) -> SwapLegT:
+    """A ``SwapLeg`` carrying ``IborCoupons{index, spread 0}`` (Actual360, MF).
+
+    ``fixing_days`` is left absent (= the index's own fixing days, the 0.10.0
+    contract); ``in_arrears`` stays ``false``.
+    """
+
+    coupons = IborCouponsT()
+    coupons.index = build_index_ref(index_id)
+    coupons.spread = 0.0
+
+    leg = SwapLegT()
+    leg.payReceive = side
+    leg.currency = currency
+    leg.notional = notional
+    leg.schedule = schedule
+    leg.dayCounter = DayCounter.Actual360
+    leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
+    leg.couponsType = SwapCoupons.IborCoupons
+    leg.coupons = coupons
+    leg.discountingCurve = discount_curve_id
+    leg.forwardingCurve = forwarding_curve_id
+    return leg
+
+
+def pay_receive_sides(swap_type_label: str) -> tuple[int, int]:
+    """Map the ``/v1`` ``swap_type`` label to ``(fixed_leg, floating_leg)`` sides.
+
+    Engine converter rule: ``Payer`` means the party pays the fixed leg
+    (``Pay``) and receives the floating leg (``Receive``); ``Receiver`` is the
+    inverse. Anything that is not ``"receiver"`` (case-insensitive) is Payer —
+    the pre-0.10.0 ``SwapType`` default the orchestrator always applied.
+    """
+
+    if swap_type_label.lower() == "receiver":
+        return PayReceive.Receive, PayReceive.Pay
+    return PayReceive.Pay, PayReceive.Receive
 
 
 __all__ = [
@@ -540,5 +670,6 @@ __all__ = [
     "build_swap_ir_request",
     "decode_swap_ir_request_wire",
     "decode_swap_ir_response",
+    "pay_receive_sides",
     "price_swap_ir_batch",
 ]

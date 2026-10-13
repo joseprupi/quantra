@@ -56,6 +56,7 @@ from quantra_common.engine_client._generated.quantra.PriceVanillaSwapRequest imp
 from quantra_common.engine_client._generated.quantra.PriceVanillaSwapResponse import (
     PriceVanillaSwapResponseT,
 )
+from quantra_common.engine_client._generated.quantra.SwapLegResult import SwapLegResultT
 from quantra_common.engine_client._generated.quantra.VanillaSwapResponse import (
     VanillaSwapResponseT,
 )
@@ -156,10 +157,14 @@ def _fb_response_bytes(npv: float = 0.0, fair_rate: float = 0.03) -> bytes:
     swap_response.npv = npv
     swap_response.fairRate = fair_rate
     swap_response.fairSpread = 0.0
-    swap_response.fixedLegBps = 0.0
-    swap_response.floatingLegBps = 0.0
-    swap_response.fixedLegNpv = npv * 0.5
-    swap_response.floatingLegNpv = npv * 0.5
+    # Engine >= 0.10.0: per-leg results under ``legs[]`` (fixed, floating).
+    legs = []
+    for leg_npv in (npv * 0.5, npv * 0.5):
+        leg = SwapLegResultT()
+        leg.npv = leg_npv
+        leg.npvReporting = leg_npv
+        legs.append(leg)
+    swap_response.legs = legs
     response.swaps.append(swap_response)
     builder = flatbuffers.Builder(256)
     builder.Finish(response.Pack(builder))
@@ -745,9 +750,12 @@ def test_engine_request_bytes_carry_supplied_rate_and_resolved_id(
     assert helper.Rate() == pytest.approx(0.0425)  # supplied value, not 0.03
     assert not helper.QuoteId()  # quote id dropped server-side (invariant #8)
 
-    swap = request.Swaps(0)
-    assert swap.DiscountingCurve() == str(curve_id).encode()
-    assert swap.ForwardingCurve() == str(curve_id).encode()
+    # Engine >= 0.10.0: the curve ids live on the legs (discounting on both,
+    # forwarding on the floating leg).
+    vs = request.Swaps(0).VanillaSwap()
+    assert vs.FixedLeg().DiscountingCurve() == str(curve_id).encode()
+    assert vs.FloatingLeg().DiscountingCurve() == str(curve_id).encode()
+    assert vs.FloatingLeg().ForwardingCurve() == str(curve_id).encode()
     # No canonical curve id ("discount") leaks into the wire payload.
     assert b"discount" not in request_bytes
 

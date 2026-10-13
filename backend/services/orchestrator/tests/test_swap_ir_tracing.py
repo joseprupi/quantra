@@ -36,6 +36,7 @@ from quantra_common.engine_client import EngineClient, EngineRpc
 from quantra_common.engine_client._generated.quantra.PriceVanillaSwapResponse import (
     PriceVanillaSwapResponseT,
 )
+from quantra_common.engine_client._generated.quantra.SwapLegResult import SwapLegResultT
 from quantra_common.engine_client._generated.quantra.VanillaSwapResponse import (
     VanillaSwapResponseT,
 )
@@ -101,10 +102,14 @@ def _fb_response_bytes(npv: float = 0.0, fair_rate: float = 0.03) -> bytes:
     swap.npv = npv
     swap.fairRate = fair_rate
     swap.fairSpread = 0.0
-    swap.fixedLegBps = 0.0
-    swap.floatingLegBps = 0.0
-    swap.fixedLegNpv = npv * 0.5
-    swap.floatingLegNpv = npv * 0.5
+    # Engine >= 0.10.0: per-leg results under ``legs[]`` (fixed, floating).
+    legs = []
+    for leg_npv in (npv * 0.5, npv * 0.5):
+        leg = SwapLegResultT()
+        leg.npv = leg_npv
+        leg.npvReporting = leg_npv
+        legs.append(leg)
+    swap.legs = legs
     response.swaps = [swap]
     builder = flatbuffers.Builder(256)
     builder.Finish(response.Pack(builder))

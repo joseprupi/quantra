@@ -38,7 +38,7 @@ ORCHESTRATOR_VERSION = "0.5.0"
 # it in sync with the engine image pinned in the compose files. When F3
 # lands, replace this constant + the ``hardcoded`` source with a real gRPC
 # meta call. Do NOT derive this from the image tag.
-ENGINE_VERSION = "0.6.0"
+ENGINE_VERSION = "0.11.0"
 
 router = APIRouter(prefix="/v1", tags=["meta"])
 

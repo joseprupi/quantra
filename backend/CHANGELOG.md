@@ -9,6 +9,49 @@ Backend and portal are released together at the same platform `vX.Y.Z` tag.
 Versions **0.2.x and earlier are historical release tags from before this
 monorepo was assembled**; 0.3.0 is the first release cut from the monorepo.
 
+## [Unreleased]
+
+Platform pinned to the OSS pricing engine **0.11.0** (from 0.6.0).
+
+### Changed
+- **Pricing engine updated to quantra-server 0.11.0** (engine 0.10.0 is
+  wire-breaking for swaps and swaptions; 0.11.0 is 0.10.0 rebuilt on
+  QuantLib 1.44). The orchestrator now emits the engine's `SwapLeg` model on
+  `/v1/price/swap/ir` and `/v1/price/swaption`: each underlying leg carries
+  `pay_receive` (from the request's `swap_type`: Payer = pay fixed / receive
+  floating), `currency` (the forwarding index's currency, both legs), its
+  notional / schedule / day count / payment convention, a typed `coupons`
+  union (`FixedCoupons{rate}` / `IborCoupons{index, spread}`) and its own
+  curves (the discounting curve on both legs, the forwarding curve on the
+  floating leg). The `/v1` request contract is unchanged (`swap_type`,
+  `discounting_curve`, `forwarding_curve` ids as before).
+- **IR swap result:** per-leg NPVs and flows are read from the engine's
+  `legs[]` (`leg_npvs` roles `fixed` / `floating` unchanged); every flow now
+  carries `kind` (`Coupon` | `NotionalExchange`); `extras.fair_rate` /
+  `extras.fair_spread` are `null` when the engine omits them (a zero-annuity
+  leg) instead of `0.0`.
+- Vendored engine FlatBuffers bindings regenerated from engine tag `v0.11.0`
+  (241 modules; 18 tables changed, 5 removed, 19 added; the orchestrator's
+  hand-patched `CDS` / `CreditCurveSpec` emission is natively presence-based
+  upstream, so no local patch is carried).
+- `GET /v1/version` reports engine `0.11.0`; both compose files and the
+  release `.env.example` default `QUANTRA_ENGINE_IMAGE` to
+  `ghcr.io/joseprupi/quantra-server:0.11.0`.
+
+### Removed
+- **IR swap result `extras.fixed_leg_bps` / `extras.floating_leg_bps`**: the
+  engine's per-leg BPS fields were removed in 0.10.0 and are no longer
+  surfaced (the portal's BPS lines must go).
+
+### Notes
+- Results that move on 0.11.0 because of QuantLib 1.41 -> 1.44 are
+  documented in the engine's `docs/quantlib-upgrades/1.41-to-1.44.md`. For
+  this platform the affected product is **CDS on a bootstrapped credit
+  curve** (the orchestrator's helper conventions use `settlement_days: 0`
+  with the `TwentiethIMM` date rule, the documented case: up to ~1.4% of
+  NPV); swaps, swaptions, bonds, equity options and inflation swaps priced
+  through `/v1` are unchanged.
+
 ## [0.5.0] - 2026-08-03
 
 Platform release pinned to the OSS pricing engine **0.6.0**.
