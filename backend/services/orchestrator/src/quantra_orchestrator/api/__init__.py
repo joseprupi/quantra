@@ -82,6 +82,7 @@ from quantra_orchestrator.pricing.cds import router as cds_router
 from quantra_orchestrator.pricing.equity_options import (
     router as equity_options_router,
 )
+from quantra_orchestrator.pricing.fx_forward import router as fx_forward_router
 from quantra_orchestrator.pricing.swap_ir import router as swap_ir_router
 from quantra_orchestrator.pricing.swaps_inflation import (
     router as swaps_inflation_router,
@@ -114,6 +115,7 @@ def register_all(app: FastAPI) -> None:
     app.include_router(cds_router)
     app.include_router(equity_options_router)
     app.include_router(swaps_inflation_router)
+    app.include_router(fx_forward_router)
 
 
 __all__ = ["register_all"]

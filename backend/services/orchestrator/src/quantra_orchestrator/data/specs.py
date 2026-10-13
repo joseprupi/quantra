@@ -65,6 +65,24 @@ CREDIT_CURVES_SPEC: EntitySpec = EntitySpec(
     jsonb_columns=("body",),
 )
 
+# FX spot market data (0015_fx_spots_and_fx_forwards): the orchestrator-side
+# engine ``FxSpotSpec`` — pair, inline ``rate`` XOR MD ``quote_id``, spot lag,
+# joint settlement calendars (JSONB array), business-day convention.
+FX_SPOTS_SPEC: EntitySpec = EntitySpec(
+    entity="fx_spot",
+    table="fx_spots",
+    scalar_columns=(
+        "name",
+        "base_currency",
+        "quote_currency",
+        "rate",
+        "quote_id",
+        "spot_days",
+        "business_day_convention",
+    ),
+    jsonb_columns=("settlement_calendars", "body"),
+)
+
 # ---------------------------------------------------------------------------
 # User-owned market data (0004_snapshots_and_quote_book)
 # ---------------------------------------------------------------------------
@@ -129,6 +147,7 @@ BONDS_FIXED_SPEC: EntitySpec = _product_spec("bond_fixed", "bonds_fixed")
 BONDS_FLOATING_SPEC: EntitySpec = _product_spec("bond_floating", "bonds_floating")
 CDS_SPEC: EntitySpec = _product_spec("cds", "cds")
 EQUITY_OPTIONS_SPEC: EntitySpec = _product_spec("equity_option", "equity_options")
+FX_FORWARDS_SPEC: EntitySpec = _product_spec("fx_forward", "fx_forwards")
 
 # ---------------------------------------------------------------------------
 # Pricing history (0007 — immutable view)
@@ -165,6 +184,7 @@ NAMED_ENTITY_SPECS: tuple[EntitySpec, ...] = (
     CURVES_SPEC,
     CURVE_SETS_SPEC,
     CREDIT_CURVES_SPEC,
+    FX_SPOTS_SPEC,
     SNAPSHOTS_SPEC,
     VOL_SURFACES_SPEC,
     SWAPTION_MODELS_SPEC,
@@ -175,6 +195,7 @@ NAMED_ENTITY_SPECS: tuple[EntitySpec, ...] = (
     BONDS_FLOATING_SPEC,
     CDS_SPEC,
     EQUITY_OPTIONS_SPEC,
+    FX_FORWARDS_SPEC,
 )
 """All entities that follow the standard named-entity template (soft delete + partial unique)."""
 
@@ -187,6 +208,8 @@ __all__ = [
     "CURVES_SPEC",
     "CURVE_SETS_SPEC",
     "EQUITY_OPTIONS_SPEC",
+    "FX_FORWARDS_SPEC",
+    "FX_SPOTS_SPEC",
     "INDICES_SPEC",
     "NAMED_ENTITY_SPECS",
     "PRICING_HISTORY_SPEC",

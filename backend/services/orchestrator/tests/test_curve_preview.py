@@ -571,3 +571,138 @@ def test_preview_value_curve_validation_maps_to_422(app_factory: Any) -> None:
     assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY, resp.text
     assert "exactly 1.0" in resp.text
     assert engine.calls == []
+
+
+# ---------------------------------------------------------------------------
+# FX arm (engine >= 0.9.0): FxSwapHelper pillars + pricing.fx.spots + explicit
+# pricing.indices
+# ---------------------------------------------------------------------------
+
+
+def _fx_collateral_payload(*, spot_quote_id: str | None = None) -> dict[str, Any]:
+    spot: dict[str, Any] = {
+        "id": "EURUSD_SPOT",
+        "base_currency": "EUR",
+        "quote_currency": "USD",
+        "spot_days": 2,
+        "settlement_calendars": ["TARGET", "UnitedStatesSettlement"],
+        "business_day_convention": "ModifiedFollowing",
+    }
+    if spot_quote_id is None:
+        spot["rate"] = 1.085
+    else:
+        spot["quote_id"] = spot_quote_id
+    return {
+        "pricing": {
+            "as_of_date": "2025-01-15",
+            "indices": [
+                {
+                    "id": "USD_SOFR",
+                    "name": "SOFR",
+                    "index_type": "Overnight",
+                    "currency": "USD",
+                    "tenor": {"n": 0, "unit": "Days"},
+                    "fixing_days": 0,
+                    "calendar": "UnitedStatesGovernmentBond",
+                    "day_counter": "Actual360",
+                    "business_day_convention": "ModifiedFollowing",
+                    "end_of_month": True,
+                }
+            ],
+            "curves": [
+                {
+                    "id": "EUR_USD_COLLATERAL",
+                    "reference_date": "2025-01-15",
+                    "day_counter": "Actual365Fixed",
+                    "interpolator": "LogLinear",
+                    "bootstrap_trait": "Discount",
+                    "points": [
+                        {
+                            "point_type": "FxSwapHelper",
+                            "point": {
+                                "fx_points": 0.0131,
+                                "tenor": {"n": 6, "unit": "Months"},
+                                "fx_spot": "EURUSD_SPOT",
+                                "end_of_month": False,
+                                "collateral_currency": "USD",
+                                "collateral_curve": {"id": "USD_SOFR_OIS"},
+                            },
+                        }
+                    ],
+                },
+                {
+                    "id": "USD_SOFR_OIS",
+                    "reference_date": "2025-01-15",
+                    "day_counter": "Actual365Fixed",
+                    "interpolator": "LogLinear",
+                    "bootstrap_trait": "Discount",
+                    "points": [
+                        {
+                            "point_type": "OISHelper",
+                            "point": {
+                                "rate": 0.052,
+                                "settlement_days": 2,
+                                "overnight_index": {"id": "USD_SOFR"},
+                                "tenor": {"n": 6, "unit": "Months"},
+                                "calendar": "UnitedStatesGovernmentBond",
+                                "fixed_leg_convention": "ModifiedFollowing",
+                                "fixed_leg_frequency": "Annual",
+                                "payment_lag": 2,
+                                "averaging_method": "Compound",
+                                "lookback_days": 0,
+                                "lockout_days": 0,
+                                "apply_observation_shift": False,
+                            },
+                        }
+                    ],
+                },
+            ],
+            "fx": {"spots": [spot]},
+        },
+        "queries": [{"curve_id": "EUR_USD_COLLATERAL", "measures": ["DF"]}],
+    }
+
+
+def test_preview_fx_swap_helper_curve_forwards_fx_spots_and_explicit_indices(
+    app_factory: Any,
+) -> None:
+    engine = _FakeEngineClient(
+        response=_bootstrap_response_bytes(curve_id="EUR_USD_COLLATERAL", zeros=[0.99])
+    )
+    md = _FakeMdClient(
+        results=[_resolved_quote(canonical_id="EUR.FX.ECB.EURUSD.1D.SPOT", value=1.0901)]
+    )
+    client = app_factory(md_client=md, engine_client=engine)
+    response = client.post(
+        "/v1/curve-preview",
+        json=_fx_collateral_payload(spot_quote_id="EUR.FX.ECB.EURUSD.1D.SPOT"),
+        headers=_headers(),
+    )
+    assert response.status_code == HTTPStatus.OK, response.text
+    assert md.calls
+    assert md.calls[0][0] == ["EUR.FX.ECB.EURUSD.1D.SPOT"]
+    decoded = _decode_request(engine.calls[0][1])
+    fx = decoded.pricing.fx
+    assert fx is not None
+    assert len(fx.spots) == 1
+    spot = fx.spots[0]
+    assert spot.id.decode() == "EURUSD_SPOT"
+    assert spot.rate == pytest.approx(1.0901)
+    assert spot.quoteId is None
+    assert list(spot.settlementCalendars) == [Calendar.TARGET, Calendar.UnitedStatesSettlement]
+    by_id = _indices_by_id(decoded)
+    assert by_id["USD_SOFR"].calendar == Calendar.UnitedStatesGovernmentBond
+    assert by_id["USD_SOFR"].currency.decode() == "USD"
+    curves = {c.id.decode(): c for c in decoded.pricing.rates.curves}
+    assert curves["EUR_USD_COLLATERAL"].points[0].pointType == Point.FxSwapHelper
+
+
+def test_preview_invalid_fx_spot_is_422(app_factory: Any) -> None:
+    engine = _FakeEngineClient(response=b"")
+    client = app_factory(md_client=_FakeMdClient(results=[]), engine_client=engine)
+    payload = _fx_collateral_payload()
+    payload["pricing"]["fx"]["spots"][0]["quote_currency"] = "EUR"
+    response = client.post("/v1/curve-preview", json=payload, headers=_headers())
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert "FX spot translation failed" in response.json()["error"]
+    assert engine.calls == []

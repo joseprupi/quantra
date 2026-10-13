@@ -59,6 +59,7 @@ VALID_PRODUCT_KINDS: tuple[str, ...] = (
     "bonds_floating",
     "cds",
     "equity_options",
+    "fx_forwards",
 )
 
 # When the call prices a SAVED product (``product_id`` set), the row

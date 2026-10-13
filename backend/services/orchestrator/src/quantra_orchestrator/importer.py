@@ -117,6 +117,10 @@ _TRADE_KEYS: Final[tuple[str, ...]] = (
     "options",
     "fras",
     "cap_floors",
+    # Engine 0.9.0 FX products (``/price-fx-forward`` /
+    # ``/price-cross-currency-swap``). Trade import stays v2 for every
+    # product family; reported, never dropped.
+    "fx_forwards",
 )
 
 # Legacy flat pricing keys → the nested domain they merge into
@@ -244,6 +248,8 @@ class _ParsedDocument:
     equity: dict[str, Any]
     quotes: list[Mapping[str, Any]]
     trades: dict[str, list[Any]]
+    # Engine 0.9.0 ``pricing.fx`` (``{spots: [...]}``); empty when absent.
+    fx: dict[str, Any] = field(default_factory=dict)
 
 
 def _parse_document(document: Mapping[str, Any]) -> _ParsedDocument:
@@ -273,6 +279,9 @@ def _parse_document(document: Mapping[str, Any]) -> _ParsedDocument:
         if isinstance(raw, list) and raw:
             trades[key] = list(raw)
 
+    raw_fx = pricing.get("fx")
+    fx: dict[str, Any] = dict(raw_fx) if isinstance(raw_fx, Mapping) else {}
+
     return _ParsedDocument(
         rates=rates,
         credit=credit,
@@ -281,6 +290,7 @@ def _parse_document(document: Mapping[str, Any]) -> _ParsedDocument:
         equity=equity,
         quotes=quotes,
         trades=trades,
+        fx=fx,
     )
 
 
@@ -859,6 +869,19 @@ def _report_unsupported(parsed: _ParsedDocument, out: MappedDocument) -> None:
                     reason="unsupported_in_v1: trades",
                 )
             )
+    # Engine 0.9.0 ``pricing.fx.spots[]``: FX spot market data. The
+    # orchestrator stores these as ``app.fx_spots`` entities (``/v1/fx-spots``)
+    # but the importer does not map them yet — reported per item so nothing is
+    # silently dropped.
+    for i, entry in enumerate(_list_of_mappings(parsed.fx, "spots")):
+        out.unsupported.append(
+            UnsupportedItem(
+                section="fx_spots",
+                source_id=_entry_id(entry),
+                path=f"pricing.fx.spots[{i}]",
+                reason="unsupported_in_v1: fx_spots",
+            )
+        )
     for key in ("swap_indices", "coupon_pricers"):
         for i, entry in enumerate(_list_of_mappings(parsed.rates, key)):
             out.unsupported.append(

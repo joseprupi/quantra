@@ -559,9 +559,11 @@ def test_unsupported_sections_reported_per_item(client: TestClient) -> None:
                 "swap_indices": [{"id": "EUR_SWAP_6M"}],
             },
             "inflation": {"inflation_indices": [{"id": "EUHICP"}]},
+            "fx": {"spots": [{"id": "EURUSD_SPOT", "base_currency": "EUR"}]},
         },
         "swaps": [{"vanilla_swap": {}}],
         "bonds": [{"fixed_rate_bond": {}}],
+        "fx_forwards": [{"fx_forward": {}}],
     }
     response = _post(client, document)
     body = response.json()
@@ -571,8 +573,10 @@ def test_unsupported_sections_reported_per_item(client: TestClient) -> None:
     assert reasons == {
         ("swaps", "unsupported_in_v1: trades"),
         ("bonds", "unsupported_in_v1: trades"),
+        ("fx_forwards", "unsupported_in_v1: trades"),
         ("swap_indices", "unsupported_in_v1: swap_indices"),
         ("inflation_indices", "unsupported_in_v1: inflation"),
+        ("fx_spots", "unsupported_in_v1: fx_spots"),
     }
 
 

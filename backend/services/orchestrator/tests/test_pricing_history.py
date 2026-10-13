@@ -231,6 +231,7 @@ def test_valid_product_kinds_matches_migration_check_list() -> None:
         "bonds_floating",
         "cds",
         "equity_options",
+        "fx_forwards",
     }
 
 

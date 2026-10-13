@@ -89,12 +89,18 @@ FutureHelper      FutureHelper      ``futures_price`` (``rate`` if present)
 BondHelper        BondHelper        ``price`` (``rate`` if present)
 OISHelper         OISHelper         ``rate``
 DatedOISHelper    DatedOISHelper    ``rate``
+FxSwapHelper      FxSwapHelper      ``fx_points``   (engine >= 0.9.0)
+CrossCcyBasisHelper CrossCcyBasisHelper ``spread`` (engine >= 0.9.0)
 ================  ================  ===================================
 
-The FB ``Point`` union additionally defines ``ZeroRatePoint`` /
-``TenorBasisSwapHelper`` / ``FxSwapHelper`` / ``CrossCcyBasisHelper``; the
-portal does not emit them for rates curves, so they are intentionally **not**
-mapped — they reject as unknown kinds until support is added deliberately.
+The two FX-implied helpers (``FxSwapHelper`` / ``CrossCcyBasisHelper``, engine
+0.9.0 ``docs/http-api.md`` sections "FX swap helper" / "Cross-currency basis
+helper") reference an FX spot by id (``fx_spot``, an entry of ``Pricing.fx.spots``
+built from :attr:`ResolvedMarketData.fx_spots`) and one or more other curves of
+the request by ``{"id": ...}`` (``collateral_curve`` / the forwarding and discount
+curves) — the engine orders the bootstrap by those dependencies. The FB ``Point``
+union additionally defines ``TenorBasisSwapHelper`` (still ``501`` engine-side);
+it is intentionally **not** mapped and rejects as an unknown kind.
 Inflation helpers (``ZeroCouponInflationSwapHelper`` /
 ``YearOnYearInflationSwapHelper``) live on inflation curves and are handled
 in the inflation section below.
@@ -126,6 +132,10 @@ from quantra_common.engine_client._generated.quantra.CreditCurveSpec import (
 from quantra_common.engine_client._generated.quantra.CreditMarketData import (
     CreditMarketDataT,
 )
+from quantra_common.engine_client._generated.quantra.CrossCcyBasisHelper import (
+    CrossCcyBasisHelperT,
+)
+from quantra_common.engine_client._generated.quantra.CurveRef import CurveRefT
 from quantra_common.engine_client._generated.quantra.DatedOISHelper import (
     DatedOISHelperT,
 )
@@ -188,6 +198,9 @@ from quantra_common.engine_client._generated.quantra.ForwardRatePoint import (
 )
 from quantra_common.engine_client._generated.quantra.FRAHelper import FRAHelperT
 from quantra_common.engine_client._generated.quantra.FutureHelper import FutureHelperT
+from quantra_common.engine_client._generated.quantra.FxMarketData import FxMarketDataT
+from quantra_common.engine_client._generated.quantra.FxSpotSpec import FxSpotSpecT
+from quantra_common.engine_client._generated.quantra.FxSwapHelper import FxSwapHelperT
 from quantra_common.engine_client._generated.quantra.IndexDef import IndexDefT
 from quantra_common.engine_client._generated.quantra.IndexRef import IndexRefT
 from quantra_common.engine_client._generated.quantra.IndexType import IndexType
@@ -487,6 +500,43 @@ class ResolvedInflationIndexLike(Protocol):
     def body(self) -> Mapping[str, Any]: ...
 
 
+class ResolvedFxSpotLike(Protocol):
+    """The read surface :func:`translate_fx_spot` needs off a product ``ResolvedFxSpot``.
+
+    Mirrors the engine's ``FxSpotSpec`` (``docs/http-api.md`` § "FX spot market
+    data"): a pair as two ISO codes, the spot ``rate`` (or the MD ``quote_id``
+    the orchestrator resolves server-side), the spot lag, the joint settlement
+    calendars and the business-day convention.
+    """
+
+    @property
+    def id(self) -> UUID | None: ...
+
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def base_currency(self) -> str: ...
+
+    @property
+    def quote_currency(self) -> str: ...
+
+    @property
+    def rate(self) -> float | None: ...
+
+    @property
+    def quote_id(self) -> str | None: ...
+
+    @property
+    def spot_days(self) -> int: ...
+
+    @property
+    def settlement_calendars(self) -> Sequence[str]: ...
+
+    @property
+    def business_day_convention(self) -> str: ...
+
+
 @dataclass(frozen=True, slots=True)
 class ResolvedMarketData:
     """Everything the translator needs to build one request's ``Pricing`` graph.
@@ -545,6 +595,21 @@ class ResolvedMarketData:
     # spot / underlier ids honour the resolved entity. Spot presence is the
     # equity-bundle discriminator (spot is equity-only today).
     spot: ResolvedSpotQuoteLike | None = None
+    # Explicitly resolved indices (engine 0.9.0+ FX products / multi-index
+    # curves). Each is registered verbatim under ``rates.indices`` (faithful
+    # ``IndexDef`` via :func:`translate_index`) so curve helpers can reference
+    # indices that are neither the single instrument ``index`` nor on the
+    # known-index catalogs (e.g. an overnight index stored in ``app.indices``
+    # under its own conventions). Empty for every pre-FX product → the
+    # registry is unchanged (byte-identical wire).
+    indices: tuple[ResolvedIndexLike, ...] = ()
+    # The resolved FX spots (engine 0.9.0+). When non-empty they are
+    # translated into ``Pricing.fx.spots[]`` (``FxSpotSpec``) with the MD
+    # ``quote_id`` substituted server-side (invariant #8); the FX-implied curve
+    # helpers (``FxSwapHelper`` / ``CrossCcyBasisHelper``) and the FX forward
+    # reference them by id. Empty → ``Pricing.fx`` is left ABSENT so every
+    # existing product's wire is byte-identical.
+    fx_spots: tuple[ResolvedFxSpotLike, ...] = ()
 
     def curve_id_for_role(self, role: CurveRole) -> str | None:
         """Return the resolved engine-facing curve id assigned to ``role``.
@@ -614,6 +679,24 @@ class UnknownHelperKindError(CurveTranslationError):
             details=[{"helper_kind": kind}],
         )
         self.kind = kind
+
+
+class FxSpotTranslationError(TranslationError):
+    """A resolved FX spot cannot be translated into a valid ``FxSpotSpec``.
+
+    Mirrors the engine's own rejection list (``docs/http-api.md`` § "FX spot
+    market data" / "Rejected requests") pre-flight so the caller gets a typed
+    422 naming the field instead of an engine 400: a currency that is not three
+    uppercase letters, ``base_currency == quote_currency``, both or neither of
+    ``rate`` / ``quote_id``, a non-positive rate, a negative ``spot_days``, an
+    empty / unknown ``settlement_calendars`` entry, an unknown
+    ``business_day_convention``.
+    """
+
+    def __init__(self, reason: str, *, details: list[dict[str, Any]] | None = None) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.details = details
 
 
 class IndexRegistrationError(CurveTranslationError):
@@ -1004,10 +1087,12 @@ _KNOWN_IBOR_INDICES: Final[dict[str, _KnownIborIndex]] = {
 # the per-kind builders: ``_build_swap`` reads ``float_index``; ``_build_ois`` /
 # ``_build_dated_ois`` read ``overnight_index``). Used to collect every index id
 # the curve helpers reference so each is registered in ``rates.indices``.
-_HELPER_INDEX_REF_FIELDS: Final[dict[str, str]] = {
-    "SwapHelper": "float_index",
-    "OISHelper": "overnight_index",
-    "DatedOISHelper": "overnight_index",
+_HELPER_INDEX_REF_FIELDS: Final[dict[str, tuple[str, ...]]] = {
+    "SwapHelper": ("float_index",),
+    "OISHelper": ("overnight_index",),
+    "DatedOISHelper": ("overnight_index",),
+    # Engine 0.9.0 cross-currency basis pillar: two floating legs, two indices.
+    "CrossCcyBasisHelper": ("base_index", "quote_index"),
 }
 
 
@@ -1077,10 +1162,11 @@ def _collect_helper_index_ids(
             kind, inner = _split_point(raw)
             if not isinstance(kind, str):
                 continue
-            field = _HELPER_INDEX_REF_FIELDS.get(kind)
-            if field is None:
+            fields = _HELPER_INDEX_REF_FIELDS.get(kind)
+            if fields is None:
                 continue
-            ids.add(_index_ref_id(inner.get(field)))
+            for field_name in fields:
+                ids.add(_index_ref_id(inner.get(field_name)))
     return sorted(ids)
 
 
@@ -1117,6 +1203,12 @@ def _build_rates_indices(resolved: ResolvedMarketData) -> list[IndexDefT]:
         # (its faithful definition replaces the placeholder, single entry).
         resolved_index = translate_index(resolved.index)
         indices_by_id[resolved_index.id] = resolved_index
+    # Explicitly resolved indices (FX products / multi-index curves): faithful
+    # defs registered under their own ids, taking precedence over the catalogs
+    # below (an explicit def always beats a catalog guess).
+    for explicit in resolved.indices:
+        explicit_def = translate_index(explicit)
+        indices_by_id[explicit_def.id] = explicit_def
     # register every index id the curve helpers reference that is
     # not already covered by the default / resolved indices above. Resolved and
     # explicit ids take precedence (already in ``indices_by_id``, so skipped);
@@ -1646,6 +1738,124 @@ def _build_dated_ois(inner: Mapping[str, Any]) -> DatedOISHelperT:
     return h
 
 
+def _curve_ref(raw: object, field_name: str, kind: str) -> CurveRefT:
+    """Build a REQUIRED ``CurveRef`` from a ``{"id": ...}`` ref (or a bare id string).
+
+    The FX-implied helpers reference OTHER curves of the request by id (the
+    engine bootstraps them first, whatever the ``rates.curves`` order). A
+    missing / empty reference is a 422 naming the field — the engine would
+    reject it anyway, but with a JSON-parser message.
+    """
+
+    candidate = raw.get("id") if isinstance(raw, Mapping) else raw
+    if not isinstance(candidate, str) or not candidate:
+        raise CurveTranslationError(
+            f"{kind} point is missing the required curve reference {field_name!r} "
+            '(``{"id": "<curve id>"}``).',
+            details=[{"helper_kind": kind, "missing_field": field_name}],
+        )
+    ref = CurveRefT()
+    ref.id = candidate
+    return ref
+
+
+def _optional_curve_ref(raw: object) -> CurveRefT | None:
+    candidate = raw.get("id") if isinstance(raw, Mapping) else raw
+    if not isinstance(candidate, str) or not candidate:
+        return None
+    ref = CurveRefT()
+    ref.id = candidate
+    return ref
+
+
+def _require_bool(inner: Mapping[str, Any], key: str, kind: str) -> bool:
+    value = inner.get(key)
+    if not isinstance(value, bool):
+        raise CurveTranslationError(
+            f"{kind} point is missing the required boolean field {key!r}.",
+            details=[{"helper_kind": kind, "missing_field": key}],
+        )
+    return value
+
+
+def _build_fx_swap(inner: Mapping[str, Any]) -> FxSwapHelperT:
+    """Engine 0.9.0 ``FxSwapHelper`` (QuantLib ``FxSwapRateHelper``).
+
+    Bootstraps the discount curve of the NON-collateral currency of a pair from
+    FX swap points given the spot (``fx_spot`` id in ``Pricing.fx.spots``) and
+    the collateral currency's discount curve (``collateral_curve`` ref). Every
+    field is presence-required engine-side; the value (``fx_points`` or a
+    resolved ``quote_id``) is applied by :func:`_apply_value`.
+    """
+
+    h = FxSwapHelperT()
+    h.tenor = _require_tenor(inner, "FxSwapHelper")
+    h.fxSpot = _require_str(inner, "fx_spot", "FxSwapHelper")
+    h.endOfMonth = _require_bool(inner, "end_of_month", "FxSwapHelper")
+    h.collateralCurrency = _require_str(inner, "collateral_currency", "FxSwapHelper")
+    h.collateralCurve = _curve_ref(
+        inner.get("collateral_curve"), "collateral_curve", "FxSwapHelper"
+    )
+    return h
+
+
+def _build_xccy_basis(inner: Mapping[str, Any]) -> CrossCcyBasisHelperT:
+    """Engine 0.9.0 ``CrossCcyBasisHelper`` (``ConstNotionalCrossCurrencyBasisSwapRateHelper``).
+
+    Two floating legs (``base_index`` / ``quote_index``, each with its own
+    forwarding curve); EXACTLY ONE of ``base_discount_curve`` /
+    ``quote_discount_curve`` names the collateral currency's discount curve, the
+    other leg is discounted with the curve being bootstrapped (the engine rejects
+    both-or-neither). ``payment_frequency`` is optional (required engine-side
+    only when an index is overnight); ``mtm_reset`` must be ``false``. The value
+    (``spread`` or a resolved ``quote_id``) is applied by :func:`_apply_value`.
+    """
+
+    kind = "CrossCcyBasisHelper"
+    h = CrossCcyBasisHelperT()
+    h.tenor = _require_tenor(inner, kind)
+    h.fxSpot = _require_str(inner, "fx_spot", kind)
+    h.baseIndex = _index_ref(inner.get("base_index"))
+    h.quoteIndex = _index_ref(inner.get("quote_index"))
+    h.baseForwardingCurve = _curve_ref(
+        inner.get("base_forwarding_curve"), "base_forwarding_curve", kind
+    )
+    h.quoteForwardingCurve = _curve_ref(
+        inner.get("quote_forwarding_curve"), "quote_forwarding_curve", kind
+    )
+    base_disc = _optional_curve_ref(inner.get("base_discount_curve"))
+    quote_disc = _optional_curve_ref(inner.get("quote_discount_curve"))
+    if (base_disc is None) == (quote_disc is None):
+        raise CurveTranslationError(
+            f"{kind} point must name exactly one of ``base_discount_curve`` / "
+            "``quote_discount_curve`` (the collateral currency's discount curve).",
+            details=[{"helper_kind": kind, "field": "base_discount_curve|quote_discount_curve"}],
+        )
+    h.baseDiscountCurve = base_disc
+    h.quoteDiscountCurve = quote_disc
+    h.spreadOnBaseLeg = _require_bool(inner, "spread_on_base_leg", kind)
+    raw_freq = inner.get("payment_frequency")
+    if raw_freq is not None:
+        freq = getattr(Frequency, raw_freq, None) if isinstance(raw_freq, str) else None
+        if not isinstance(freq, int):
+            raise CurveTranslationError(
+                f"{kind} point field 'payment_frequency' is not a known Frequency "
+                f"(got {raw_freq!r}).",
+                details=[{"helper_kind": kind, "field": "payment_frequency", "value": raw_freq}],
+            )
+        h.paymentFrequency = freq
+    h.paymentLag = _ois_non_negative_int(inner, "payment_lag", kind)
+    h.calendar = _enum(Calendar, inner.get("calendar"), Calendar.TARGET)
+    h.businessDayConvention = _enum(
+        BusinessDayConvention,
+        inner.get("business_day_convention"),
+        BusinessDayConvention.ModifiedFollowing,
+    )
+    h.endOfMonth = _require_bool(inner, "end_of_month", kind)
+    h.mtmReset = bool(inner.get("mtm_reset", False))
+    return h
+
+
 @dataclass(frozen=True)
 class _HelperSpec:
     """One row of the helper-kind map: the FB union tag + the structural builder."""
@@ -1662,6 +1872,8 @@ _HELPER_SPECS: Final[dict[str, _HelperSpec]] = {
     "BondHelper": _HelperSpec(Point.BondHelper, _build_bond),
     "OISHelper": _HelperSpec(Point.OISHelper, _build_ois),
     "DatedOISHelper": _HelperSpec(Point.DatedOISHelper, _build_dated_ois),
+    "FxSwapHelper": _HelperSpec(Point.FxSwapHelper, _build_fx_swap),
+    "CrossCcyBasisHelper": _HelperSpec(Point.CrossCcyBasisHelper, _build_xccy_basis),
 }
 
 # Logical value field → FB Object-API attribute name.
@@ -1669,7 +1881,20 @@ _FB_VALUE_FIELD: Final[dict[str, str]] = {
     "rate": "rate",
     "price": "price",
     "futures_price": "futuresPrice",
+    "fx_points": "fxPoints",
+    "spread": "spread",
 }
+
+# Per-kind inline value keys (in priority order). The FX helpers carry their
+# quote in a kind-specific field (``fx_points`` / ``spread``) — never ``rate``;
+# every other helper keeps the rate / price / futures_price triple. Keyed per
+# kind so a SwapHelper's own ``spread`` (a convention, not its quote) is never
+# mistaken for the value.
+_INLINE_VALUE_KEYS: Final[dict[str, tuple[str, ...]]] = {
+    "FxSwapHelper": ("fx_points",),
+    "CrossCcyBasisHelper": ("spread",),
+}
+_DEFAULT_INLINE_VALUE_KEYS: Final[tuple[str, ...]] = ("rate", "price", "futures_price")
 
 _QUOTE_KEYS: Final[tuple[str, ...]] = ("quote_id", "quoteId")
 
@@ -1686,6 +1911,8 @@ def _value_target(kind: str, inner: Mapping[str, Any]) -> str:
         return "price"
     if kind == "FutureHelper" and "rate" not in inner:
         return "futures_price"
+    if kind in _INLINE_VALUE_KEYS:
+        return _INLINE_VALUE_KEYS[kind][0]
     return "rate"
 
 
@@ -1728,7 +1955,8 @@ def _apply_value(
             missing_quotes.append(quote_id)
         return
 
-    for logical in ("rate", "price", "futures_price"):
+    value_keys = _INLINE_VALUE_KEYS.get(kind, _DEFAULT_INLINE_VALUE_KEYS)
+    for logical in value_keys:
         candidate = inner.get(logical)
         if not isinstance(candidate, bool) and isinstance(candidate, (int, float)):
             setattr(point_t, _FB_VALUE_FIELD[logical], float(candidate))
@@ -1736,7 +1964,7 @@ def _apply_value(
 
     raise CurveTranslationError(
         f"{kind} point has neither a ``quote_id`` nor an inline value "
-        "(``rate`` / ``price`` / ``futures_price``).",
+        f"({' / '.join(f'``{k}``' for k in value_keys)}).",
         details=[{"helper_kind": kind}],
     )
 
@@ -3810,6 +4038,159 @@ def _dedup_curves(curves: Sequence[ResolvedCurveLike]) -> list[ResolvedCurveLike
     return out
 
 
+# ---------------------------------------------------------------------------
+# FX spot translation (engine 0.9.0 ``Pricing.fx.spots[]``)
+# ---------------------------------------------------------------------------
+
+_ISO_CURRENCY_LEN: Final[int] = 3
+
+
+def resolved_fx_spot_id(spot: ResolvedFxSpotLike) -> str:
+    """Derive the stable engine-facing FX-spot id from a resolved entity.
+
+    The ``app.fx_spots`` UUID as text when the spot came from a row, else the
+    inline name — the same rule curves / indices follow, so the FX helpers'
+    ``fx_spot`` and the FX forward's ``fx_spot`` reference it consistently.
+    """
+
+    return str(spot.id) if spot.id is not None else spot.name
+
+
+def _is_iso_currency(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == _ISO_CURRENCY_LEN
+        and value.isascii()
+        and value.isalpha()
+        and value.isupper()
+    )
+
+
+def _fx_spot_conventions(
+    spot: ResolvedFxSpotLike,
+    reject: Callable[[str, str], FxSpotTranslationError],
+) -> tuple[list[int], int]:
+    """Validate + map the spot's joint calendars and business-day convention."""
+
+    calendars: list[int] = []
+    for raw_calendar in spot.settlement_calendars:
+        member = getattr(Calendar, raw_calendar, None) if isinstance(raw_calendar, str) else None
+        if not isinstance(member, int):
+            raise reject(
+                f"settlement_calendars entry {raw_calendar!r} is not a known calendar.",
+                "settlement_calendars",
+            )
+        calendars.append(member)
+    if not calendars:
+        raise reject(
+            "settlement_calendars must name at least one calendar.", "settlement_calendars"
+        )
+    bdc = getattr(BusinessDayConvention, spot.business_day_convention, None)
+    if not isinstance(bdc, int):
+        raise reject(
+            f"business_day_convention {spot.business_day_convention!r} is not a known convention.",
+            "business_day_convention",
+        )
+    return calendars, bdc
+
+
+def _build_fx_market_data(
+    resolved: ResolvedMarketData,
+    quote_map: Mapping[str, float],
+    missing_quotes: list[str],
+) -> FxMarketDataT:
+    """``Pricing.fx`` from the resolved FX spots (engine 0.9.0+)."""
+
+    fx = FxMarketDataT()
+    fx.spots = [
+        translate_fx_spot(spot, quote_map, missing_quotes=missing_quotes)
+        for spot in resolved.fx_spots
+    ]
+    return fx
+
+
+def translate_fx_spot(
+    spot: ResolvedFxSpotLike,
+    quote_map: Mapping[str, float],
+    *,
+    missing_quotes: list[str],
+) -> FxSpotSpecT:
+    """Translate one resolved FX spot → a faithful ``FxSpotSpec``.
+
+    The rate is the inline ``rate`` or the MD-resolved ``quote_id`` value
+    (substituted here; the engine never sees the id — invariant #8; a miss
+    joins ``missing_quotes`` for the batched :class:`QuoteResolutionError`).
+    The pair / lag / calendars / convention are validated against the engine's
+    own rejection list pre-flight (:class:`FxSpotTranslationError` → 422).
+    """
+
+    spot_id = resolved_fx_spot_id(spot)
+
+    def _reject(reason: str, field_name: str) -> FxSpotTranslationError:
+        return FxSpotTranslationError(
+            f"FX spot {spot_id}: {reason}",
+            details=[{"fx_spot": spot_id, "field": field_name}],
+        )
+
+    for field_name, value in (
+        ("base_currency", spot.base_currency),
+        ("quote_currency", spot.quote_currency),
+    ):
+        if not _is_iso_currency(value):
+            raise _reject(
+                f"{field_name} must be a three-letter uppercase ISO code (got {value!r}).",
+                field_name,
+            )
+    if spot.base_currency == spot.quote_currency:
+        raise _reject("base_currency and quote_currency must differ.", "quote_currency")
+    has_rate = spot.rate is not None
+    has_quote = isinstance(spot.quote_id, str) and bool(spot.quote_id)
+    if has_rate == has_quote:
+        raise _reject("exactly one of ``rate`` / ``quote_id`` must be given.", "rate")
+    if spot.spot_days < 0:
+        raise _reject("spot_days must be >= 0.", "spot_days")
+    calendars, bdc = _fx_spot_conventions(spot, _reject)
+
+    spec = FxSpotSpecT()
+    spec.id = spot_id
+    spec.baseCurrency = spot.base_currency
+    spec.quoteCurrency = spot.quote_currency
+    if has_rate:
+        rate = float(spot.rate if spot.rate is not None else 0.0)
+        if not isfinite(rate) or rate <= 0.0:
+            raise _reject(f"rate must be a positive finite number (got {rate!r}).", "rate")
+        spec.rate = rate
+    else:
+        quote_id = str(spot.quote_id)
+        if quote_id in quote_map:
+            spec.rate = float(quote_map[quote_id])
+        else:
+            missing_quotes.append(quote_id)
+    spec.spotDays = int(spot.spot_days)
+    spec.settlementCalendars = calendars
+    spec.businessDayConvention = bdc
+    return spec
+
+
+def _default_model_specs(resolved: ResolvedMarketData) -> list[Any]:
+    """The pure-config models a product's ``Pricing`` carries alongside resolved ones.
+
+    * The cds model (MidPoint engine) rides under ``volatility.models`` at the
+      default id the per-trade ``PriceCDS.model`` ref points at, the credit
+      analogue of the bonds coupon pricer.
+    * The equity model (analytic Black-Scholes engine) rides at the default id
+      the per-trade ``PriceEquityOption.model`` ref points at; the BlackVol
+      surface itself is a resolved entity translated with the vol surfaces.
+    """
+
+    specs: list[Any] = []
+    if resolved.credit_curve is not None:
+        specs.append(build_canonical_cds_model(DEFAULT_CDS_MODEL_ID))
+    if resolved.spot is not None:
+        specs.append(build_canonical_equity_model(DEFAULT_EQUITY_MODEL_ID))
+    return specs
+
+
 def build_pricing_from_resolved(
     resolved: ResolvedMarketData,
     *,
@@ -3898,6 +4279,12 @@ def build_pricing_from_resolved(
             translate_spot_quote(resolved.spot, quote_map, missing_quotes=missing_quotes)
         ]
 
+    # FX spots under Pricing.fx (engine 0.9.0+). Left ABSENT when none were
+    # resolved so every pre-FX product's wire is byte-identical; an FX spot
+    # ``quote_id`` miss joins the same ``missing_quotes`` batch.
+    if resolved.fx_spots:
+        pricing.fx = _build_fx_market_data(resolved, quote_map, missing_quotes)
+
     # Credit curve under CreditMarketData (cds). Built faithfully from the
     # resolved hazard inputs (flat or inline par-spread bootstrap), never the
     # canonical 2 % / 40 % fixture. Credit curves bypass MD,
@@ -3937,19 +4324,7 @@ def build_pricing_from_resolved(
         for vol_surface in resolved.vol_surfaces
     ]
     model_specs = [translate_model(model) for model in resolved.models]
-    # The cds model (MidPoint engine) is pure config, not a resolved
-    # entity; it rides under ``volatility.models`` at the default id the
-    # per-trade ``PriceCDS.model`` ref points at, the credit analogue of the
-    # bonds coupon pricer.
-    if resolved.credit_curve is not None:
-        model_specs.append(build_canonical_cds_model(DEFAULT_CDS_MODEL_ID))
-    # The equity model (analytic Black-Scholes engine) is pure config, not a
-    # resolved entity; it rides under ``volatility.models`` at the default
-    # id the per-trade ``PriceEquityOption.model`` ref points at, the equity
-    # analogue of the cds MidPoint model. The BlackVol surface itself is a resolved
-    # entity and was already translated into ``vol_surface_specs`` above.
-    if resolved.spot is not None:
-        model_specs.append(build_canonical_equity_model(DEFAULT_EQUITY_MODEL_ID))
+    model_specs.extend(_default_model_specs(resolved))
 
     if missing_quotes:
         # De-dup while preserving first-seen order for a stable 422 detail list.
@@ -3997,6 +4372,7 @@ __all__ = [
     "CreditCurveTranslationError",
     "CurveRole",
     "CurveTranslationError",
+    "FxSpotTranslationError",
     "IndexRegistrationError",
     "InflationIndexTranslationError",
     "QuoteResolutionError",
@@ -4012,6 +4388,7 @@ __all__ = [
     "forwarding_index_currency",
     "resolved_credit_curve_id",
     "resolved_curve_id",
+    "resolved_fx_spot_id",
     "resolved_index_id",
     "resolved_inflation_index_id",
     "resolved_model_id",
@@ -4020,6 +4397,7 @@ __all__ = [
     "resolved_vol_surface_id",
     "translate_credit_curve",
     "translate_curve",
+    "translate_fx_spot",
     "translate_index",
     "translate_inflation_curve",
     "translate_inflation_index",

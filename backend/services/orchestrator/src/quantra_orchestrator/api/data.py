@@ -28,6 +28,9 @@ from quantra_orchestrator.data.schemas import (
     CurveSetResponse,
     CurveSetUpdate,
     CurveUpdate,
+    FxSpotCreate,
+    FxSpotResponse,
+    FxSpotUpdate,
     IndexCreate,
     IndexResponse,
     IndexUpdate,
@@ -53,6 +56,8 @@ from quantra_orchestrator.data.specs import (
     CURVE_SETS_SPEC,
     CURVES_SPEC,
     EQUITY_OPTIONS_SPEC,
+    FX_FORWARDS_SPEC,
+    FX_SPOTS_SPEC,
     INDICES_SPEC,
     PRICING_HISTORY_SPEC,
     SNAPSHOTS_SPEC,
@@ -70,11 +75,11 @@ def register_data(app: FastAPI) -> None:
     The URL prefixes follow:
 
     * ``/v1/indices``, ``/v1/curves``, ``/v1/curve-sets``,
-      ``/v1/credit-curves``, ``/v1/snapshots``,
+      ``/v1/credit-curves``, ``/v1/fx-spots``, ``/v1/snapshots``,
       ``/v1/vol-surfaces``, ``/v1/swaption-models``.
     * Products: ``/v1/swaps/ir``, ``/v1/swaps/inflation``,
       ``/v1/swaptions``, ``/v1/bonds/fixed``, ``/v1/bonds/floating``,
-      ``/v1/cds``, ``/v1/equity-options``.
+      ``/v1/cds``, ``/v1/equity-options``, ``/v1/fx-forwards``.
     * Immutable view: ``/v1/pricing-history``.
     """
 
@@ -117,6 +122,17 @@ def register_data(app: FastAPI) -> None:
             create_model=CreditCurveCreate,
             update_model=CreditCurveUpdate,
             response_model=CreditCurveResponse,
+        )
+    )
+
+    app.include_router(
+        build_crud_router(
+            spec=FX_SPOTS_SPEC,
+            prefix="/v1/fx-spots",
+            tag="data:fx-spots",
+            create_model=FxSpotCreate,
+            update_model=FxSpotUpdate,
+            response_model=FxSpotResponse,
         )
     )
 
@@ -220,6 +236,17 @@ def register_data(app: FastAPI) -> None:
             spec=EQUITY_OPTIONS_SPEC,
             prefix="/v1/equity-options",
             tag="data:equity-options",
+            create_model=ProductCreate,
+            update_model=ProductUpdate,
+            response_model=ProductResponse,
+        )
+    )
+
+    app.include_router(
+        build_crud_router(
+            spec=FX_FORWARDS_SPEC,
+            prefix="/v1/fx-forwards",
+            tag="data:fx-forwards",
             create_model=ProductCreate,
             update_model=ProductUpdate,
             response_model=ProductResponse,

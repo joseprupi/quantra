@@ -13,6 +13,43 @@ monorepo was assembled**; 0.3.0 is the first release cut from the monorepo.
 
 Platform pinned to the OSS pricing engine **0.11.0** (from 0.6.0).
 
+### Added
+- **FX spot market data** (engine 0.9.0 `pricing.fx.spots[]`): a new
+  `app.fx_spots` entity with CRUD at `/v1/fx-spots` (versioned in the audit
+  trail) — a currency pair, an inline `rate` OR an MD `quote_id` (resolved
+  server-side at `as_of`; the ECB reference-rate ingest writes
+  `EUR.FX.ECB.<PAIR>.1D.SPOT`, e.g. `EUR.FX.ECB.EURUSD.1D.SPOT`), the spot lag
+  (`spot_days`), the joint `settlement_calendars` and the
+  `business_day_convention`. Pricing requests carry `fx_spots: [id-ref |
+  inline]`; the translator emits `Pricing.fx` only when a spot is given, so
+  every existing product's wire is byte-identical (golden-hex tests unchanged).
+- **FX-implied curve helpers** `FxSwapHelper` (`fx_points` | `quote_id`,
+  `tenor`, `fx_spot`, `end_of_month`, `collateral_currency`,
+  `collateral_curve: {id}`) and `CrossCcyBasisHelper` (`spread` | `quote_id`,
+  `tenor`, `fx_spot`, `base_index` / `quote_index`, `base_forwarding_curve` /
+  `quote_forwarding_curve`, exactly one of `base_discount_curve` /
+  `quote_discount_curve`, `spread_on_base_leg`, `payment_frequency`,
+  `payment_lag`, `calendar`, `business_day_convention`, `end_of_month`,
+  `mtm_reset`) accepted as curve points on the pricing paths and on
+  `POST /v1/curve-preview`; the preview also accepts `pricing.fx.spots[]` and
+  an explicit `pricing.indices[]` (engine `IndexDef` shape, registered
+  verbatim). Collateral-adjusted discount curves (FX swaps to 1Y, basis swaps
+  beyond) now bootstrap through the orchestrator.
+- **`POST /v1/price/fx-forward`** (engine `PriceFxForward`): trade =
+  `{base_currency, quote_currency, direction: BuyBase|SellBase, base_notional,
+  forward_rate, maturity_date, fx_spot, base_discounting_curve,
+  quote_discounting_curve, reporting_currency?}` priced by reference
+  (`fx_forward_id`, new `app.fx_forwards` product table with CRUD at
+  `/v1/fx-forwards` + versions) or inline, with `curves` / `fx_spots` /
+  `indices` ref-or-inline lists; result = `{npv, reporting_currency,
+  fair_forward_rate, forward_points, base_leg_pv, quote_leg_pv, fx_spot_used,
+  spot_date, maturity_date}`. Typed 422s (`fx_forward_*`), D159 trace stages
+  incl. the exact engine wire, `pricing_history` rows (`product_kind`
+  `fx_forwards`, CHECK extended by migration 0015).
+- `POST /v1/import` reports `fx_forwards[]` trades and `pricing.fx.spots[]`
+  as unsupported items (never dropped); mapping FX spots to `app.fx_spots` is
+  a follow-up.
+
 ### Changed
 - **Pricing engine updated to quantra-server 0.11.0** (engine 0.10.0 is
   wire-breaking for swaps and swaptions; 0.11.0 is 0.10.0 rebuilt on

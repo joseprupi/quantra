@@ -19,10 +19,10 @@ returns ``dict[str, Any]`` rows directly so we hand the dict to
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Self, TypeVar
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # Generic type parameter for the ``ListPage`` envelope. Declared with the
 # classic ``TypeVar`` + ``Generic[T]`` spelling rather than the PEP-695
@@ -235,6 +235,73 @@ class CreditCurveResponse(EntityTimestamps):
     seniority: str | None = None
     source: CreditCurveSource
     recovery_rate: float
+    body: dict[str, Any]
+
+
+# ---------------------------------------------------------------------------
+# fx_spots (0015_fx_spots_and_fx_forwards)
+# ---------------------------------------------------------------------------
+
+
+class FxSpotCreate(BaseModel):
+    """An FX spot (engine ``FxSpotSpec``): pair, rate XOR MD quote ref, lag, calendars.
+
+    ``rate`` is the market spot (quote units per base unit, delivery on the
+    spot date); ``quote_id`` is the MD canonical id resolved server-side at
+    pricing time (the ECB reference-rate ingest writes
+    ``EUR.FX.ECB.<PAIR>.1D.SPOT``, e.g. ``EUR.FX.ECB.EURUSD.1D.SPOT``).
+    Exactly one of the two. ``spot_days`` / ``settlement_calendars`` /
+    ``business_day_convention`` are the pair's own conventions — the engine
+    keeps no convention table, so they are required here too.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1)
+    base_currency: str = Field(pattern=r"^[A-Z]{3}$")
+    quote_currency: str = Field(pattern=r"^[A-Z]{3}$")
+    rate: float | None = Field(default=None, gt=0)
+    quote_id: str | None = Field(default=None, min_length=1)
+    spot_days: int = Field(ge=0)
+    settlement_calendars: list[str] = Field(min_length=1)
+    business_day_convention: str = Field(min_length=1)
+    body: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _rate_xor_quote_id(self) -> Self:
+        if (self.rate is None) == (self.quote_id is None):
+            msg = "Exactly one of ``rate`` / ``quote_id`` must be set."
+            raise ValueError(msg)
+        if self.base_currency == self.quote_currency:
+            msg = "``base_currency`` and ``quote_currency`` must differ."
+            raise ValueError(msg)
+        return self
+
+
+class FxSpotUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, min_length=1)
+    base_currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+    quote_currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+    rate: float | None = Field(default=None, gt=0)
+    quote_id: str | None = Field(default=None, min_length=1)
+    spot_days: int | None = Field(default=None, ge=0)
+    settlement_calendars: list[str] | None = Field(default=None, min_length=1)
+    business_day_convention: str | None = Field(default=None, min_length=1)
+    body: dict[str, Any] | None = None
+
+
+class FxSpotResponse(EntityTimestamps):
+    id: UUID
+    name: str
+    base_currency: str
+    quote_currency: str
+    rate: float | None
+    quote_id: str | None
+    spot_days: int
+    settlement_calendars: list[str]
+    business_day_convention: str
     body: dict[str, Any]
 
 
@@ -468,6 +535,9 @@ __all__ = [
     "EntityVersionDetail",
     "EntityVersionList",
     "EntityVersionSummary",
+    "FxSpotCreate",
+    "FxSpotResponse",
+    "FxSpotUpdate",
     "IndexCreate",
     "IndexResponse",
     "IndexUpdate",

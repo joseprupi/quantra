@@ -34,3 +34,6 @@ class EngineRpc(StrEnum):
     CALIBRATE_SWAPTION_MODEL = "CalibrateSwaptionModel"
     CALIBRATE_SWAPTION_VOL = "CalibrateSwaptionVol"
     PRICE_EQUITY_OPTION = "PriceEquityOption"
+    # Engine >= 0.9.0 FX products.
+    PRICE_FX_FORWARD = "PriceFxForward"
+    PRICE_CROSS_CURRENCY_SWAP = "PriceCrossCurrencySwap"

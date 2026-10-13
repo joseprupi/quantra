@@ -16,9 +16,19 @@ via the Vite proxy. This endpoint runs the same flow on the real stack:
    ``CurveChart`` renders unchanged.
 
 v1 scope (documented, deliberate): the query's ``measures`` are honored;
-``grid`` / ``zero`` / ``fwd`` sub-specs ride on engine defaults. Indices
-are not forwarded (the deposit/swap/OIS helper set the builder emits does
-not require explicit index definitions engine-side).
+``grid`` / ``zero`` / ``fwd`` sub-specs ride on engine defaults. Indices the
+helpers reference are registered from the known catalogs, or VERBATIM from an
+explicit ``pricing.indices[]`` / ``pricing.rates.indices[]`` list (engine
+``IndexDef`` shape: ``id`` / ``name`` / ``index_type`` / ``currency`` /
+``tenor`` / ``fixing_days`` / ``calendar`` / ``day_counter`` /
+``business_day_convention`` / ``end_of_month``) — an explicit def always beats
+a catalog guess.
+
+FX arm (engine >= 0.9.0): ``pricing.fx.spots[]`` (engine ``FxSpotSpec`` shape,
+``rate`` or an MD ``quote_id`` resolved through the same walker) is forwarded
+as ``Pricing.fx`` so curves carrying ``FxSwapHelper`` /
+``CrossCcyBasisHelper`` pillars (collateral-adjusted discount curves) preview
+through the same translator the pricing path uses.
 
 Inflation arm (inflation half): when ``pricing.inflation_curves`` is
 present the request is dispatched to the inflation bootstrap path instead of
@@ -65,9 +75,14 @@ from quantra_common.engine_client._generated.quantra.BootstrapInflationCurvesRes
 from quantra_common.engine_client._generated.quantra.CurveQuerySpec import CurveQuerySpecT
 from quantra_common.engine_client._generated.quantra.DateGrid import DateGrid
 from quantra_common.engine_client._generated.quantra.DateGridSpec import DateGridSpecT
+from quantra_common.engine_client._generated.quantra.enums.BusinessDayConvention import (
+    BusinessDayConvention,
+)
+from quantra_common.engine_client._generated.quantra.enums.Calendar import Calendar
 from quantra_common.engine_client._generated.quantra.enums.InflationCurveMeasure import (
     InflationCurveMeasure,
 )
+from quantra_common.engine_client._generated.quantra.FxMarketData import FxMarketDataT
 from quantra_common.engine_client._generated.quantra.InflationCurveQuerySpec import (
     InflationCurveQuerySpecT,
 )
@@ -87,6 +102,7 @@ from quantra_orchestrator.pricing._translator import (
     _KNOWN_IBOR_INDICES,
     _KNOWN_OVERNIGHT_INDICES,
     CurveTranslationError,
+    FxSpotTranslationError,
     IndexRegistrationError,
     InflationIndexTranslationError,
     _build_default_forwarding_index,
@@ -95,11 +111,17 @@ from quantra_orchestrator.pricing._translator import (
     _collect_helper_index_ids,
     resolved_curve_id,
     translate_curve,
+    translate_fx_spot,
+    translate_index,
     translate_inflation_curve,
     translate_inflation_index,
 )
+from quantra_orchestrator.pricing.fx_forward.md_resolution import (
+    collect_quote_ids as collect_fx_quote_ids,
+)
+from quantra_orchestrator.pricing.fx_forward.models import ResolvedFxSpot
 from quantra_orchestrator.pricing.swap_ir.md_resolution import collect_quote_ids
-from quantra_orchestrator.pricing.swap_ir.models import ResolvedCurve
+from quantra_orchestrator.pricing.swap_ir.models import ResolvedCurve, ResolvedIndex
 
 router = APIRouter(prefix="/v1/curve-preview", tags=["curves:preview"])
 
@@ -133,13 +155,17 @@ def _tenor_grid(raw_grid: dict[str, Any] | None) -> DateGridSpecT:
     """Build the REQUIRED ``CurveQuerySpec.grid`` (FB verifier rejects None).
 
     Maps the portal's ``{grid_type: 'TenorGrid', grid: {tenors: [{n, unit}]}}``
-    shape; anything else falls back to the standard ladder. Calendar and
-    business-day convention ride on the schema defaults.
+    shape; anything else falls back to the standard ladder. The grid's own
+    ``calendar`` / ``business_day_convention`` (the engine's ``TenorGrid``
+    fields) are honoured when given, else the schema defaults apply — the
+    sampled dates are then exactly the engine's for the same query.
     """
 
     tenors: list[tuple[int, str]] = []
+    inner_grid: dict[str, Any] = {}
     if raw_grid and raw_grid.get("grid_type") == "TenorGrid":
-        for item in (raw_grid.get("grid") or {}).get("tenors") or []:
+        inner_grid = raw_grid.get("grid") or {}
+        for item in inner_grid.get("tenors") or []:
             if isinstance(item, dict) and isinstance(item.get("n"), int | float):
                 unit = str(item.get("unit") or "Years")
                 if unit in _TIME_UNIT_BY_NAME:
@@ -153,6 +179,14 @@ def _tenor_grid(raw_grid: dict[str, Any] | None) -> DateGridSpecT:
         period.n = n
         period.unit = _TIME_UNIT_BY_NAME[unit]
         grid.tenors.append(period)
+    calendar = getattr(Calendar, str(inner_grid.get("calendar") or ""), None)
+    if isinstance(calendar, int):
+        grid.calendar = calendar
+    convention = getattr(
+        BusinessDayConvention, str(inner_grid.get("business_day_convention") or ""), None
+    )
+    if isinstance(convention, int):
+        grid.businessDayConvention = convention
     spec = DateGridSpecT()
     spec.gridType = DateGrid.TenorGrid
     spec.grid = grid
@@ -214,8 +248,88 @@ def _dedup_resolved_curves(curves: Iterable[ResolvedCurve]) -> list[ResolvedCurv
     return out
 
 
-def _build_preview_indices(curves: list[ResolvedCurve]) -> list[Any]:
+def _as_resolved_index(raw: Mapping[str, Any], position: int) -> ResolvedIndex:
+    """Project one engine-shaped ``IndexDef`` dict (``pricing.indices[]``) verbatim.
+
+    The engine-facing id is the dict's ``id`` (the name the curve helpers
+    reference); ``index_type`` / ``kind`` selects Ibor vs Overnight; every
+    convention is read off the dict by the shared :func:`translate_index`.
+    """
+
+    index_id = str(raw.get("id") or raw.get("name") or f"index-{position}")
+    kind = raw.get("kind") or raw.get("index_type") or raw.get("indexType") or "IborIndex"
+    body = dict(raw)
+    body.setdefault("name", raw.get("name") or index_id)
+    return ResolvedIndex(
+        name=index_id,
+        kind=str(kind),
+        currency=raw.get("currency") if isinstance(raw.get("currency"), str) else None,
+        calendar=raw.get("calendar") if isinstance(raw.get("calendar"), str) else None,
+        day_counter=(raw.get("day_counter") if isinstance(raw.get("day_counter"), str) else None),
+        body=body,
+    )
+
+
+def _explicit_preview_indices(pricing_in: Mapping[str, Any]) -> list[ResolvedIndex]:
+    """Collect ``pricing.indices[]`` / ``pricing.rates.indices[]`` (engine shape)."""
+
+    raw_lists: list[Any] = [pricing_in.get("indices")]
+    rates = pricing_in.get("rates")
+    if isinstance(rates, Mapping):
+        raw_lists.append(rates.get("indices"))
+    out: list[ResolvedIndex] = []
+    for raw_list in raw_lists:
+        if not isinstance(raw_list, list):
+            continue
+        for position, raw in enumerate(raw_list):
+            if isinstance(raw, Mapping):
+                out.append(_as_resolved_index(raw, position))
+    return out
+
+
+def _as_resolved_fx_spot(raw: Mapping[str, Any], position: int) -> ResolvedFxSpot:
+    """Project one engine-shaped ``FxSpotSpec`` dict (``pricing.fx.spots[]``)."""
+
+    calendars = raw.get("settlement_calendars")
+    spot_days = raw.get("spot_days")
+    return ResolvedFxSpot(
+        name=str(raw.get("id") or raw.get("name") or f"fx-spot-{position}"),
+        base_currency=str(raw.get("base_currency") or ""),
+        quote_currency=str(raw.get("quote_currency") or ""),
+        rate=(
+            float(raw["rate"])
+            if isinstance(raw.get("rate"), (int, float)) and not isinstance(raw.get("rate"), bool)
+            else None
+        ),
+        quote_id=raw.get("quote_id") if isinstance(raw.get("quote_id"), str) else None,
+        spot_days=int(spot_days)
+        if isinstance(spot_days, int) and not isinstance(spot_days, bool)
+        else -1,
+        settlement_calendars=[str(c) for c in calendars] if isinstance(calendars, list) else [],
+        business_day_convention=str(raw.get("business_day_convention") or ""),
+    )
+
+
+def _preview_fx_spots(pricing_in: Mapping[str, Any]) -> list[ResolvedFxSpot]:
+    fx = pricing_in.get("fx")
+    if not isinstance(fx, Mapping):
+        return []
+    raw_spots = fx.get("spots")
+    if not isinstance(raw_spots, list):
+        return []
+    return [
+        _as_resolved_fx_spot(raw, i) for i, raw in enumerate(raw_spots) if isinstance(raw, Mapping)
+    ]
+
+
+def _build_preview_indices(
+    curves: list[ResolvedCurve], explicit: list[ResolvedIndex] | None = None
+) -> list[Any]:
     """Register every index the curve helpers reference (mirrors the pricing translator).
+
+    ``explicit`` (``pricing.indices[]``) defs are registered verbatim under
+    their own ids FIRST and take precedence over the catalogs — the pricing
+    path's ``ResolvedMarketData.indices`` rule.
 
     Same resolution order as the pricing path's ``_build_rates_indices``
     (minus the resolved instrument index, which a preview never has): the
@@ -229,6 +343,9 @@ def _build_preview_indices(curves: list[ResolvedCurve]) -> list[Any]:
 
     default_index = _build_default_forwarding_index()
     indices_by_id = {default_index.id: default_index}
+    for explicit_index in explicit or []:
+        explicit_def = translate_index(explicit_index)
+        indices_by_id[explicit_def.id] = explicit_def
     try:
         for index_id in _collect_helper_index_ids(curves):
             if index_id in indices_by_id:
@@ -297,40 +414,27 @@ async def preview_curves(
             detail="pricing.curves must contain at least one curve.",
         )
 
-    # 1. Resolve quote ids via MD (invariant #8: server-side only).
-    quote_ids = collect_quote_ids(curves)
+    fx_spots = _preview_fx_spots(pricing_in)
+
+    # 1. Resolve quote ids via MD (invariant #8: server-side only) — curve
+    #    points AND FX spot ``quote_id``s through the same walker.
+    quote_ids = collect_fx_quote_ids(curves, fx_spots)
     quote_map = await _resolve_quote_map(quote_ids, as_of, md_client, label="quote")
 
-    # 2. Translate curves with the shared pricing-path translator.
-    missing_quotes: list[str] = []
-    try:
-        term_structures = [
-            translate_curve(
-                curve,
-                quote_map,
-                default_reference_date=as_of.isoformat(),
-                missing_quotes=missing_quotes,
-            )
-            for curve in curves
-        ]
-    except CurveTranslationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"Curve translation failed: {exc.reason}",
-        ) from exc
-    if missing_quotes:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Unresolved quote id(s): " + ", ".join(sorted(set(missing_quotes))[:10]),
-        )
+    # 2. Translate curves (+ FX spots) with the shared pricing-path translator.
+    term_structures, fx_spot_specs = _translate_preview_inputs(curves, fx_spots, quote_map, as_of)
 
     # 3. Assemble + call the engine.
     pricing = PricingT()
     pricing.asOfDate = as_of.isoformat()
     rates = RatesMarketDataT()
     rates.curves = term_structures
-    rates.indices = _build_preview_indices(curves)
+    rates.indices = _build_preview_indices(curves, _explicit_preview_indices(pricing_in))
     pricing.rates = rates
+    if fx_spot_specs:
+        fx = FxMarketDataT()
+        fx.spots = fx_spot_specs
+        pricing.fx = fx
 
     queries: list[CurveQuerySpecT] = []
     for raw_query in payload.queries or [{}]:
@@ -361,6 +465,46 @@ async def preview_curves(
 
     # 4. Decode → the legacy JSON shape CurveChart consumes.
     return _decode_response(response_bytes)
+
+
+def _translate_preview_inputs(
+    curves: list[ResolvedCurve],
+    fx_spots: list[ResolvedFxSpot],
+    quote_map: dict[str, float],
+    as_of: date,
+) -> tuple[list[Any], list[Any]]:
+    """Translate curves + FX spots (shared pricing-path translator); 422 on failure."""
+
+    missing_quotes: list[str] = []
+    try:
+        term_structures = [
+            translate_curve(
+                curve,
+                quote_map,
+                default_reference_date=as_of.isoformat(),
+                missing_quotes=missing_quotes,
+            )
+            for curve in curves
+        ]
+        fx_spot_specs = [
+            translate_fx_spot(spot, quote_map, missing_quotes=missing_quotes) for spot in fx_spots
+        ]
+    except CurveTranslationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Curve translation failed: {exc.reason}",
+        ) from exc
+    except FxSpotTranslationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"FX spot translation failed: {exc.reason}",
+        ) from exc
+    if missing_quotes:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Unresolved quote id(s): " + ", ".join(sorted(set(missing_quotes))[:10]),
+        )
+    return term_structures, fx_spot_specs
 
 
 def _decode_response(response_bytes: bytes) -> dict[str, Any]:
