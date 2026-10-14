@@ -59,10 +59,24 @@ Platform release **v0.6.0**, pinned to the OSS pricing engine **0.11.0**
   `pay_receive` (from the request's `swap_type`: Payer = pay fixed / receive
   floating), `currency` (the forwarding index's currency, both legs), its
   notional / schedule / day count / payment convention, a typed `coupons`
-  union (`FixedCoupons{rate}` / `IborCoupons{index, spread}`) and its own
-  curves (the discounting curve on both legs, the forwarding curve on the
-  floating leg). The `/v1` request contract is unchanged (`swap_type`,
+  union (`FixedCoupons{rate}` / `IborCoupons{index, spread}`; overnight
+  indices see below) and its own curves (the discounting curve on both legs,
+  the forwarding curve on the floating leg). The `/v1` request contract is unchanged (`swap_type`,
   `discounting_curve`, `forwarding_curve` ids as before).
+- **Overnight float indices (SONIA, SOFR, ESTR, ...) price as OIS.** Engine
+  0.10.0+ rejects `IborCoupons` on an overnight index (400 "... is an
+  overnight index: use OvernightCoupons") and accepts `OvernightCoupons` only
+  on an OIS leg. When the swap's float index is registered as overnight (its
+  `IndexDef.index_type`, the same def sent in `pricing.rates.indices`; never
+  the index name), `/v1/price/swap/ir` now sends the swap to the engine's
+  `PriceOisSwap` as an `OisSwap` whose overnight leg carries
+  `OvernightCoupons{index, spread 0}` with QuantLib's plain-OIS conventions
+  (compounded daily, no lookback, no lockout, no observation shift) and both
+  legs pay on the schedule calendar with no payment lag (what the vanilla
+  wire already meant); `/v1/price/swaption` takes an `OisSwap` underlying
+  (`underlying_type` `OisSwap`). IBOR indices keep `VanillaSwap` /
+  `IborCoupons` byte-for-byte. The `/v1` request and result shapes are
+  unchanged (`leg_npvs` role `floating` = the overnight leg).
 - **IR swap result:** per-leg NPVs and flows are read from the engine's
   `legs[]` (`leg_npvs` roles `fixed` / `floating` unchanged); every flow now
   carries `kind` (`Coupon` | `NotionalExchange`); `extras.fair_rate` /
@@ -94,6 +108,21 @@ Platform release **v0.6.0**, pinned to the OSS pricing engine **0.11.0**
   swaptions, bonds and equity options priced through `/v1` are unchanged;
   an aligned zero-coupon inflation swap moves at the 1e-12 relative noise
   level.
+- **IR swaps on an overnight index move.** Up to platform 0.5.0 (engine
+  0.6.0) a vanilla swap on SONIA / SOFR / ESTR priced its floating leg as
+  IBOR-style coupons: the overnight index's forward over each period,
+  accrued on the leg's Actual/360 day count, so a SONIA (Actual/365F) leg
+  was overstated by about 365/360. It now compounds the overnight fixings on
+  the index's own day count (QuantLib `OvernightIndexedSwap`). Measured on
+  the seeded GBP SONIA OIS curve (BoE par quotes of 2026-10-13, frozen as
+  inline rates; 1M GBP 5Y payer, 2026-12-15 to 2031-12-15, semiannual
+  floating, the same request on platform 0.5.0 + engine 0.6.0 and on this
+  release + engine 0.11.0): NPV at 2% fixed 127,773.62 -> 124,841.42, at 6%
+  -44,780.67 -> -47,712.87 (the floating leg alone, -2,932.20 = -1.37% of
+  its old PV); fair rate 4.9619% -> 4.8940% (-6.8 bp). On a single curve the
+  overnight leg now telescopes exactly to the IBOR-style leg on an Actual/360
+  index (same NPV to the last digit). Swaptions on a one-curve Hull-White
+  lattice did not move (26,976.49 before and after).
 
 ## [0.5.0] - 2026-08-03
 

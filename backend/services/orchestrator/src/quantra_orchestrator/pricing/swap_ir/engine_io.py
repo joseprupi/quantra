@@ -35,7 +35,13 @@ adding a new key never breaks an older orchestrator). the portal's
 frontend cutover is the right time to widen this surface.
 
 The RPC name is :attr:`EngineRpc.PRICE_VANILLA_SWAP` — the canonical
-entry in the engine's ``rpc_service QuantraServer`` block.
+entry in the engine's ``rpc_service QuantraServer`` block — for an IBOR float
+index. When the float index is registered as an OVERNIGHT index (``IndexDef.
+index_type == Overnight``: SONIA, SOFR, ESTR, ...) the same ``/v1`` swap is
+sent as an ``OisSwap`` on :attr:`EngineRpc.PRICE_OIS_SWAP`: engine >= 0.10.0
+accepts an overnight index only through ``OvernightCoupons``, which
+``VanillaSwap.floating_leg`` does not take (``docs/http-api.md`` § "Swap
+legs"). See :func:`swap_ir_engine_rpc`.
 """
 
 from __future__ import annotations
@@ -57,9 +63,21 @@ from quantra_common.engine_client._generated.quantra.enums.DateGenerationRule im
 from quantra_common.engine_client._generated.quantra.enums.DayCounter import DayCounter
 from quantra_common.engine_client._generated.quantra.enums.Frequency import Frequency
 from quantra_common.engine_client._generated.quantra.enums.PayReceive import PayReceive
+from quantra_common.engine_client._generated.quantra.enums.RateAveragingType import (
+    RateAveragingType,
+)
 from quantra_common.engine_client._generated.quantra.enums.SwapFlowKind import SwapFlowKind
 from quantra_common.engine_client._generated.quantra.FixedCoupons import FixedCouponsT
 from quantra_common.engine_client._generated.quantra.IborCoupons import IborCouponsT
+from quantra_common.engine_client._generated.quantra.OisSwap import OisSwapT
+from quantra_common.engine_client._generated.quantra.OvernightCoupons import OvernightCouponsT
+from quantra_common.engine_client._generated.quantra.PriceOisSwap import PriceOisSwapT
+from quantra_common.engine_client._generated.quantra.PriceOisSwapRequest import (
+    PriceOisSwapRequestT,
+)
+from quantra_common.engine_client._generated.quantra.PriceOisSwapResponse import (
+    PriceOisSwapResponse,
+)
 from quantra_common.engine_client._generated.quantra.PriceVanillaSwap import (
     PriceVanillaSwapT,
 )
@@ -84,6 +102,7 @@ from quantra_orchestrator.pricing._translator import (
     build_pricing_from_resolved,
     float_leg_frequency,
     forwarding_index_currency,
+    forwarding_index_is_overnight,
     resolved_curve_id,
 )
 from quantra_orchestrator.pricing.concurrency import EngineBatch
@@ -100,6 +119,22 @@ from quantra_orchestrator.pricing.swap_ir.models import (
 from quantra_orchestrator.tracing.stages import serialize_fb_object
 
 SWAP_IR_ENGINE_RPC: Final[EngineRpc] = EngineRpc.PRICE_VANILLA_SWAP
+# The RPC an overnight-index swap goes to (``OisSwap`` / ``OvernightCoupons``).
+SWAP_IR_OIS_ENGINE_RPC: Final[EngineRpc] = EngineRpc.PRICE_OIS_SWAP
+
+
+def swap_ir_engine_rpc(resolved: ResolvedMarketData) -> EngineRpc:
+    """The engine RPC a swap on ``resolved``'s float index is priced through.
+
+    ``PriceOisSwap`` when the float index is registered as an overnight index
+    (:func:`forwarding_index_is_overnight`, the registered ``IndexDef``'s
+    ``index_type``), else ``PriceVanillaSwap``.
+    """
+
+    if forwarding_index_is_overnight(resolved):
+        return SWAP_IR_OIS_ENGINE_RPC
+    return SWAP_IR_ENGINE_RPC
+
 
 # A vanilla swap is exactly two ``SwapLeg``s: ``fixed_leg`` (``legs[0]``) and
 # ``floating_leg`` (``legs[1]``) — the engine's ``VanillaSwap`` table order.
@@ -137,6 +172,10 @@ def build_swap_ir_request(
 ) -> bytes:
     """Encode one batch of IR-swap trades as ``PriceVanillaSwapRequest`` bytes.
 
+       An overnight float index (:func:`swap_ir_engine_rpc`) encodes the batch
+       as ``PriceOisSwapRequest`` bytes instead (``OisSwap`` with an
+       ``OvernightCoupons`` overnight leg), to be sent on ``PriceOisSwap``.
+
        The surrounding ``Pricing`` context (curves, index, options) is built
        once per batch from the caller's *resolved* market data via
        :func:`~quantra_orchestrator.pricing._translator.build_pricing_from_resolved`
@@ -172,7 +211,10 @@ def build_swap_ir_request(
     # ForceDefaults: the engine requires every set field explicit on the wire;
     # zero-default enums/scalars (e.g. Frequency.Annual == 0) must not be omitted.
     builder.ForceDefaults(True)
-    request = PriceVanillaSwapRequestT()
+    overnight = forwarding_index_is_overnight(resolved)
+    request: PriceVanillaSwapRequestT | PriceOisSwapRequestT = (
+        PriceOisSwapRequestT() if overnight else PriceVanillaSwapRequestT()
+    )
     # Ask the engine for per-period cashflows on both legs. The engine
     # gates ``fixed_leg_flows`` / ``floating_leg_flows`` on this bool
     # (default false); the orchestrator now decodes them in
@@ -200,6 +242,7 @@ def build_swap_ir_request(
             forwarding_index_id=forwarding_index_id,
             float_frequency=float_frequency,
             leg_currency=leg_currency,
+            overnight=overnight,
         )
         for trade in trades
     ]
@@ -302,8 +345,14 @@ def decode_swap_ir_response(
     response_bytes: bytes,
     *,
     expected_count: int,
+    overnight: bool = False,
 ) -> list[IrSwapResult]:
     """Decode one batch of ``PriceVanillaSwapResponse`` bytes into typed results.
+
+    ``overnight`` reads a ``PriceOisSwapResponse`` (the ``PriceOisSwap`` reply
+    to an overnight-index swap) instead; its rows carry the same ``npv`` /
+    ``fair_rate`` / ``fair_spread`` / ``legs`` (``legs[1]`` = the overnight
+    leg), so the result shape is identical.
 
     Pulls NPV / fair_rate / fair_spread out of each ``VanillaSwapResponse``
     and the per-leg NPVs + per-period cashflows out of its ``legs[]``
@@ -321,7 +370,11 @@ def decode_swap_ir_response(
         msg = "decode_swap_ir_response: empty engine response."
         raise ValueError(msg)
     try:
-        response = PriceVanillaSwapResponse.GetRootAs(response_bytes, 0)
+        response: PriceVanillaSwapResponse | PriceOisSwapResponse = (
+            PriceOisSwapResponse.GetRootAs(response_bytes, 0)
+            if overnight
+            else PriceVanillaSwapResponse.GetRootAs(response_bytes, 0)
+        )
         actual = response.SwapsLength()
     except Exception as exc:
         msg = f"decode_swap_ir_response: malformed engine response ({exc})."
@@ -393,10 +446,31 @@ def decode_swap_ir_request_wire(request_bytes: bytes) -> dict[str, Any]:
     """
 
     try:
-        request = PriceVanillaSwapRequestT.InitFromPackedBuf(request_bytes, 0)
+        request: PriceVanillaSwapRequestT | PriceOisSwapRequestT = (
+            PriceVanillaSwapRequestT.InitFromPackedBuf(request_bytes, 0)
+        )
+        if _is_ois_request(request):
+            request = PriceOisSwapRequestT.InitFromPackedBuf(request_bytes, 0)
     except Exception as exc:  # tracing is best-effort — never raise
         return {"__undecodable__": True, "exc_type": type(exc).__name__}
     return serialize_fb_object(request)
+
+
+def _is_ois_request(request: PriceVanillaSwapRequestT | PriceOisSwapRequestT) -> bool:
+    """Whether a buffer read as ``PriceVanillaSwapRequest`` is really an OIS one.
+
+    ``PriceVanillaSwapRequest`` and ``PriceOisSwapRequest`` share their slot
+    layout down to the two legs, and swap_ir sends ``OvernightCoupons`` (only
+    ever on ``PriceOisSwap``) exactly when the float index is overnight, so
+    the second leg's coupon kind tells the two roots apart.
+    """
+
+    for entry in getattr(request, "swaps", None) or []:
+        swap = getattr(entry, "vanillaSwap", None)
+        leg = getattr(swap, "floatingLeg", None) if swap is not None else None
+        if leg is not None and leg.couponsType == SwapCoupons.OvernightCoupons:
+            return True
+    return False
 
 
 def _decode_optional_float(raw: float | None) -> float | None:
@@ -494,8 +568,13 @@ async def price_swap_ir_batch(
     """
 
     request_bytes = build_swap_ir_request(batch.trades, resolved=resolved)
-    response_bytes = await engine.call(SWAP_IR_ENGINE_RPC, request_bytes)
-    return decode_swap_ir_response(response_bytes, expected_count=len(batch.trades))
+    rpc = swap_ir_engine_rpc(resolved)
+    response_bytes = await engine.call(rpc, request_bytes)
+    return decode_swap_ir_response(
+        response_bytes,
+        expected_count=len(batch.trades),
+        overnight=rpc is SWAP_IR_OIS_ENGINE_RPC,
+    )
 
 
 def _build_one_swap(
@@ -506,8 +585,16 @@ def _build_one_swap(
     forwarding_index_id: str,
     float_frequency: int,
     leg_currency: str,
-) -> PriceVanillaSwapT:
+    overnight: bool = False,
+) -> PriceVanillaSwapT | PriceOisSwapT:
     """Map one :class:`IrSwapTrade` to a ``PriceVanillaSwap`` FB graph.
+
+    With ``overnight`` (the float index is registered as an overnight index)
+    the same legs go into a ``PriceOisSwap`` instead: the floating leg carries
+    ``OvernightCoupons`` (:func:`build_overnight_coupons`) and both legs state
+    ``payment_calendar`` = the schedule calendar and ``payment_lag`` = 0
+    (presence-required on ``/price-ois-swap``; the values the vanilla path's
+    absent fields already meant), so only the coupon kind changes.
 
     Engine >= 0.10.0 ``SwapLeg`` model: each leg carries its side
     (``pay_receive``), ``currency``, notional, schedule, day count, payment
@@ -546,8 +633,7 @@ def _build_one_swap(
     swap_type_label = str(body.get("swap_type", "Payer"))
     fixed_side, float_side = pay_receive_sides(swap_type_label)
 
-    swap = VanillaSwapT()
-    swap.fixedLeg = _build_fixed_leg(
+    fixed_leg = _build_fixed_leg(
         side=fixed_side,
         currency=leg_currency,
         notional=notional,
@@ -555,7 +641,7 @@ def _build_one_swap(
         schedule=_build_leg_schedule(effective_date, termination_date, Frequency.Annual),
         discount_curve_id=discount_curve_id,
     )
-    swap.floatingLeg = _build_floating_leg(
+    floating_leg = _build_floating_leg(
         side=float_side,
         currency=leg_currency,
         notional=notional,
@@ -563,11 +649,33 @@ def _build_one_swap(
         schedule=_build_leg_schedule(effective_date, termination_date, float_frequency),
         discount_curve_id=discount_curve_id,
         forwarding_curve_id=forwarding_curve_id,
+        overnight=overnight,
     )
 
+    if overnight:
+        for leg in (fixed_leg, floating_leg):
+            # Presence-required on every ``/price-ois-swap`` leg. The schedule
+            # calendar and no lag == what the vanilla path's absent fields meant.
+            leg.paymentCalendar = _LEG_CALENDAR
+            leg.paymentLag = 0
+        ois = OisSwapT()
+        ois.fixedLeg = fixed_leg
+        ois.overnightLeg = floating_leg
+        price_ois = PriceOisSwapT()
+        price_ois.oisSwap = ois
+        return price_ois
+
+    swap = VanillaSwapT()
+    swap.fixedLeg = fixed_leg
+    swap.floatingLeg = floating_leg
     price_swap = PriceVanillaSwapT()
     price_swap.vanillaSwap = swap
     return price_swap
+
+
+# The calendar every swap_ir leg schedule is generated on (and, on an OIS, the
+# payment calendar both legs state).
+_LEG_CALENDAR: Final[int] = Calendar.TARGET
 
 
 def _build_leg_schedule(effective_date: str, termination_date: str, frequency: int) -> ScheduleT:
@@ -576,7 +684,7 @@ def _build_leg_schedule(effective_date: str, termination_date: str, frequency: i
     schedule = ScheduleT()
     schedule.effectiveDate = effective_date
     schedule.terminationDate = termination_date
-    schedule.calendar = Calendar.TARGET
+    schedule.calendar = _LEG_CALENDAR
     schedule.frequency = frequency
     schedule.convention = BusinessDayConvention.ModifiedFollowing
     schedule.terminationDateConvention = BusinessDayConvention.ModifiedFollowing
@@ -626,29 +734,58 @@ def _build_floating_leg(
     schedule: ScheduleT,
     discount_curve_id: str,
     forwarding_curve_id: str,
+    overnight: bool = False,
 ) -> SwapLegT:
     """A ``SwapLeg`` carrying ``IborCoupons{index, spread 0}`` (Actual360, MF).
 
     ``fixing_days`` is left absent (= the index's own fixing days, the 0.10.0
     contract); ``in_arrears`` stays ``false``.
-    """
 
-    coupons = IborCouponsT()
-    coupons.index = build_index_ref(index_id)
-    coupons.spread = 0.0
+    With ``overnight`` the leg carries ``OvernightCoupons`` instead
+    (:func:`build_overnight_coupons`) and no ``day_counter``: the engine
+    accepts but does not read it there (the index's own day count accrues).
+    """
 
     leg = SwapLegT()
     leg.payReceive = side
     leg.currency = currency
     leg.notional = notional
     leg.schedule = schedule
-    leg.dayCounter = DayCounter.Actual360
     leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
-    leg.couponsType = SwapCoupons.IborCoupons
-    leg.coupons = coupons
+    if overnight:
+        leg.couponsType = SwapCoupons.OvernightCoupons
+        leg.coupons = build_overnight_coupons(index_id)
+    else:
+        coupons = IborCouponsT()
+        coupons.index = build_index_ref(index_id)
+        coupons.spread = 0.0
+        leg.dayCounter = DayCounter.Actual360
+        leg.couponsType = SwapCoupons.IborCoupons
+        leg.coupons = coupons
     leg.discountingCurve = discount_curve_id
     leg.forwardingCurve = forwarding_curve_id
     return leg
+
+
+def build_overnight_coupons(index_id: str) -> OvernightCouponsT:
+    """``OvernightCoupons{index, spread 0}`` with QuantLib's plain-OIS conventions.
+
+    Engine >= 0.10.0 (``docs/http-api.md`` § "Swap legs"): ``averaging_method``
+    / ``lookback_days`` / ``lockout_days`` / ``apply_observation_shift`` are
+    presence-required, ``telescopic_value_dates`` defaults to ``false``. The
+    orchestrator's ``/v1`` swap body carries none of them, so they take the
+    ``QuantLib::OvernightIndexedSwap`` defaults: daily compounding, no
+    lookback, no lockout, no observation shift (stated explicitly on the wire).
+    """
+
+    coupons = OvernightCouponsT()
+    coupons.index = build_index_ref(index_id)
+    coupons.spread = 0.0
+    coupons.averagingMethod = RateAveragingType.Compound
+    coupons.lookbackDays = 0
+    coupons.lockoutDays = 0
+    coupons.applyObservationShift = False
+    return coupons
 
 
 def pay_receive_sides(swap_type_label: str) -> tuple[int, int]:
@@ -667,9 +804,12 @@ def pay_receive_sides(swap_type_label: str) -> tuple[int, int]:
 
 __all__ = [
     "SWAP_IR_ENGINE_RPC",
+    "SWAP_IR_OIS_ENGINE_RPC",
+    "build_overnight_coupons",
     "build_swap_ir_request",
     "decode_swap_ir_request_wire",
     "decode_swap_ir_response",
     "pay_receive_sides",
     "price_swap_ir_batch",
+    "swap_ir_engine_rpc",
 ]

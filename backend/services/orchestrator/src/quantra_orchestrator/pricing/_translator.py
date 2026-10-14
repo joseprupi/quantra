@@ -1252,6 +1252,24 @@ def forwarding_index_currency(resolved: ResolvedMarketData) -> str:
     return str(_build_default_forwarding_index().currency)
 
 
+def forwarding_index_is_overnight(resolved: ResolvedMarketData) -> bool:
+    """Whether the float leg's index is registered as an OVERNIGHT index.
+
+    Reads ``IndexDef.index_type`` off the SAME def :func:`_build_rates_indices`
+    registers for the float-leg index (the resolved index when supplied, else
+    the interim default forwarding index, which is IBOR) — never guessed from
+    the index name. Engine >= 0.10.0 prices an overnight index only through
+    ``OvernightCoupons`` (``IborCoupons`` on an overnight index is a 400), and
+    ``OvernightCoupons`` is accepted on ``OisSwap.overnight_leg`` (not on
+    ``VanillaSwap.floating_leg``), so swap_ir / swaption switch their float
+    leg (and swap_ir its RPC) on this.
+    """
+
+    if resolved.index is None:
+        return bool(_build_default_forwarding_index().indexType == IndexType.Overnight)
+    return bool(translate_index(resolved.index).indexType == IndexType.Overnight)
+
+
 def resolved_index_id(index: ResolvedIndexLike) -> str:
     """Derive the stable engine-facing index id from a resolved entity.
 
@@ -4386,6 +4404,7 @@ __all__ = [
     "dividend_curve_id",
     "float_leg_frequency",
     "forwarding_index_currency",
+    "forwarding_index_is_overnight",
     "resolved_credit_curve_id",
     "resolved_curve_id",
     "resolved_fx_spot_id",

@@ -71,6 +71,7 @@ from quantra_common.engine_client._generated.quantra.enums.SettlementType import
 )
 from quantra_common.engine_client._generated.quantra.FixedCoupons import FixedCouponsT
 from quantra_common.engine_client._generated.quantra.IborCoupons import IborCouponsT
+from quantra_common.engine_client._generated.quantra.OisSwap import OisSwapT
 from quantra_common.engine_client._generated.quantra.PriceSwaption import (
     PriceSwaptionT,
 )
@@ -98,12 +99,16 @@ from quantra_orchestrator.pricing._translator import (
     build_pricing_from_resolved,
     float_leg_frequency,
     forwarding_index_currency,
+    forwarding_index_is_overnight,
     resolved_curve_id,
     resolved_model_id,
     resolved_vol_surface_id,
 )
 from quantra_orchestrator.pricing.concurrency import EngineBatch
-from quantra_orchestrator.pricing.swap_ir.engine_io import pay_receive_sides
+from quantra_orchestrator.pricing.swap_ir.engine_io import (
+    build_overnight_coupons,
+    pay_receive_sides,
+)
 from quantra_orchestrator.pricing.swaption.errors import (
     SwaptionCurveResolutionFailedError,
     SwaptionMissingTradeFieldsError,
@@ -192,6 +197,7 @@ def build_swaption_request(
     forwarding_index_id = resolved.forwarding_index_id
     leg_currency = forwarding_index_currency(resolved)
     float_frequency = float_leg_frequency(resolved)
+    overnight = forwarding_index_is_overnight(resolved)
     request.swaptions = [
         _build_one_swaption(
             trade,
@@ -202,6 +208,7 @@ def build_swaption_request(
             vol_surface_id=vol_surface_id,
             model_id=model_id,
             leg_currency=leg_currency,
+            overnight=overnight,
         )
         for trade in trades
     ]
@@ -400,8 +407,18 @@ def _build_underlying_swap(
     discount_curve_id: str,
     forwarding_curve_id: str,
     leg_currency: str,
-) -> VanillaSwapT:
+    overnight: bool = False,
+) -> VanillaSwapT | OisSwapT:
     """Construct the underlying ``VanillaSwap`` for a swaption trade.
+
+    With ``overnight`` (the float index is registered as an overnight index)
+    the underlying is an ``OisSwap`` instead: engine >= 0.10.0 prices an
+    overnight index only through ``OvernightCoupons``, which a swaption takes
+    on ``OisSwap.overnight_leg`` (``underlying_type = OisSwap``; the swaption
+    is then priced from QuantLib's ``OvernightIndexedSwap``). The overnight
+    leg carries :func:`build_overnight_coupons` and no ``day_counter`` (not
+    read there); ``payment_calendar`` / ``payment_lag`` stay absent (= the
+    schedule calendar, no lag), as on the vanilla underlying.
 
     Engine >= 0.10.0 ``SwapLeg`` model (same mapping as swap_ir's
     ``_build_one_swap``): ``swap_type`` → ``pay_receive`` on each leg,
@@ -440,10 +457,6 @@ def _build_underlying_swap(
     fixed_leg.coupons = fixed_coupons
     fixed_leg.discountingCurve = discount_curve_id
 
-    ibor_coupons = IborCouponsT()
-    ibor_coupons.index = build_index_ref(forwarding_index_id)
-    ibor_coupons.spread = 0.0
-
     float_leg = SwapLegT()
     float_leg.payReceive = float_side
     float_leg.currency = leg_currency
@@ -453,12 +466,25 @@ def _build_underlying_swap(
         termination_date=termination_date,
         frequency=float_frequency,
     )
-    float_leg.dayCounter = DayCounter.Actual360
     float_leg.paymentConvention = BusinessDayConvention.ModifiedFollowing
-    float_leg.couponsType = SwapCoupons.IborCoupons
-    float_leg.coupons = ibor_coupons
+    if overnight:
+        float_leg.couponsType = SwapCoupons.OvernightCoupons
+        float_leg.coupons = build_overnight_coupons(forwarding_index_id)
+    else:
+        ibor_coupons = IborCouponsT()
+        ibor_coupons.index = build_index_ref(forwarding_index_id)
+        ibor_coupons.spread = 0.0
+        float_leg.dayCounter = DayCounter.Actual360
+        float_leg.couponsType = SwapCoupons.IborCoupons
+        float_leg.coupons = ibor_coupons
     float_leg.discountingCurve = discount_curve_id
     float_leg.forwardingCurve = forwarding_curve_id
+
+    if overnight:
+        ois = OisSwapT()
+        ois.fixedLeg = fixed_leg
+        ois.overnightLeg = float_leg
+        return ois
 
     underlying = VanillaSwapT()
     underlying.fixedLeg = fixed_leg
@@ -476,6 +502,7 @@ def _build_one_swaption(
     vol_surface_id: str,
     model_id: str,
     leg_currency: str,
+    overnight: bool = False,
 ) -> PriceSwaptionT:
     """Map one :class:`SwaptionTrade` to a ``PriceSwaption`` FB graph.
 
@@ -506,13 +533,16 @@ def _build_one_swaption(
         discount_curve_id=discount_curve_id,
         forwarding_curve_id=forwarding_curve_id,
         leg_currency=leg_currency,
+        overnight=overnight,
     )
 
     swaption = SwaptionT()
     swaption.exerciseType = ExerciseType.European
     swaption.settlementType = SettlementType.Physical
     swaption.exerciseDate = exercise_date
-    swaption.underlyingType = SwaptionUnderlying.VanillaSwap
+    swaption.underlyingType = (
+        SwaptionUnderlying.OisSwap if overnight else SwaptionUnderlying.VanillaSwap
+    )
     swaption.underlying = underlying
 
     price_swaption = PriceSwaptionT()
