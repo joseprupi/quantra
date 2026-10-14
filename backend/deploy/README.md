@@ -94,7 +94,7 @@ Every knob is documented in [`.env.example`](.env.example). The essentials:
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `REGISTRY` | `ghcr.io/joseprupi` | Registry + namespace the release compose resolves image refs against (single swappable variable). |
-| `QUANTRA_VERSION` | `0.3.0` | Version tag the release compose pins the platform images to. Release bundles ship it pre-pinned to their own version. |
+| `QUANTRA_VERSION` | `0.6.0` | Version tag the release compose pins the platform images to. Release bundles ship it pre-pinned to their own version. |
 | `QUANTRA_ENGINE_IMAGE` | `ghcr.io/joseprupi/quantra-server:0.11.0` | The public pricing-engine image (a separate open-source project). |
 | `QUANTRA_ENGINE_COMMAND` | *(empty)* | Empty → the engine image's own entrypoint. |
 | `FRED_API_KEY` | *(empty)* | Optional free key enabling the FRED feed (~31 extra US series). |
@@ -110,13 +110,13 @@ from this tree and tagged as the release refs
 
 ```bash
 # from the repo root — build + tag (or docker pull the published refs):
-docker build -f backend/services/orchestrator/Dockerfile -t ghcr.io/joseprupi/quantra-orchestrator:0.3.0 backend
-docker build -f backend/services/market_data/Dockerfile  -t ghcr.io/joseprupi/quantra-market-data:0.3.0  backend
-docker build -f backend/services/md_ingester/Dockerfile  -t ghcr.io/joseprupi/quantra-md-ingester:0.3.0  backend
-docker build -t ghcr.io/joseprupi/quantra-portal:0.3.0 frontend
+docker build -f backend/services/orchestrator/Dockerfile -t ghcr.io/joseprupi/quantra-orchestrator:0.6.0 backend
+docker build -f backend/services/market_data/Dockerfile  -t ghcr.io/joseprupi/quantra-market-data:0.6.0  backend
+docker build -f backend/services/md_ingester/Dockerfile  -t ghcr.io/joseprupi/quantra-md-ingester:0.6.0  backend
+docker build -t ghcr.io/joseprupi/quantra-portal:0.6.0 frontend
 
 cd backend/deploy
-./make-release-tarball.sh 0.3.0
+./make-release-tarball.sh 0.6.0
 ```
 
 That produces `quantra-selfhosted-<version>.tar.gz` containing the images,

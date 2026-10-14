@@ -9,9 +9,10 @@ Backend and portal are released together at the same platform `vX.Y.Z` tag.
 Versions **0.2.x and earlier are historical release tags from before this
 monorepo was assembled**; 0.3.0 is the first release cut from the monorepo.
 
-## [Unreleased]
+## [0.6.0] - 2026-10-14
 
-Platform pinned to the OSS pricing engine **0.11.0** (from 0.6.0).
+Platform release **v0.6.0**, pinned to the OSS pricing engine **0.11.0**
+(from 0.6.0).
 
 ### Added
 - **FX spot market data** (engine 0.9.0 `pricing.fx.spots[]`): a new
@@ -85,9 +86,14 @@ Platform pinned to the OSS pricing engine **0.11.0** (from 0.6.0).
   documented in the engine's `docs/quantlib-upgrades/1.41-to-1.44.md`. For
   this platform the affected product is **CDS on a bootstrapped credit
   curve** (the orchestrator's helper conventions use `settlement_days: 0`
-  with the `TwentiethIMM` date rule, the documented case: up to ~1.4% of
-  NPV); swaps, swaptions, bonds, equity options and inflation swaps priced
-  through `/v1` are unchanged.
+  with the `TwentiethIMM` date rule, the documented case: the engine's 5Y
+  10m example moves +299.72; a near-par 5Y 10m trade priced through `/v1`
+  moved 4,653.47 -> 4,927.52, +5.9% of its small NPV). Setting
+  `helper_conventions.settlement_days: 1` or `date_generation_rule: CDS` on
+  the credit curve makes the result identical on 0.10.0 and 0.11.0. Swaps,
+  swaptions, bonds and equity options priced through `/v1` are unchanged;
+  an aligned zero-coupon inflation swap moves at the 1e-12 relative noise
+  level.
 
 ## [0.5.0] - 2026-08-03
 

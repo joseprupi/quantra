@@ -12,6 +12,26 @@ Versions 0.2.x and earlier predate this monorepo — they are the
 pre-open-source release history of the portal, kept for reference. 0.3.0 is
 the first release cut from the monorepo.
 
+## [0.6.0] - 2026-10-14
+
+Platform release **v0.6.0**, cut against pricing engine 0.11.0.
+
+### Changed
+- Typed orchestrator client (`orchestrator.d.ts`) regenerated from the
+  v0.6.0 backend (FX spots, FX forwards, FX-implied curve helpers, flow
+  `kind`, nullable swap `fair_rate` / `fair_spread`).
+- **IR swap results:** vanilla fixed / floating leg NPVs are read from the
+  result's `leg_npvs` (by role) instead of `extras`; `fair_rate` /
+  `fair_spread` render a dash when the engine returns none (a zero-annuity
+  leg) instead of failing.
+- **Swaption results:** delta, vega and the greek extras (ATM forward,
+  annuity, DV01, gamma, theta, implied vol) render a dash when the engine
+  returns none for the selected model.
+
+### Removed
+- **IR swap results:** the Fixed Leg BPS / Floating Leg BPS lines. The
+  pricing engine removed the per-leg BPS fields in 0.10.0.
+
 ## [0.5.0] - 2026-08-03
 
 Platform release **v0.5.0**, cut against pricing engine 0.6.0.
