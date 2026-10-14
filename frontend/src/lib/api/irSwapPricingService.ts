@@ -14,18 +14,36 @@ function pickFlows(top: SwapFlow[] | undefined, fromExtras: unknown): SwapFlow[]
   return [];
 }
 
+// A finite number, else `undefined`. Engine >= 0.10 emits `fair_rate` /
+// `fair_spread` as nullable optionals (null when the leg annuity is zero), so
+// every numeric extra is coerced here and the UI renders '—' for it.
+function numOrUndefined(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+}
+
+// Per-leg NPV by role from `leg_npvs` (engine >= 0.10: `[{role:'fixed',npv},
+// {role:'floating',npv}]`); the old `extras.*_leg_npv` keys no longer exist.
+function legNpv(legNpvs: unknown, role: string): number | undefined {
+  if (!Array.isArray(legNpvs)) return undefined;
+  const leg = legNpvs.find(
+    (l): l is Record<string, unknown> =>
+      !!l && typeof l === 'object' && (l as Record<string, unknown>).role === role,
+  );
+  return leg ? numOrUndefined(leg.npv) : undefined;
+}
+
 // Map orchestrator IrSwapResult → legacy SwapResultData shape via extras passthrough.
+// The engine's per-leg `*_bps` fields were removed in engine 0.10.0 and are
+// not mapped.
 export function mapIrSwapOrchResult(r: IrSwapResultSchema): Record<string, unknown> {
   const ex = (r.extras ?? {}) as Record<string, unknown>;
   const rf = r as IrSwapResultWithFlows;
   return {
     npv: r.npv ?? undefined,
-    fair_rate: ex.fair_rate,
-    fair_spread: ex.fair_spread,
-    fixed_leg_bps: ex.fixed_leg_bps,
-    floating_leg_bps: ex.floating_leg_bps,
-    fixed_leg_npv: ex.fixed_leg_npv,
-    floating_leg_npv: ex.floating_leg_npv,
+    fair_rate: numOrUndefined(ex.fair_rate),
+    fair_spread: numOrUndefined(ex.fair_spread),
+    fixed_leg_npv: legNpv(r.leg_npvs, 'fixed'),
+    floating_leg_npv: legNpv(r.leg_npvs, 'floating'),
     fixed_leg_flows: pickFlows(rf.fixed_leg_flows, ex.fixed_leg_flows),
     floating_leg_flows: pickFlows(rf.floating_leg_flows, ex.floating_leg_flows),
     overnight_leg_bps: ex.overnight_leg_bps,

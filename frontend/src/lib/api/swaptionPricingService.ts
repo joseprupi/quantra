@@ -5,20 +5,26 @@ import { mapEnvelopeToErrorInfo } from './errorEnvelope';
 
 type SwaptionResultSchema = components['schemas']['SwaptionResult'];
 
+// A finite number, else `undefined`. Engine >= 0.8 leaves greek fields null
+// / absent when the model computes none, so the UI renders '—' for them.
+function numOrUndefined(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+}
+
 // Map orchestrator SwaptionResult → legacy SwaptionResultData shape.
 // npv, delta, vega are top-level in SwaptionResult; remaining fields come from extras
 export function mapSwaptionOrchResult(r: SwaptionResultSchema): Record<string, unknown> {
   const ex = (r.extras ?? {}) as Record<string, unknown>;
   return {
-    npv:                r.npv   ?? undefined,
-    delta:              r.delta ?? undefined,
-    vega:               r.vega  ?? undefined,
-    implied_volatility: ex.implied_volatility,
-    atm_forward:        ex.atm_forward,
-    annuity:            ex.annuity,
-    dv01:               ex.dv01,
-    gamma:              ex.gamma,
-    theta:              ex.theta,
+    npv:                r.npv ?? undefined,
+    delta:              numOrUndefined(r.delta),
+    vega:               numOrUndefined(r.vega),
+    implied_volatility: numOrUndefined(ex.implied_volatility),
+    atm_forward:        numOrUndefined(ex.atm_forward),
+    annuity:            numOrUndefined(ex.annuity),
+    dv01:               numOrUndefined(ex.dv01),
+    gamma:              numOrUndefined(ex.gamma),
+    theta:              numOrUndefined(ex.theta),
   };
 }
 

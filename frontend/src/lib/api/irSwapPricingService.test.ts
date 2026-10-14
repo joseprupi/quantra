@@ -332,15 +332,11 @@ describe('irSwapPricingService — 6-row unit matrix', () => {
     expect(byRefBody.swap).toBeUndefined();
   });
 
-  // Row 7: mapIrSwapOrchResult — fully populated extras maps all 20+ fields correctly
+  // Row 7: mapIrSwapOrchResult — fully populated extras maps every non-vanilla field through
   it('mapIrSwapOrchResult: fully populated extras maps all fields through', () => {
     const extras = {
       fair_rate: 0.03,
       fair_spread: 0.001,
-      fixed_leg_bps: 150,
-      floating_leg_bps: 120,
-      fixed_leg_npv: 500,
-      floating_leg_npv: -500,
       fixed_leg_flows: [{ date: '2026-06-15', amount: 1000 }],
       floating_leg_flows: [{ date: '2026-06-15', amount: -1000 }],
       overnight_leg_bps: 110,
@@ -366,11 +362,56 @@ describe('irSwapPricingService — 6-row unit matrix', () => {
       used_cms_hagan_hard_upper_limit: 0.5,
     };
 
-    const mapped = mapIrSwapOrchResult({ npv: 99, extras });
+    const mapped = mapIrSwapOrchResult({
+      npv: 99,
+      leg_npvs: [
+        { role: 'fixed', npv: 500 },
+        { role: 'floating', npv: -500 },
+      ],
+      extras,
+    });
 
     expect(mapped.npv).toBe(99);
+    // Vanilla per-leg NPVs come from leg_npvs (engine >= 0.10), not extras.
+    expect(mapped.fixed_leg_npv).toBe(500);
+    expect(mapped.floating_leg_npv).toBe(-500);
     for (const [key, val] of Object.entries(extras)) {
       expect(mapped[key]).toEqual(val);
     }
+  });
+});
+
+describe('mapIrSwapOrchResult — engine >= 0.10 result shape', () => {
+  it('reads per-leg NPVs from leg_npvs by role', () => {
+    const mapped = mapIrSwapOrchResult({
+      npv: 10,
+      leg_npvs: [
+        { role: 'fixed', npv: -120.5 },
+        { role: 'floating', npv: 130.5 },
+      ],
+      extras: { fair_rate: 0.031, fair_spread: -0.0012 },
+    });
+    expect(mapped.fixed_leg_npv).toBe(-120.5);
+    expect(mapped.floating_leg_npv).toBe(130.5);
+    expect(mapped.fair_rate).toBe(0.031);
+    expect(mapped.fair_spread).toBe(-0.0012);
+  });
+
+  it('null fair_rate / fair_spread map to undefined (rendered as a dash)', () => {
+    const mapped = mapIrSwapOrchResult({
+      npv: 10,
+      leg_npvs: [],
+      extras: { fair_rate: null, fair_spread: null },
+    });
+    expect(mapped.fair_rate).toBeUndefined();
+    expect(mapped.fair_spread).toBeUndefined();
+    expect(mapped.fixed_leg_npv).toBeUndefined();
+    expect(mapped.floating_leg_npv).toBeUndefined();
+  });
+
+  it('does not surface the removed per-leg BPS fields', () => {
+    const mapped = mapIrSwapOrchResult({ npv: 1, extras: { fixed_leg_bps: 150 } });
+    expect('fixed_leg_bps' in mapped).toBe(false);
+    expect('floating_leg_bps' in mapped).toBe(false);
   });
 });

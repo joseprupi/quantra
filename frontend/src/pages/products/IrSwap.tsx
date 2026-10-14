@@ -1948,8 +1948,6 @@ export default function IrSwap() {
                 <div className="grid grid-cols-2 gap-3 text-sm text-[#525252]">
                   {swapKind === 'Vanilla' && (
                     <>
-                      <div>Fixed Leg BPS: <span className="font-mono">{formatNumber(result.fixed_leg_bps, 4)}</span></div>
-                      <div>Floating Leg BPS: <span className="font-mono">{formatNumber(result.floating_leg_bps, 4)}</span></div>
                       <div>Fixed Leg NPV: <span className="font-mono">{formatNumber(result.fixed_leg_npv, 2)}</span></div>
                       <div>Floating Leg NPV: <span className="font-mono">{formatNumber(result.floating_leg_npv, 2)}</span></div>
                     </>

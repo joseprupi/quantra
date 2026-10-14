@@ -336,3 +336,26 @@ describe('swaptionPricingService — 7-row unit matrix', () => {
     expect(result.errorInfo?.category).toBe('not_found');
   });
 });
+
+describe('mapSwaptionOrchResult — null greeks (engine >= 0.8)', () => {
+  it('null vega / delta / greek extras map to undefined', () => {
+    const mapped = mapSwaptionOrchResult({
+      npv: 100,
+      delta: null,
+      vega: null,
+      extras: {
+        implied_volatility: 0.2,
+        atm_forward: null,
+        annuity: null,
+        dv01: null,
+        gamma: null,
+        theta: null,
+      },
+    });
+    expect(mapped.npv).toBe(100);
+    expect(mapped.implied_volatility).toBe(0.2);
+    for (const key of ['delta', 'vega', 'atm_forward', 'annuity', 'dv01', 'gamma', 'theta']) {
+      expect(mapped[key]).toBeUndefined();
+    }
+  });
+});

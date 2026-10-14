@@ -296,6 +296,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import engine-format entities (indices / curves / credit curves / vol surfaces / models)
+         * @description Map an engine-format document to Quantra entities and create them.
+         *
+         *     Per-item atomicity (one transaction per entity; a failing item never
+         *     aborts the rest), per-item conflict semantics (``on_conflict``), and
+         *     a full report — see the module docstring for the complete contract.
+         */
+        post: operations["import_document_v1_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/market-data/series": {
         parameters: {
             query?: never;
@@ -736,6 +760,100 @@ export interface paths {
          * @description Returns the version's metadata plus ``payload`` — the full row snapshot after the change (for deletes: the row state at deletion). Diffs between versions are computed client-side.
          */
         get: operations["_get_version_v1_credit_curves__resource_id__versions__version_no__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fx-spots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List fx_spot rows owned by the caller */
+        get: operations["_list_v1_fx_spots_get"];
+        put?: never;
+        /** Create a fx_spot */
+        post: operations["_create_v1_fx_spots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fx-spots/{resource_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch one fx_spot */
+        get: operations["_read_v1_fx_spots__resource_id__get"];
+        put?: never;
+        post?: never;
+        /** Soft-delete a fx_spot */
+        delete: operations["_delete_v1_fx_spots__resource_id__delete"];
+        options?: never;
+        head?: never;
+        /** Partial update of a fx_spot */
+        patch: operations["_patch_v1_fx_spots__resource_id__patch"];
+        trace?: never;
+    };
+    "/v1/fx-spots/{resource_id}:restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore a soft-deleted fx_spot */
+        post: operations["_restore_v1_fx_spots__resource_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fx-spots/{resource_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the version history of a fx_spot
+         * @description Full amendment history of the entity, newest first: who changed it, when, what kind of change (create / amend / delete / restore), and the optional ``X-Change-Reason`` supplied with the write. Snapshots are fetched per version via ``GET .../versions/{version_no}``. Soft-deleted entities still list their history.
+         */
+        get: operations["_list_versions_v1_fx_spots__resource_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fx-spots/{resource_id}/versions/{version_no}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch one version of a fx_spot (with full snapshot)
+         * @description Returns the version's metadata plus ``payload`` — the full row snapshot after the change (for deletes: the row state at deletion). Diffs between versions are computed client-side.
+         */
+        get: operations["_get_version_v1_fx_spots__resource_id__versions__version_no__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1684,6 +1802,100 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/fx-forwards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List fx_forward rows owned by the caller */
+        get: operations["_list_v1_fx_forwards_get"];
+        put?: never;
+        /** Create a fx_forward */
+        post: operations["_create_v1_fx_forwards_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fx-forwards/{resource_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch one fx_forward */
+        get: operations["_read_v1_fx_forwards__resource_id__get"];
+        put?: never;
+        post?: never;
+        /** Soft-delete a fx_forward */
+        delete: operations["_delete_v1_fx_forwards__resource_id__delete"];
+        options?: never;
+        head?: never;
+        /** Partial update of a fx_forward */
+        patch: operations["_patch_v1_fx_forwards__resource_id__patch"];
+        trace?: never;
+    };
+    "/v1/fx-forwards/{resource_id}:restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore a soft-deleted fx_forward */
+        post: operations["_restore_v1_fx_forwards__resource_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fx-forwards/{resource_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the version history of a fx_forward
+         * @description Full amendment history of the entity, newest first: who changed it, when, what kind of change (create / amend / delete / restore), and the optional ``X-Change-Reason`` supplied with the write. Snapshots are fetched per version via ``GET .../versions/{version_no}``. Soft-deleted entities still list their history.
+         */
+        get: operations["_list_versions_v1_fx_forwards__resource_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/fx-forwards/{resource_id}/versions/{version_no}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch one version of a fx_forward (with full snapshot)
+         * @description Returns the version's metadata plus ``payload`` — the full row snapshot after the change (for deletes: the row state at deletion). Diffs between versions are computed client-side.
+         */
+        get: operations["_get_version_v1_fx_forwards__resource_id__versions__version_no__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pricing-history": {
         parameters: {
             query?: never;
@@ -1858,6 +2070,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/price/fx-forward": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Price one FX forward (saved by id or inline).
+         * @description Accepts ``{"fx_forward_id": "...", "as_of": "..."}`` to price a saved ``app.fx_forwards`` row, or an inline ``{"fx_forward": {...}, "curves": [...], "fx_spots": [...], "indices": [...], "as_of": "..."}`` payload. Curves / FX spots / indices are refs into ``app.*`` or inline; every ``quote_id`` (curve points and FX spots) is resolved server-side at ``as_of``. The trade names its spot (``fx_spot``) and one discounting curve per currency (``base_discounting_curve`` / ``quote_discounting_curve``) by resolved id or name; ``reporting_currency`` defaults to the quote currency.
+         */
+        post: operations["price_fx_forward_v1_price_fx_forward_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2009,9 +2241,31 @@ export interface components {
             trade: components["schemas"]["FloatingBondTrade"];
             discount_curve: components["schemas"]["quantra_orchestrator__pricing__bonds__models__ResolvedCurve"];
             projection_curve: components["schemas"]["quantra_orchestrator__pricing__bonds__models__ResolvedCurve"];
-            index: components["schemas"]["ResolvedIndex"];
+            index: components["schemas"]["quantra_orchestrator__pricing__bonds__models__ResolvedIndex"];
             /** Resolved Quotes */
             resolved_quotes?: components["schemas"]["quantra_orchestrator__pricing__bonds__models__ResolvedQuoteValue"][];
+        };
+        /**
+         * AssembledFxForwardRequest
+         * @description The fully resolved request echoed on every response (and in error ``details``).
+         */
+        AssembledFxForwardRequest: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Snapshot Id */
+            snapshot_id?: string | null;
+            trade: components["schemas"]["FxForwardTrade"];
+            /** Curves */
+            curves?: components["schemas"]["quantra_orchestrator__pricing__swap_ir__models__ResolvedCurve"][];
+            /** Fx Spots */
+            fx_spots?: components["schemas"]["ResolvedFxSpot"][];
+            /** Indices */
+            indices?: components["schemas"]["quantra_orchestrator__pricing__swap_ir__models__ResolvedIndex"][];
+            /** Resolved Quotes */
+            resolved_quotes?: components["schemas"]["quantra_orchestrator__pricing__swap_ir__models__ResolvedQuoteValue"][];
         };
         /**
          * AssembledInflationSwapRequest
@@ -2890,6 +3144,20 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** ErrorItemOut */
+        ErrorItemOut: {
+            /** Entity Type */
+            entity_type: string;
+            /** Source Id */
+            source_id: string;
+            /**
+             * Path
+             * @description Document location, e.g. ``pricing.rates.curves[0]``.
+             */
+            path: string;
+            /** Reason */
+            reason: string;
+        };
         /**
          * FixedBondPriceRequest
          * @description Endpoint input for ``POST /v1/price/bonds/fixed``.
@@ -3111,6 +3379,220 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * FxForwardPriceRequest
+         * @description Endpoint input: by reference (``fx_forward_id``) or fully inline (``fx_forward``).
+         */
+        FxForwardPriceRequest: {
+            /**
+             * Fx Forward Id
+             * @description ID of an ``app.fx_forwards`` row owned by the caller.
+             */
+            fx_forward_id?: string | null;
+            /**
+             * Fx Forward
+             * @description Inline trade body (see the module docstring for the keys).
+             */
+            fx_forward?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Curves
+             * @description Curves (ref into ``app.curves`` or inline). Required inline; overrides the saved ``pricing.curves`` by reference.
+             */
+            curves?: components["schemas"]["quantra_orchestrator__pricing__swap_ir__models__CurveRef"][] | null;
+            /**
+             * Fx Spots
+             * @description FX spots (ref into ``app.fx_spots`` or inline). Required inline; overrides the saved ``pricing.fx_spots`` by reference.
+             */
+            fx_spots?: components["schemas"]["FxSpotRef"][] | null;
+            /**
+             * Indices
+             * @description Indices the curve helpers reference (ref into ``app.indices`` or inline). Registered verbatim in the engine request; optional (known overnight / IBOR ids resolve from the catalog).
+             */
+            indices?: components["schemas"]["quantra_orchestrator__pricing__fx_forward__models__IndexRef"][] | null;
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Snapshot Id */
+            snapshot_id?: string | null;
+        };
+        /** FxForwardPriceResponse */
+        FxForwardPriceResponse: {
+            /** Pricing History Id */
+            pricing_history_id?: string | null;
+            assembled_request: components["schemas"]["AssembledFxForwardRequest"];
+            result: components["schemas"]["FxForwardResult"];
+        };
+        /**
+         * FxForwardResult
+         * @description Engine ``FxForwardResponse`` decoded for one trade.
+         *
+         *     Every numeric field is a computed value (the engine reports ``0.0`` only
+         *     as a genuine zero — ``docs/http-api.md`` § "FX forward" / Response); the
+         *     two dates are the engine-resolved spot date and adjusted maturity.
+         *     ``reporting_currency`` labels ``npv`` (the request's choice, echoed).
+         */
+        FxForwardResult: {
+            /** Npv */
+            npv: number;
+            /** Reporting Currency */
+            reporting_currency: string;
+            /** Fair Forward Rate */
+            fair_forward_rate: number;
+            /** Forward Points */
+            forward_points: number;
+            /** Base Leg Pv */
+            base_leg_pv: number;
+            /** Quote Leg Pv */
+            quote_leg_pv: number;
+            /** Fx Spot Used */
+            fx_spot_used: number;
+            /** Spot Date */
+            spot_date?: string | null;
+            /** Maturity Date */
+            maturity_date?: string | null;
+        };
+        /**
+         * FxForwardTrade
+         * @description One FX forward flowing through the concurrency seam.
+         */
+        FxForwardTrade: {
+            /** Fx Forward Id */
+            fx_forward_id?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Fx Forward */
+            fx_forward?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * FxSpotCreate
+         * @description An FX spot (engine ``FxSpotSpec``): pair, rate XOR MD quote ref, lag, calendars.
+         *
+         *     ``rate`` is the market spot (quote units per base unit, delivery on the
+         *     spot date); ``quote_id`` is the MD canonical id resolved server-side at
+         *     pricing time (the ECB reference-rate ingest writes
+         *     ``EUR.FX.ECB.<PAIR>.1D.SPOT``, e.g. ``EUR.FX.ECB.EURUSD.1D.SPOT``).
+         *     Exactly one of the two. ``spot_days`` / ``settlement_calendars`` /
+         *     ``business_day_convention`` are the pair's own conventions — the engine
+         *     keeps no convention table, so they are required here too.
+         */
+        FxSpotCreate: {
+            /** Name */
+            name: string;
+            /** Base Currency */
+            base_currency: string;
+            /** Quote Currency */
+            quote_currency: string;
+            /** Rate */
+            rate?: number | null;
+            /** Quote Id */
+            quote_id?: string | null;
+            /** Spot Days */
+            spot_days: number;
+            /** Settlement Calendars */
+            settlement_calendars: string[];
+            /** Business Day Convention */
+            business_day_convention: string;
+            /** Body */
+            body?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * FxSpotRef
+         * @description An ``app.fx_spots`` reference *or* a fully inline FX spot definition.
+         */
+        FxSpotRef: {
+            /**
+             * Id
+             * @description Soft reference into ``app.fx_spots``; inline fields ignored when set.
+             */
+            id?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Base Currency */
+            base_currency?: string | null;
+            /** Quote Currency */
+            quote_currency?: string | null;
+            /** Rate */
+            rate?: number | null;
+            /** Quote Id */
+            quote_id?: string | null;
+            /** Spot Days */
+            spot_days?: number | null;
+            /** Settlement Calendars */
+            settlement_calendars?: string[] | null;
+            /** Business Day Convention */
+            business_day_convention?: string | null;
+        };
+        /** FxSpotResponse */
+        FxSpotResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Deleted At */
+            deleted_at?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Base Currency */
+            base_currency: string;
+            /** Quote Currency */
+            quote_currency: string;
+            /** Rate */
+            rate: number | null;
+            /** Quote Id */
+            quote_id: string | null;
+            /** Spot Days */
+            spot_days: number;
+            /** Settlement Calendars */
+            settlement_calendars: string[];
+            /** Business Day Convention */
+            business_day_convention: string;
+            /** Body */
+            body: {
+                [key: string]: unknown;
+            };
+        };
+        /** FxSpotUpdate */
+        FxSpotUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Base Currency */
+            base_currency?: string | null;
+            /** Quote Currency */
+            quote_currency?: string | null;
+            /** Rate */
+            rate?: number | null;
+            /** Quote Id */
+            quote_id?: string | null;
+            /** Spot Days */
+            spot_days?: number | null;
+            /** Settlement Calendars */
+            settlement_calendars?: string[] | null;
+            /** Business Day Convention */
+            business_day_convention?: string | null;
+            /** Body */
+            body?: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -3167,6 +3649,55 @@ export interface components {
             include_weekends: boolean;
         };
         /**
+         * ImportRequest
+         * @description The ``POST /v1/import`` body.
+         */
+        ImportRequest: {
+            /**
+             * Document
+             * @description Engine-format JSON document: a full ``/price-*`` request, a bare ``pricing`` object, or a fragment carrying any of ``curves`` / ``indices`` / ``credit_curves`` / ``vol_surfaces`` / ``models``. Both nested (``pricing.rates.curves``) and legacy flat (``pricing.curves``) layouts are accepted.
+             */
+            document: {
+                [key: string]: unknown;
+            };
+            /**
+             * Dry Run
+             * @description When true: run mapping + translator validation + the name-conflict precheck and report the outcome, but write NOTHING. Imported entries carry ``id: null``.
+             * @default false
+             */
+            dry_run: boolean;
+            /**
+             * On Conflict
+             * @description Per-item behavior when a live entity with the same name already exists: ``error`` reports it in ``errors``; ``skip`` reports it in ``skipped``. Existing entities are NEVER overwritten.
+             * @default error
+             * @enum {string}
+             */
+            on_conflict: "error" | "skip";
+        };
+        /**
+         * ImportResponse
+         * @description The per-item import report (HTTP 200 even when items fail).
+         */
+        ImportResponse: {
+            /**
+             * Ok
+             * @description True iff ``errors`` is empty.
+             */
+            ok: boolean;
+            /** Dry Run */
+            dry_run: boolean;
+            /** Imported */
+            imported: components["schemas"]["ImportedItemOut"][];
+            /** Skipped */
+            skipped: components["schemas"]["SkippedItemOut"][];
+            /** Errors */
+            errors: components["schemas"]["ErrorItemOut"][];
+            /** Warnings */
+            warnings: components["schemas"]["WarningItemOut"][];
+            /** Unsupported */
+            unsupported: components["schemas"]["UnsupportedItemOut"][];
+        };
+        /**
          * ImportRowErrorOut
          * @description One soft, per-row failure surfaced in the report body.
          */
@@ -3181,6 +3712,26 @@ export interface components {
              * @description Human-readable reason the row was skipped.
              */
             reason: string;
+        };
+        /** ImportedItemOut */
+        ImportedItemOut: {
+            /** Entity Type */
+            entity_type: string;
+            /**
+             * Source Id
+             * @description The engine-side ``id`` the entity came from.
+             */
+            source_id: string;
+            /**
+             * Name
+             * @description The Quantra entity name (== the engine id).
+             */
+            name: string;
+            /**
+             * Id
+             * @description Created row UUID; null on dry_run.
+             */
+            id?: string | null;
         };
         /** IndexCreate */
         IndexCreate: {
@@ -3490,9 +4041,12 @@ export interface components {
          * IrSwapResult
          * @description Engine response for one IR swap, decoded from FlatBuffers.
          *
-         *     Carries the headline NPV / per-leg NPVs / extras (fair rate, etc.) plus
-         *     the per-period cashflows for each leg (``fixed_leg_flows`` /
-         *     ``floating_leg_flows``). The engine already supports detailed flows behind
+         *     Carries the headline NPV / per-leg NPVs (``legs[0]`` fixed, ``legs[1]``
+         *     floating on engine >= 0.10.0) / extras (``fair_rate`` / ``fair_spread``,
+         *     each ``None`` when the engine omits it) plus the per-period cashflows for
+         *     each leg (``fixed_leg_flows`` / ``floating_leg_flows``). The engine's
+         *     per-leg ``*_bps`` fields were removed in 0.10.0 and are no longer
+         *     surfaced. The engine already supports detailed flows behind
          *     the request's ``include_flows`` bool; the orchestrator now requests and
          *     decodes them. The inner ``leg_npvs`` / ``extras`` fields stay
          *     deliberately loose because the engine's wire shape is still in flux
@@ -3565,6 +4119,12 @@ export interface components {
         ListPage_CurveSetResponse: {
             /** Items */
             items?: components["schemas"]["CurveSetResponse"][];
+            page: components["schemas"]["PageMeta"];
+        };
+        /** ListPage_FxSpotResponse */
+        ListPage_FxSpotResponse: {
+            /** Items */
+            items?: components["schemas"]["FxSpotResponse"][];
             page: components["schemas"]["PageMeta"];
         };
         /** ListPage_IndexResponse */
@@ -3883,37 +4443,34 @@ export interface components {
             };
         };
         /**
-         * ResolvedIndex
-         * @description A floating-rate index after ref/inline collapsing.
-         *
-         *     Not MD-resolved — the body is pure config (calendar, fixing days,
-         *     day counter, period / time unit). Kept as a typed shape so the
-         *     assembled-request echo on engine failures carries which
-         *     index the orchestrator would have asked the engine to bootstrap.
+         * ResolvedFxSpot
+         * @description An FX spot after ref/inline collapsing (the translator's ``FxSpotSpec`` input).
          */
-        ResolvedIndex: {
-            /**
-             * Id
-             * @description The originating ``app.indices`` row when the index came from a ref. ``None`` for inline-only definitions.
-             */
+        ResolvedFxSpot: {
+            /** Id */
             id?: string | null;
             /** Name */
             name: string;
+            /** Base Currency */
+            base_currency: string;
+            /** Quote Currency */
+            quote_currency: string;
+            /** Rate */
+            rate?: number | null;
+            /** Quote Id */
+            quote_id?: string | null;
             /**
-             * Kind
-             * @description Mirrors ``app.indices.kind`` (``IborIndex`` / ``OvernightIndex`` / …).
+             * Spot Days
+             * @default 0
              */
-            kind: string;
-            /** Currency */
-            currency?: string | null;
-            /** Calendar */
-            calendar?: string | null;
-            /** Day Counter */
-            day_counter?: string | null;
-            /** Body */
-            body?: {
-                [key: string]: unknown;
-            };
+            spot_days: number;
+            /** Settlement Calendars */
+            settlement_calendars?: string[];
+            /**
+             * Business Day Convention
+             * @default
+             */
+            business_day_convention: string;
         };
         /**
          * ResolvedInflationIndex
@@ -4135,6 +4692,20 @@ export interface components {
             /** Description */
             description?: string | null;
         };
+        /** SkippedItemOut */
+        SkippedItemOut: {
+            /** Entity Type */
+            entity_type: string;
+            /** Source Id */
+            source_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Reason
+             * @description Why the item was skipped (``name_conflict``).
+             */
+            reason: string;
+        };
         /** SnapshotCreate */
         SnapshotCreate: {
             /** Name */
@@ -4301,6 +4872,8 @@ export interface components {
              * @default 0
              */
             rate: number;
+            /** Kind */
+            kind?: string | null;
         };
         /** SwaptionModelCreate */
         SwaptionModelCreate: {
@@ -4556,6 +5129,17 @@ export interface components {
             /** Stages */
             stages?: components["schemas"]["TraceStage"][];
         };
+        /** UnsupportedItemOut */
+        UnsupportedItemOut: {
+            /** Section */
+            section: string;
+            /** Source Id */
+            source_id: string;
+            /** Path */
+            path: string;
+            /** Reason */
+            reason: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -4714,6 +5298,15 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** WarningItemOut */
+        WarningItemOut: {
+            /** Entity Type */
+            entity_type: string;
+            /** Source Id */
+            source_id: string;
+            /** Message */
+            message: string;
+        };
         /**
          * WhoamiResponse
          * @description Auth-debug payload returned by ``GET /auth/whoami``.
@@ -4849,6 +5442,39 @@ export interface components {
             points?: {
                 [key: string]: unknown;
             }[];
+            /** Body */
+            body?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * ResolvedIndex
+         * @description A floating-rate index after ref/inline collapsing.
+         *
+         *     Not MD-resolved — the body is pure config (calendar, fixing days,
+         *     day counter, period / time unit). Kept as a typed shape so the
+         *     assembled-request echo on engine failures carries which
+         *     index the orchestrator would have asked the engine to bootstrap.
+         */
+        quantra_orchestrator__pricing__bonds__models__ResolvedIndex: {
+            /**
+             * Id
+             * @description The originating ``app.indices`` row when the index came from a ref. ``None`` for inline-only definitions.
+             */
+            id?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @description Mirrors ``app.indices.kind`` (``IborIndex`` / ``OvernightIndex`` / …).
+             */
+            kind: string;
+            /** Currency */
+            currency?: string | null;
+            /** Calendar */
+            calendar?: string | null;
+            /** Day Counter */
+            day_counter?: string | null;
             /** Body */
             body?: {
                 [key: string]: unknown;
@@ -5128,6 +5754,28 @@ export interface components {
             } | null;
         };
         /**
+         * IndexRef
+         * @description An ``app.indices`` reference *or* an inline index (same body as ``app.indices``).
+         */
+        quantra_orchestrator__pricing__fx_forward__models__IndexRef: {
+            /** Id */
+            id?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Kind */
+            kind?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Calendar */
+            calendar?: string | null;
+            /** Day Counter */
+            day_counter?: string | null;
+            /** Body */
+            body?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
          * CurveRef
          * @description A curve reference *or* a fully inline curve definition.
          *
@@ -5192,6 +5840,36 @@ export interface components {
             points?: {
                 [key: string]: unknown;
             }[];
+            /** Body */
+            body?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * ResolvedIndex
+         * @description The swap's float-leg index after ref/inline collapsing.
+         *
+         *     An internal intermediate (not a request/response model): the assembler
+         *     projects the inline forwarding-index body the saved-swap pricing block
+         *     carries into this shape so the translator can build a faithful ``IndexDef``
+         *     , replacing the interim hardcoded Euribor-6M placeholder. Not
+         *     MD-resolved — the body is pure config (tenor / fixing days / calendar /
+         *     day counter). Mirrors the bonds-side shape (duplication intentional + temporary,
+         *     per the product plan; a shared ``pricing/_resolved`` lands later).
+         */
+        quantra_orchestrator__pricing__swap_ir__models__ResolvedIndex: {
+            /** Id */
+            id?: string | null;
+            /** Name */
+            name: string;
+            /** Kind */
+            kind: string;
+            /** Currency */
+            currency?: string | null;
+            /** Calendar */
+            calendar?: string | null;
+            /** Day Counter */
+            day_counter?: string | null;
             /** Body */
             body?: {
                 [key: string]: unknown;
@@ -6204,6 +6882,65 @@ export interface operations {
                 };
             };
             /** @description Market-data write storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    import_document_v1_import_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional audit-trail reason recorded on every created entity's version row; defaults to ``imported via /v1/import``. */
+                "X-Change-Reason"?: string | null;
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResponse"];
+                };
+            };
+            /** @description Unparseable or empty document. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -8236,6 +8973,460 @@ export interface operations {
         };
     };
     _get_version_v1_credit_curves__resource_id__versions__version_no__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path: {
+                resource_id: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityVersionDetail"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found / not owned / no such version. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _list_v1_fx_spots_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListPage_FxSpotResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _create_v1_fx_spots_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional human-readable reason for this change. Recorded immutably in the entity's audit trail (see ``GET .../{resource_id}/versions``). */
+                "X-Change-Reason"?: string | null;
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FxSpotCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FxSpotResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _read_v1_fx_spots__resource_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FxSpotResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found / not owned / soft-deleted. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _delete_v1_fx_spots__resource_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional human-readable reason for this change. Recorded immutably in the entity's audit trail (see ``GET .../{resource_id}/versions``). */
+                "X-Change-Reason"?: string | null;
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found / not owned. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _patch_v1_fx_spots__resource_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional human-readable reason for this change. Recorded immutably in the entity's audit trail (see ``GET .../{resource_id}/versions``). */
+                "X-Change-Reason"?: string | null;
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FxSpotUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FxSpotResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found / not owned / soft-deleted. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Name conflict with a live row owned by the caller. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _restore_v1_fx_spots__resource_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional human-readable reason for this change. Recorded immutably in the entity's audit trail (see ``GET .../{resource_id}/versions``). */
+                "X-Change-Reason"?: string | null;
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FxSpotResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found / not owned. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Name conflict with a live row owned by the caller. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _list_versions_v1_fx_spots__resource_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityVersionList"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found / not owned. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _get_version_v1_fx_spots__resource_id__versions__version_no__get: {
         parameters: {
             query?: never;
             header?: {
@@ -12831,6 +14022,460 @@ export interface operations {
             };
         };
     };
+    _list_v1_fx_forwards_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListPage_ProductResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _create_v1_fx_forwards_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional human-readable reason for this change. Recorded immutably in the entity's audit trail (see ``GET .../{resource_id}/versions``). */
+                "X-Change-Reason"?: string | null;
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _read_v1_fx_forwards__resource_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found / not owned / soft-deleted. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _delete_v1_fx_forwards__resource_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional human-readable reason for this change. Recorded immutably in the entity's audit trail (see ``GET .../{resource_id}/versions``). */
+                "X-Change-Reason"?: string | null;
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found / not owned. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _patch_v1_fx_forwards__resource_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional human-readable reason for this change. Recorded immutably in the entity's audit trail (see ``GET .../{resource_id}/versions``). */
+                "X-Change-Reason"?: string | null;
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found / not owned / soft-deleted. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Name conflict with a live row owned by the caller. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _restore_v1_fx_forwards__resource_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional human-readable reason for this change. Recorded immutably in the entity's audit trail (see ``GET .../{resource_id}/versions``). */
+                "X-Change-Reason"?: string | null;
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductResponse"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found / not owned. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Name conflict with a live row owned by the caller. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _list_versions_v1_fx_forwards__resource_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityVersionList"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found / not owned. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    _get_version_v1_fx_forwards__resource_id__versions__version_no__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path: {
+                resource_id: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityVersionDetail"];
+                };
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found / not owned / no such version. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Persistent storage is not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     _list_v1_pricing_history_get: {
         parameters: {
             query?: {
@@ -13452,6 +15097,82 @@ export interface operations {
                 content?: never;
             };
             /** @description Persistent storage, MD client, or engine client not configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Engine timed out. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    price_fx_forward_v1_price_fx_forward_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "X-API-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FxForwardPriceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FxForwardPriceResponse"];
+                };
+            };
+            /** @description Engine rejected the request as invalid. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description ``fx_forward_id`` / ``snapshot_id`` not visible to the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Curve / FX-spot / index / quote resolution or trade-field failure. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Engine or MD service unreachable / returned an error. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Storage, MD client, or engine client not configured. */
             503: {
                 headers: {
                     [name: string]: unknown;
